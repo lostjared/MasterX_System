@@ -1,7 +1,6 @@
 # MasterX System
 
-![image](https://github.com/user-attachments/assets/543d7838-f45d-405e-99db-50a35a78f586)
-
+![image](https://github.com/user-attachments/assets/6bd998c9-5779-4ed4-a873-6cdd28fcdbb8)
 
 MasterX System is a custom-built compiler designed for Linux, accompanied by a virtual playground for testing and exploration. This is my hobby project and its in its infant stage. Your compiler must support at least C++20.
 
