@@ -1,0 +1,69 @@
+etl program string.e
+ETL: Scanned 157 tokens.
+ETL: parsing ...  [complete]
+ETL: IR code: {
+	DEFINE scan_integer
+	DEFINE len
+	DEF_PARAM_STRING value
+	DEFINE str
+	DEF_PARAM value
+	DEFINE exit
+	DEF_PARAM code
+	DEFINE puts
+	DEF_PARAM_STRING output
+	DEFINE srand
+	DEF_PARAM seed
+	DEFINE time
+	DEF_PARAM value
+	DEFINE strlen
+	DEF_PARAM_STRING value
+	DEFINE strcmp
+	DEF_PARAM_STRING value1
+	DEF_PARAM_STRING value2
+	DEFINE at
+	DEF_PARAM_STRING value
+	DEF_PARAM index
+	LABEL format
+	PARAM_STRING hello
+	PARAM x
+	PARAM y
+	LOAD_VAR t0 hello
+	LOAD_CONST t1 ": "
+	CONCAT t2 t0 t1
+	LOAD_VAR t3 x
+	CALL t4 str t3
+	CONCAT t5 t2 t4
+	LOAD_CONST t6 "+"
+	CONCAT t7 t5 t6
+	LOAD_VAR t8 y
+	CALL t9 str t8
+	CONCAT t10 t7 t9
+	LOAD_CONST t11 "="
+	CONCAT t12 t10 t11
+	LOAD_VAR t13 x
+	LOAD_VAR t14 y
+	ADD t15 t13 t14
+	CALL t16 str t15
+	CONCAT t17 t12 t16
+	RETURN t17
+	LABEL init
+	LOAD_CONST x 25
+	LOAD_CONST y 25
+	LOAD_CONST t18 "Hey two numers: "
+	LOAD_VAR t19 x
+	LOAD_VAR t20 y
+	CALL t21 format t18 t19 t20
+	CALL t22 puts t21
+	LOAD_CONST s "Jared Says: "
+	LOAD_VAR t23 s
+	LOAD_CONST t24 10
+	LOAD_CONST t25 10
+	CALL t26 format t23 t24 t25
+	CALL t27 puts t26
+	LOAD_CONST t28 0
+	RETURN t28
+}
+ETL: compiled [string.s]
+Assembled string.s to string.o
+Linked [string.o] with flags []
+Executable: [program]

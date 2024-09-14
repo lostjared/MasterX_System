@@ -1,0 +1,55 @@
+etl program loop.e
+ETL: Scanned 130 tokens.
+ETL: parsing ...  [complete]
+ETL: IR code: {
+	DEFINE scan_integer
+	DEFINE len
+	DEF_PARAM_STRING value
+	DEFINE str
+	DEF_PARAM value
+	DEFINE exit
+	DEF_PARAM code
+	DEFINE puts
+	DEF_PARAM_STRING output
+	DEFINE srand
+	DEF_PARAM seed
+	DEFINE time
+	DEF_PARAM value
+	DEFINE strlen
+	DEF_PARAM_STRING value
+	DEFINE strcmp
+	DEF_PARAM_STRING value1
+	DEF_PARAM_STRING value2
+	DEFINE at
+	DEF_PARAM_STRING value
+	DEF_PARAM index
+	LABEL init
+	LOAD_CONST x "Hello, World"
+	LOAD_CONST i 0
+	LOAD_VAR t0 x
+	CALL t1 strlen t0
+	ASSIGN length t1
+	SUB_LABEL while_start_2
+	LOAD_VAR t3 i
+	LT t4 t3 length
+	JUMP while_end_2 t4 0
+	LOAD_VAR t5 x
+	LOAD_VAR t6 i
+	CALL t7 at t5 t6
+	ASSIGN value t7
+	LOAD_CONST t8 "Letter is: %c at index: %d\n"
+	LOAD_VAR t9 i
+	CALL t10 printf t8 value t9
+	LOAD_VAR t11 i
+	LOAD_CONST t12 1
+	ADD t13 t11 t12
+	SET i t13
+	JUMP while_start_2
+	SUB_LABEL while_end_2
+	LOAD_CONST t14 0
+	RETURN t14
+}
+ETL: compiled [loop.s]
+Assembled loop.s to loop.o
+Linked [loop.o] with flags []
+Executable: [program]

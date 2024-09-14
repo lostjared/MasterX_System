@@ -1,0 +1,153 @@
+etl program mem.e
+ETL: Scanned 363 tokens.
+ETL: parsing ...  [complete]
+ETL: IR code: {
+	DEFINE scan_integer
+	DEFINE len
+	DEF_PARAM_STRING value
+	DEFINE str
+	DEF_PARAM value
+	DEFINE exit
+	DEF_PARAM code
+	DEFINE puts
+	DEF_PARAM_STRING output
+	DEFINE srand
+	DEF_PARAM seed
+	DEFINE rand
+	DEFINE time
+	DEF_PARAM value
+	DEFINE strlen
+	DEF_PARAM_STRING value
+	DEFINE strcmp
+	DEF_PARAM_STRING value1
+	DEF_PARAM_STRING value2
+	DEFINE at
+	DEF_PARAM_STRING value
+	DEF_PARAM index
+	DEFINE malloc
+	DEF_PARAM bytes
+	DEFINE calloc
+	DEF_PARAM bytes
+	DEF_PARAM size
+	DEFINE free
+	DEF_PARAM_POINTER memory
+	DEFINE mematl
+	DEF_PARAM_POINTER memory
+	DEF_PARAM index
+	DEFINE mematb
+	DEF_PARAM_POINTER memory
+	DEF_PARAM index
+	DEFINE memclr
+	DEF_PARAM_POINTER memory
+	DEF_PARAM size
+	DEFINE memstorel
+	DEF_PARAM_POINTER memory
+	DEF_PARAM index
+	DEF_PARAM value
+	DEFINE memstoreb
+	DEF_PARAM_POINTER memory
+	DEF_PARAM index
+	DEF_PARAM value
+	LABEL allocate_array
+	PARAM size
+	LOAD_VAR t0 size
+	LOAD_CONST t1 1
+	ADD t2 t0 t1
+	CALL t3 malloc t2
+	ASSIGN x t3
+	LOAD_VAR t4 size
+	CALL t5 memclr x t4
+	RETURN x
+	LABEL echo_array
+	PARAM_POINTER array
+	PARAM w
+	PARAM h
+	LOAD_CONST x 0
+	SUB_LABEL for_start_6
+	LOAD_VAR t8 w
+	LT t9 x t8
+	JUMP for_end_6 t9 0
+	LOAD_CONST y 0
+	SUB_LABEL for_start_10
+	LOAD_VAR t12 y
+	LOAD_VAR t13 h
+	LT t14 t12 t13
+	JUMP for_end_10 t14 0
+	LOAD_CONST t15 "value at (%d,%d) -> %d\n"
+	LOAD_VAR t16 y
+	LOAD_VAR t17 array
+	LOAD_VAR t18 w
+	MUL t19 x t18
+	LOAD_VAR t20 y
+	ADD t21 t19 t20
+	CALL t22 mematl t17 t21
+	CALL t23 printf t15 x t16 t22
+	SUB_LABEL for_post_11
+	LOAD_VAR t24 y
+	LOAD_CONST t25 1
+	ADD t26 t24 t25
+	SET y t26
+	JUMP for_start_10
+	SUB_LABEL for_end_10
+	SUB_LABEL for_post_7
+	LOAD_CONST t27 1
+	ADD t28 x t27
+	SET x t28
+	JUMP for_start_6
+	SUB_LABEL for_end_6
+	LOAD_CONST t29 0
+	RETURN t29
+	LABEL init
+	LOAD_CONST w 12
+	LOAD_CONST h 12
+	LOAD_VAR t30 w
+	LOAD_VAR t31 h
+	MUL t32 t30 t31
+	LOAD_CONST t33 8
+	MUL t34 t32 t33
+	CALL t35 allocate_array t34
+	ASSIGN array t35
+	LOAD_CONST t36 0
+	CALL t37 time t36
+	CALL t38 srand t37
+	LOAD_CONST x 0
+	SUB_LABEL for_start_39
+	LOAD_VAR t41 w
+	LT t42 x t41
+	JUMP for_end_39 t42 0
+	LOAD_CONST y 0
+	SUB_LABEL for_start_43
+	LOAD_VAR t45 h
+	LT t46 y t45
+	JUMP for_end_43 t46 0
+	LOAD_VAR t47 w
+	MUL t48 x t47
+	ADD t49 t48 y
+	ASSIGN index t49
+	CALL t50 rand
+	LOAD_CONST t51 255
+	MOD t52 t50 t51
+	CALL t53 memstorel array index t52
+	SUB_LABEL for_post_44
+	LOAD_CONST t54 1
+	ADD t55 y t54
+	SET y t55
+	JUMP for_start_43
+	SUB_LABEL for_end_43
+	SUB_LABEL for_post_40
+	LOAD_CONST t56 1
+	ADD t57 x t56
+	SET x t57
+	JUMP for_start_39
+	SUB_LABEL for_end_39
+	LOAD_VAR t58 w
+	LOAD_VAR t59 h
+	CALL t60 echo_array array t58 t59
+	CALL t61 free array
+	LOAD_CONST t62 0
+	RETURN t62
+}
+ETL: compiled [mem.s]
+Assembled mem.s to mem.o
+Linked [mem.o] with flags []
+Executable: [program]

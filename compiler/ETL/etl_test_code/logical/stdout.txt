@@ -1,0 +1,81 @@
+etl program l.e
+ETL: Scanned 156 tokens.
+ETL: parsing ...  [complete]
+ETL: IR code: {
+	DEFINE scan_integer
+	DEFINE len
+	DEF_PARAM_STRING value
+	DEFINE str
+	DEF_PARAM value
+	DEFINE exit
+	DEF_PARAM code
+	DEFINE puts
+	DEF_PARAM_STRING output
+	DEFINE srand
+	DEF_PARAM seed
+	DEFINE time
+	DEF_PARAM value
+	DEFINE strlen
+	DEF_PARAM_STRING value
+	DEFINE strcmp
+	DEF_PARAM_STRING value1
+	DEF_PARAM_STRING value2
+	DEFINE at
+	DEF_PARAM_STRING value
+	DEF_PARAM index
+	LABEL init
+	LOAD_CONST x 2
+	LOAD_CONST y 4
+	LOAD_VAR t0 x
+	LOAD_CONST t1 2
+	EQ t2 t0 t1
+	LOAD_VAR t3 y
+	LOAD_CONST t4 4
+	EQ t5 t3 t4
+	LOGICAL_AND t6 t2 t5
+	JUMP sublabel_else_7 t6 0
+	SUB_LABEL sublabel_if_7
+	LOAD_CONST t8 "Yup\n"
+	CALL t9 printf t8
+	JUMP sublabel_end_7
+	SUB_LABEL sublabel_else_7
+	LOAD_CONST t10 "Nope"
+	CALL t11 printf t10
+	SUB_LABEL sublabel_end_7
+	SUB_LABEL while_start_12
+	LOAD_VAR t13 x
+	LOAD_CONST t14 10
+	LE t15 t13 t14
+	LOAD_VAR t16 y
+	LOAD_CONST t17 4
+	EQ t18 t16 t17
+	LOGICAL_AND t19 t15 t18
+	JUMP while_end_12 t19 0
+	LOAD_CONST t20 "%d\n"
+	LOAD_VAR t21 x
+	CALL t22 printf t20 t21
+	LOAD_VAR t23 x
+	LOAD_CONST t24 1
+	ADD t25 t23 t24
+	SET x t25
+	JUMP while_start_12
+	SUB_LABEL while_end_12
+	LOAD_CONST t26 11
+	LT t27 x t26
+	LOAD_CONST t28 11
+	EQ t29 x t28
+	LOGICAL_OR t30 t27 t29
+	JUMP sublabel_else_31 t30 0
+	SUB_LABEL sublabel_if_31
+	LOAD_CONST t32 "true\n"
+	CALL t33 printf t32
+	JUMP sublabel_end_31
+	SUB_LABEL sublabel_else_31
+	SUB_LABEL sublabel_end_31
+	LOAD_CONST t34 0
+	RETURN t34
+}
+ETL: compiled [l.s]
+Assembled l.s to l.o
+Linked [l.o] with flags []
+Executable: [program]

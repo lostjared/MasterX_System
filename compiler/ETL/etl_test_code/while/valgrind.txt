@@ -1,0 +1,26 @@
+==1632== Memcheck, a memory error detector
+==1632== Copyright (C) 2002-2024, and GNU GPL'd, by Julian Seward et al.
+==1632== Using Valgrind-3.23.0 and LibVEX; rerun with -h for copyright info
+==1632== Command: ./program
+==1632== 
+Letter is: H at index: 0
+Letter is: e at index: 1
+Letter is: l at index: 2
+Letter is: l at index: 3
+Letter is: o at index: 4
+Letter is: , at index: 5
+Letter is:   at index: 6
+Letter is: W at index: 7
+Letter is: o at index: 8
+Letter is: r at index: 9
+Letter is: l at index: 10
+Letter is: d at index: 11
+==1632== 
+==1632== HEAP SUMMARY:
+==1632==     in use at exit: 0 bytes in 0 blocks
+==1632==   total heap usage: 1 allocs, 1 frees, 4,096 bytes allocated
+==1632== 
+==1632== All heap blocks were freed -- no leaks are possible
+==1632== 
+==1632== For lists of detected and suppressed errors, rerun with: -s
+==1632== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

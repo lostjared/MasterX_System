@@ -1,0 +1,55 @@
+etl program string.e
+ETL: Scanned 123 tokens.
+ETL: parsing ...  [complete]
+ETL: IR code: {
+	DEFINE scan_integer
+	DEFINE len
+	DEF_PARAM_STRING value
+	DEFINE str
+	DEF_PARAM value
+	DEFINE exit
+	DEF_PARAM code
+	DEFINE puts
+	DEF_PARAM_STRING output
+	DEFINE srand
+	DEF_PARAM seed
+	DEFINE time
+	DEF_PARAM value
+	DEFINE strlen
+	DEF_PARAM_STRING value
+	DEFINE strcmp
+	DEF_PARAM_STRING value1
+	DEF_PARAM_STRING value2
+	DEFINE at
+	DEF_PARAM_STRING value
+	DEF_PARAM index
+	LABEL init
+	LOAD_CONST x 200
+	LOAD_CONST y 300
+	LOAD_VAR t0 x
+	CALL t1 str t0
+	LOAD_CONST t2 "+"
+	CONCAT t3 t1 t2
+	LOAD_VAR t4 y
+	CALL t5 str t4
+	CONCAT t6 t3 t5
+	LOAD_CONST t7 "="
+	CONCAT t8 t6 t7
+	LOAD_VAR t9 x
+	LOAD_VAR t10 y
+	ADD t11 t9 t10
+	CALL t12 str t11
+	CONCAT t13 t8 t12
+	CALL t14 puts t13
+	LOAD_VAR t15 x
+	LOAD_VAR t16 x
+	MUL t17 t15 t16
+	CALL t18 str t17
+	CALL t19 puts t18
+	LOAD_CONST t20 0
+	RETURN t20
+}
+ETL: compiled [string.s]
+Assembled string.s to string.o
+Linked [string.o] with flags []
+Executable: [program]
