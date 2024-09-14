@@ -10,6 +10,7 @@ For Windows users, the application requires the latest Visual C++/Studio Runtime
 The Dependencies are:
 
 SDL2
+
 SDL2_ttf
 
 To install, you must compile the compiler from the source code by first compiling the library cxx_scan for the lexical analyzer then  ETL, and installing both in /usr/local on your WSL2 or Linux System.
