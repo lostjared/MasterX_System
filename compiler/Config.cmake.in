@@ -1,0 +1,17 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/scan_cxxTargets.cmake")
+
+set(scan_cxx_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include/cxx_scan")
+
+# Define the library directories
+set(scan_cxx_LIBRARY_DIRS "${CMAKE_INSTALL_PREFIX}/lib/cxx_scan")
+
+# Define the libraries
+set(scan_cxx_LIBRARIES scan_cxx::cxx_scan)
+
+# Provide include directories and libraries
+include(CMakeFindDependencyMacro)
+
+# Include the export targets
+include("${CMAKE_CURRENT_LIST_DIR}/scan_cxxTargets.cmake")

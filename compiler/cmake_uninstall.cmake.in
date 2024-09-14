@@ -1,0 +1,16 @@
+if(NOT EXISTS "@CMAKE_INSTALL_PREFIX@")
+    message(FATAL_ERROR "CMAKE_INSTALL_PREFIX is not defined.")
+endif()
+
+file(GLOB_RECURSE FILES_TO_REMOVE
+    "@CMAKE_INSTALL_PREFIX@/include/cxx_scan/*"
+    "@CMAKE_INSTALL_PREFIX@/lib/cxx_scan/*"
+    "@CMAKE_INSTALL_PREFIX@/lib/cmake/scan_cxx*"
+)
+
+foreach(FILE ${FILES_TO_REMOVE})
+    if(EXISTS "${FILE}")
+        message(STATUS "Removing ${FILE}")
+        file(REMOVE "${FILE}")
+    endif()
+endforeach()

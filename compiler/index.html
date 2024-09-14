@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Executor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        textarea {
+            width: 80%;
+            height: 200px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>JavaScript Code Executor</h1>
+    <textarea id="jsCode" placeholder="Paste your JavaScript code here..."></textarea><br>
+    <button onclick="executeCode()">Scan</button>
+
+    <script>
+
+        var etl_obj;
+
+        var Module = {
+            onRuntimeInitialized: function() {
+                etl_obj = new Module.ETL();
+            }
+        };
+
+        function executeCode() {
+            const code = document.getElementById('jsCode').value;
+            var output = etl_obj.scan(code);
+            var divtag = document.getElementById("div2");
+            divtag.innerHTML = output;
+        }
+    </script>
+    <br>
+    <div id="div2" class="div2">
+    </div>
+    <script src="etl.js"></script>
+</body>
+</html>
