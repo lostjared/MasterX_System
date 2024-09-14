@@ -1,0 +1,68 @@
+#!/bin/bash
+
+if [ "$#" -lt 2 ]; then
+  echo "Usage: $0 output_executable file1.e [file2.e ... | file3.o ...] [-- linker_flags] [-d]"
+  exit 1
+fi
+
+output_executable=$1
+shift
+
+temp_o_files=()
+linker_flags=()
+debug_flag=""
+
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    -d)
+      debug_flag="-d"
+      ;;
+    --)
+      shift
+      linker_flags=("$@")
+      break
+      ;;
+    *.e)
+      base_name=$(basename "$1" .e)
+      cc -x c -E "$1" -o "${base_name}.i"
+      if [ $? -ne 0 ]; then
+        echo "Preprocessing failed for $1"
+        exit 1
+      fi
+
+      ETL_C $debug_flag -i "${base_name}.i" -o "${base_name}.s"
+      if [ $? -ne 0 ]; then
+        echo "ETL_C conversion failed for ${base_name}.i"
+        exit 1
+      fi
+
+      as "${base_name}.s" -o "${base_name}.o"
+      if [ $? -ne 0 ]; then
+        echo "Assembling failed for ${base_name}.s"
+        exit 1
+      else
+        echo "Assembled ${base_name}.s to ${base_name}.o"
+      fi
+
+      temp_o_files+=("${base_name}.o")
+      ;;
+    *.o)
+      temp_o_files+=("$1")
+      ;;
+    *)
+      echo "Unsupported file type: $1"
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+cc -O3 "${temp_o_files[@]}" -o "$output_executable" -letl -lc "${linker_flags[@]}"
+if [ $? -ne 0 ]; then
+  echo "Linking failed"
+  exit 1
+else
+  echo "Linked [${temp_o_files[@]}] with flags [${linker_flags[@]}]"
+fi
+
+echo "Executable: [$output_executable]"
