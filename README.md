@@ -7,6 +7,11 @@ MasterX System is a custom-built compiler designed for Linux, accompanied by a v
 For a demonstration of the WebAssembly version, which runs ATS as the shell, and is just a demo visit MasterX WebAssembly Demo here: http://lostsidedead.biz/MasterX
 For Windows users, the application requires the latest Visual C++/Studio Runtimes and WSL2 (Windows Subsystem for Linux) since the program utilizes Bash as its shell and the compiler is for Linux.
 
+The Dependencies are:
+
+SDL2
+SDL2_ttf
+
 To install, you must compile the compiler from the source code by first compiling the library cxx_scan for the lexical analyzer then  ETL, and installing both in /usr/local on your WSL2 or Linux System.
 
 ![image](https://github.com/user-attachments/assets/cfa8d16c-dd92-4f91-b946-93dff225ae13)
