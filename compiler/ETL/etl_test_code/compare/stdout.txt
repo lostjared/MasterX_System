@@ -1,0 +1,53 @@
+etl program cmp.e
+ETL: Scanned 123 tokens.
+ETL: parsing ...  [complete]
+ETL: IR code: {
+	DEFINE scan_integer
+	DEFINE len
+	DEF_PARAM_STRING value
+	DEFINE str
+	DEF_PARAM value
+	DEFINE exit
+	DEF_PARAM code
+	DEFINE puts
+	DEF_PARAM_STRING output
+	DEFINE srand
+	DEF_PARAM seed
+	DEFINE time
+	DEF_PARAM value
+	DEFINE strlen
+	DEF_PARAM_STRING value
+	DEFINE strcmp
+	DEF_PARAM_STRING value1
+	DEF_PARAM_STRING value2
+	DEFINE at
+	DEF_PARAM_STRING value
+	DEF_PARAM index
+	LABEL init
+	LOAD_CONST v "Hello World"
+	LOAD_CONST t0 "value is: %d\n"
+	LOAD_VAR t1 v
+	CALL t2 strlen t1
+	CALL t3 printf t0 t2
+	LOAD_VAR t4 v
+	CALL t5 strlen t4
+	LOAD_CONST t6 0
+	GT t7 t5 t6
+	LOAD_VAR t8 v
+	LOAD_CONST t9 "Hello World"
+	CALL t10 strcmp t8 t9
+	LOAD_CONST t11 0
+	EQ t12 t10 t11
+	LOGICAL_AND t13 t7 t12
+	ASSIGN x t13
+	LOAD_CONST t14 "Comparison: "
+	CALL t15 str x
+	CONCAT t16 t14 t15
+	CALL t17 puts t16
+	LOAD_CONST t18 0
+	RETURN t18
+}
+ETL: compiled [cmp.s]
+Assembled cmp.s to cmp.o
+Linked [cmp.o] with flags []
+Executable: [program]
