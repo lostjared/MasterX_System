@@ -140,7 +140,7 @@ namespace mx {
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         Window::drawMenubar(app);
         int lineHeight = TTF_FontHeight(font);
-        int maxWidth = rc.x+rc.w - 10;
+        int maxWidth = rc.w - 10;
         int y = rc.y + 5;
 
         int offsetLine = 0;
