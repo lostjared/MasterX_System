@@ -657,7 +657,7 @@ namespace mx {
 #elif !defined(FOR_WASM)
     int Terminal::bashReaderThread(void *ptr) {
         Terminal *terminal = static_cast<Terminal *>(ptr);
-            char buffer[128];
+            char buffer[4096];
             std::string output;
             std::string pwdOutput;
             while (terminal->active) {
