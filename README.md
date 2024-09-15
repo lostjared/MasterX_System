@@ -1,5 +1,7 @@
 # MasterX System
 
+![image](https://github.com/user-attachments/assets/bd83c864-e15e-478f-bd5b-9f2c58d96852)
+
 ![image](https://github.com/user-attachments/assets/5f40ce93-134e-4c53-9fc3-f4e86c43c263)
 
 MasterX System is a custom-built compiler designed for Linux (for ETL short for Easy Toy Language), accompanied by a virtual playground for testing and exploration. This is my hobby project and its in its infant stage. Your compiler must support at least C++20.
