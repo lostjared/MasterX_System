@@ -108,6 +108,7 @@ extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w,
     SDL_Surface *surf = SDL_LoadBMP(getPath(name).c_str());
     if(!surf) {
         std::cerr << "Error loading surface; " << getPath(name) << "\n";
+        std::cerr.flush();
         exit(EXIT_FAILURE);
     }
     w = surf->w;
@@ -115,6 +116,7 @@ extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w,
     SDL_Texture *tex = SDL_CreateTextureFromSurface(app.ren, surf);
     if(!tex) {
         std::cerr << "Error creating texture from surface: " << name << "\n";
+        std::cerr.flush();
         exit(EXIT_FAILURE);
     }
     return tex;
@@ -162,6 +164,7 @@ int main(int argc, char **argv) {
     } else {
     #ifndef FOR_WASM
         argz.help(std::cout);
+        std::cout.flush();
         exit(EXIT_FAILURE);
     #endif
     }
@@ -186,6 +189,8 @@ int main(int argc, char **argv) {
     std::vector<std::unique_ptr<mx::Screen>> screen_obj;
     screens = &screen_obj;
     if(!app.init("MasterX", 1280, 720)) {
+        std::cerr.flush();
+        std::cout.flush();
         exit(EXIT_FAILURE);
         return 1;
     }

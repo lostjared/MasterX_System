@@ -6,16 +6,19 @@ namespace mx {
         SDL_Surface *temp = SDL_LoadBMP(getPath("images/startup.bmp").c_str());
         if(!temp) {
             std::cerr << "Error loading bitmap: " << getPath("images/startup.bmp") << "\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
         bg = SDL_CreateTextureFromSurface(app.ren, temp);
         if(!bg) {
             std::cerr << "Error creating texture...\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
         font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 120);
         if(!font) {
             std::cerr << "Error could not load font: " << getPath("fonts/arial.ttf") << "\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
     }
@@ -35,14 +38,15 @@ namespace mx {
         SDL_Color textColor = {0xBD, 0, 0, 255};
         SDL_Surface* textSurface = TTF_RenderText_Blended(font, "MasterX", textColor);
         if (!textSurface) {
-            exit(EXIT_FAILURE);
+            std::cerr << "MasterX: Error rendering text: " << TTF_GetError() << "\n";
+            return;
         }
         int tw = textSurface->w;
         int th = textSurface->h;
         SDL_Texture *tex1 = SDL_CreateTextureFromSurface(app.ren, textSurface);
         if(!tex1) {
-            std::cerr << "Error creating texture..\n";
-            exit(EXIT_FAILURE);
+            std::cerr << "MasterX: Error creating texture..\n";
+            return;
         }
         SDL_SetRenderTarget(app.ren, app.tex);
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 0);

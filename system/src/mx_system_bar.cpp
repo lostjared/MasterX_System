@@ -10,6 +10,7 @@ namespace mx {
         font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 14);
         if (!font) {
             std::cerr << "Error opening font: " << getPath("fonts/arial.ttf") << "\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
         objects.push_back(std::make_unique<MenuBar>(app));

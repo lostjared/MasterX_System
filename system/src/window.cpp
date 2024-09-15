@@ -34,6 +34,7 @@ namespace mx {
         font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 14);
         if(!font) {
             std::cerr << "MasterX System: font: " << getPath("fonts/arial.ttf") << " Could not be loaded.\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
         icon = loadTexture(*this, "images/icon.bmp");

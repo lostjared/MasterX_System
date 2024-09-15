@@ -273,11 +273,13 @@ namespace mx {
         SDL_FreeSurface(hand_cursor_surf);
         if(hand_cursor == nullptr) {
             std::cerr << "MasterX System: Error creating texture from surface...\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
         SDL_Surface *cursor_surf = SDL_LoadBMP(getPath("images/cursor.bmp").c_str());
         if(cursor_surf == nullptr) {
             std::cerr << "MasterX: Error loading cursor..\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
         SDL_SetColorKey(cursor_surf, SDL_TRUE, SDL_MapRGB(cursor_surf->format, 0, 128, 128));
@@ -285,6 +287,7 @@ namespace mx {
         SDL_FreeSurface(cursor_surf);
         if(reg_cursor == nullptr) {
             std::cerr << "MasterX System: Error creating texture from surface...\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
     }

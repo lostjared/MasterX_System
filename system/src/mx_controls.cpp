@@ -33,7 +33,8 @@ namespace mx {
             SDL_Surface *surf = TTF_RenderText_Blended(font_, text_.c_str(), color_);
             if(surf == nullptr) {
                 std::cerr << "MasterX System: Error creating surface.\n";
-                exit(EXIT_FAILURE);
+                std::cerr.flush();
+                return;
             }
             int sw = surf->w;
             int sh = surf->h;
@@ -42,7 +43,8 @@ namespace mx {
             SDL_Texture *t = SDL_CreateTextureFromSurface(app.ren, surf);
             if(t == nullptr) {
                 std::cerr << "MasterX System: Error creating texture.\n";
-                exit(EXIT_FAILURE);
+                std::cerr.flush();
+                return;
             }
             SDL_FreeSurface(surf);
             SDL_SetRenderTarget(app.ren, app.tex);
@@ -59,7 +61,8 @@ namespace mx {
                 SDL_Surface *surf = TTF_RenderText_Blended(font_, multi_text[i].c_str(), color_);
                 if(surf == nullptr) {
                     std::cerr << "MasterX System: Error creating surface.\n";
-                    exit(EXIT_FAILURE);
+                    std::cerr.flush();
+                    return;
                 }
                 int sw = surf->w;
                 int sh = surf->h;
@@ -68,7 +71,8 @@ namespace mx {
                 SDL_Texture *t = SDL_CreateTextureFromSurface(app.ren, surf);
                 if(t == nullptr) {
                     std::cerr << "MasterX System: Error creating texture.\n";
-                    exit(EXIT_FAILURE);
+                    std::cerr.flush();
+                    return;
                 }
                 SDL_FreeSurface(surf);
                 SDL_SetRenderTarget(app.ren, app.tex);
@@ -132,6 +136,7 @@ namespace mx {
         font_ = TTF_OpenFont(getPath(name).c_str(), size_);
         if(font_ == nullptr) {
             std::cerr << "Error opening font: " << getPath(name) << "\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
     }
