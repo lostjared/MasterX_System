@@ -25,12 +25,12 @@
 #endif
 
 
-std::vector<std::unique_ptr<mx::Screen>> *screens;
+std::vector<std::unique_ptr<mx::Screen>> *screens = nullptr;
 int cur_screen = 0;
 mx::mxApp *p_app = nullptr;
 
 void setScreen(int scr) {
-    if(scr >= 0 && scr < static_cast<int>(screens->size()))
+    if(screens != nullptr && scr >= 0 && scr < static_cast<int>(screens->size()))
         cur_screen = scr;
     else {
         std::cerr << "Error screen out of bounds\n";
@@ -57,14 +57,17 @@ void draw(mx::mxApp &app) {
         if (e.type == SDL_QUIT || (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)) {
             p_app->active = false;
         }
-        (*screens)[cur_screen]->event(*p_app, e);
+        if(screens != nullptr && p_app != nullptr)
+            (*screens)[cur_screen]->event(*p_app, e);
     }
     draw(*p_app);
 }
 
 void init(mx::mxApp &app) {
-    screens->push_back(std::make_unique<mx::Splash>(app));
-    screens->push_back(std::make_unique<mx::Dimension>(app));
+    if(screens != nullptr) {
+        screens->push_back(std::make_unique<mx::Splash>(app));
+        screens->push_back(std::make_unique<mx::Dimension>(app));
+    }
 }
 
 #ifdef FOR_WASM

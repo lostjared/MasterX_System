@@ -9,8 +9,11 @@
 
 #ifdef FOR_WASM
 #include"./apps/ats/ats.h"
-#endif                                                                            
+#endif                    
 
+#ifndef _WIN32
+#include<sys/select.h>
+#endif
 template<typename T>
 T my_max(const T& a, const T& b) {
     return a > b ? a : b;
@@ -239,6 +242,7 @@ namespace mx {
             Window::getRect(rc);
             if(!atBottom() && y >= rc.y+(rc.h-28)) 
                 return;
+       
 
             SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), text_color);
             if(surface == nullptr) {
@@ -285,7 +289,9 @@ namespace mx {
             WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
         #elif !defined(FOR_WASM)
             std::string cmd = "echo BEGIN_PWD && pwd && echo END_PWD\n";
-            write(pipe_in[1], cmd.c_str(), cmd.size());
+            if(write(pipe_in[1], cmd.c_str(), cmd.size()) < 0) {
+                std::cerr << "MasterX System: Eerror on write!\n";
+            }
         #endif
     }
 
@@ -514,8 +520,9 @@ namespace mx {
 #elif !defined(FOR_WASM) 
     std::string cmd = command + "\n";
     if(command != "clear")
-        write(pipe_in[1], cmd.c_str(), cmd.size());
-
+       if(write(pipe_in[1], cmd.c_str(), cmd.size()) < 0) {
+            std::cerr << "MasterX System: Error on write.\n";
+       }
     requestCurrentDirectory();
 #elif defined(FOR_WASM)
     if(command.length()>0 && clear == false) {
@@ -549,7 +556,10 @@ namespace mx {
     void Terminal::updateText(const std::string &text) {
         if(!text.empty()) 
             orig_text += text;
-        
+
+         if (orig_text.length() > 4096) {
+            orig_text = orig_text.substr(orig_text.length() - 4096);
+        }
     }
 
     void Terminal::print(const std::string &s) {
@@ -757,62 +767,73 @@ namespace mx {
 #elif !defined(FOR_WASM)
     int Terminal::bashReaderThread(void *ptr) {
         Terminal *terminal = static_cast<Terminal *>(ptr);
-        char buffer[1024];
+        char buffer[4096];
         std::string output;
         std::string pwdOutput;
-        bool inPwdBlock = false; // Tracks if we're in a PWD block
+        bool inPwdBlock = false;
+
+        fd_set read_fds;
+        struct timeval tv;
+        FD_ZERO(&read_fds);
+        FD_SET(terminal->pipe_out[0], &read_fds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 10000;
 
         while (terminal->active) {
             ssize_t count;
 
-            
-            while ((count = read(terminal->pipe_out[0], buffer, sizeof(buffer) - 1)) > 0) {
-                buffer[count] = '\0';  
-                output.append(buffer); 
+            FD_ZERO(&read_fds);
+            FD_SET(terminal->pipe_out[0], &read_fds);
+     
+            int retval = select(terminal->pipe_out[0] + 1, &read_fds, NULL, NULL, &tv);
 
-                
-                while (!output.empty()) {
-                    if (!inPwdBlock) {
-                
-                        std::size_t beginPos = output.find("BEGIN_PWD");
-                        if (beginPos != std::string::npos) {
-                            terminal->print(output.substr(0, beginPos));  
-                            output = output.substr(beginPos + std::string("BEGIN_PWD").length()); 
-                            inPwdBlock = true;
-                            pwdOutput.clear(); 
-                        } else {
-                            terminal->print(output);
-                            output.clear();
-                        }
-                    } else {
-                        std::size_t endPos = output.find("END_PWD");
-                        if (endPos != std::string::npos) {
-                            pwdOutput += output.substr(0, endPos);
-                            {
-                                std::lock_guard<std::mutex> lock(terminal->directoryMutex);
-                                terminal->currentDirectory = getLastDirectory(pwdOutput);
-                                terminal->completePath = trimR(pwdOutput);
+            if (retval == -1) {
+                std::cerr << "Error in select: " << strerror(errno) << std::endl;
+                break;
+            } else if (retval > 0) {
+                    while ((count = read(terminal->pipe_out[0], buffer, sizeof(buffer) - 1)) > 0) {
+                        buffer[count] = '\0';
+                        output.append(buffer);
+
+                        while (!output.empty()) {
+                            if (!inPwdBlock) {
+                                std::size_t beginPos = output.find("BEGIN_PWD");
+                                if (beginPos != std::string::npos) {
+                                    terminal->print(output.substr(0, beginPos));
+                                    output = output.substr(beginPos + std::string("BEGIN_PWD").length());
+                                    inPwdBlock = true;
+                                    pwdOutput.clear();
+                                } else {
+                                    terminal->print(output);
+                                    output.clear();
+                                }
+                            } else {
+                                std::size_t endPos = output.find("END_PWD");
+                                if (endPos != std::string::npos) {
+                                    pwdOutput += output.substr(0, endPos);
+                                    {
+                                        std::lock_guard<std::mutex> lock(terminal->directoryMutex);
+                                        terminal->currentDirectory = getLastDirectory(pwdOutput);
+                                        terminal->completePath = trimR(pwdOutput);
+                                    }
+                                    output = output.substr(endPos + std::string("END_PWD").length());
+                                    inPwdBlock = false;
+                                } else {
+                                    pwdOutput += output;
+                                    output.clear();
+                                }
                             }
-                            output = output.substr(endPos + std::string("END_PWD").length());
-                            inPwdBlock = false;
-                        } else {
-                            pwdOutput += output;
-                            output.clear();
                         }
+                    }
+
+                    if (count == -1 && errno != EAGAIN) {
+                        std::cerr << "Error reading from pipe: " << strerror(errno) << std::endl;
+                        break;
                     }
                 }
             }
-
-            if (count == -1 && errno != EAGAIN) {
-                std::cerr << "Error reading from pipe: " << strerror(errno) << std::endl;
-                break;
-            }
-
-            usleep(10000); 
+            return 0;
         }
-
-        return 0;
-    }
 #endif
 }
  
