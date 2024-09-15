@@ -2,7 +2,7 @@
 
 ![image](https://github.com/user-attachments/assets/5f40ce93-134e-4c53-9fc3-f4e86c43c263)
 
-MasterX System is a custom-built compiler designed for Linux, accompanied by a virtual playground for testing and exploration. This is my hobby project and its in its infant stage. Your compiler must support at least C++20.
+MasterX System is a custom-built compiler designed for Linux (for ETL short for Easy Toy Language), accompanied by a virtual playground for testing and exploration. This is my hobby project and its in its infant stage. Your compiler must support at least C++20.
 
 For a demonstration of the WebAssembly version, which runs ATS as the shell, and is just a demo visit MasterX WebAssembly Demo here: http://lostsidedead.biz/MasterX
 For Windows users, the application requires the latest Visual C++/Studio Runtimes and WSL2 (Windows Subsystem for Linux) since the program utilizes Bash as its shell and the compiler is for Linux.
