@@ -1,5 +1,5 @@
 .section .data
-t470: .asciz "MasterPiece"
+t620: .asciz "MasterPiece"
 .section .text
 .globl main
 main:
@@ -496,7 +496,7 @@ for_end_101:
 check_blocks:
     pushq %rbp
     movq %rsp, %rbp
-    subq $1216, %rsp
+    subq $2336, %rsp
     movq $0, %rcx
     movq %rdi, -8(%rbp)
     movq $0, %rax
@@ -763,104 +763,120 @@ for_post_137:
 for_end_136: 
     movq $0, %rax
     movq %rax, -568(%rbp)
-for_start_203: 
-    movq -568(%rbp), %rax # y1 # y1
+    movq $0, %rax
     movq %rax, -576(%rbp)
-    movq $16, %rax
+    movq $0, %rax
     movq %rax, -584(%rbp)
-    movq -576(%rbp), %rax # t205 # t205
-    movq -584(%rbp), %rdi # t206 # t206
-    cmpq %rdi, %rax
-    setl %cl
-    movzbq %cl, %rdx
-    movq %rdx, -592(%rbp)
-    movq -592(%rbp), %rax # t207 # t207
-    cmpq $0, %rax
-    je for_end_203
+    movq $0, %rax
+    movq %rax, -592(%rbp)
     movq $0, %rax
     movq %rax, -600(%rbp)
-for_start_208: 
-    movq -600(%rbp), %rax # x1 # x1
+    movq $0, %rcx # here
+    movq %rcx, -576(%rbp)
+for_start_203: 
+    movq -576(%rbp), %rax # y1 # y1
     movq %rax, -608(%rbp)
-    movq $9, %rax
+    movq $16, %rax
     movq %rax, -616(%rbp)
-    movq -608(%rbp), %rax # t210 # t210
-    movq -616(%rbp), %rdi # t211 # t211
+    movq -608(%rbp), %rax # t205 # t205
+    movq -616(%rbp), %rdi # t206 # t206
     cmpq %rdi, %rax
     setl %cl
     movzbq %cl, %rdx
     movq %rdx, -624(%rbp)
-    movq -624(%rbp), %rax # t212 # t212
+    movq -624(%rbp), %rax # t207 # t207
+    cmpq $0, %rax
+    je for_end_203
+    movq $0, %rcx # here
+    movq %rcx, -568(%rbp)
+for_start_208: 
+    movq -568(%rbp), %rax # x1 # x1
+    movq %rax, -632(%rbp)
+    movq $9, %rax
+    movq %rax, -640(%rbp)
+    movq -632(%rbp), %rax # t210 # t210
+    movq -640(%rbp), %rdi # t211 # t211
+    cmpq %rdi, %rax
+    setl %cl
+    movzbq %cl, %rdx
+    movq %rdx, -648(%rbp)
+    movq -648(%rbp), %rax # t212 # t212
     cmpq $0, %rax
     je for_end_208
-    movq -600(%rbp), %rax # x1 # x1
-    movq %rax, -632(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    movq %rax, -656(%rbp)
 # load t213 to bx
-    movq -632(%rbp), %rcx
+    movq -656(%rbp), %rcx
     movq %rcx, -16(%rbp)
-    movq -568(%rbp), %rax # y1 # y1
-    movq %rax, -640(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    movq %rax, -664(%rbp)
 # load t214 to by
-    movq -640(%rbp), %rcx
+    movq -664(%rbp), %rcx
     movq %rcx, -24(%rbp)
     movq -8(%rbp), %rax # grid # grid
-    movq %rax, -648(%rbp)
-    movq $16, %rax
-    movq %rax, -656(%rbp)
-    movq -16(%rbp), %rax # bx # bx
-    imulq -656(%rbp), %rax
-    movq %rax, -664(%rbp)
-    addq -24(%rbp), %rax
     movq %rax, -672(%rbp)
-    movq -648(%rbp), %rdi # t215 # t215
-    movq -672(%rbp), %rsi # t218 # t218
-    movq $0, %rax
-    call mematb
+    movq $16, %rax
     movq %rax, -680(%rbp)
+    movq -16(%rbp), %rax # bx # bx
+    imulq -680(%rbp), %rax
     movq %rax, -688(%rbp)
-    movq -8(%rbp), %rax # grid # grid
+    addq -24(%rbp), %rax
     movq %rax, -696(%rbp)
-    movq $1, %rax
+    movq -672(%rbp), %rdi # t215 # t215
+    movq -696(%rbp), %rsi # t218 # t218
+    movq $0, %rax
+    call mematb
     movq %rax, -704(%rbp)
-    movq -16(%rbp), %rax # bx # bx
-    addq -704(%rbp), %rax
-    movq %rax, -712(%rbp)
-    movq $16, %rax
-    movq %rax, -720(%rbp)
-    movq -712(%rbp), %rax # t222 # t222
-    imulq -720(%rbp), %rax
-    movq %rax, -728(%rbp)
-    addq -24(%rbp), %rax
-    movq %rax, -736(%rbp)
-    movq -696(%rbp), %rdi # t220 # t220
-    movq -736(%rbp), %rsi # t225 # t225
-    movq $0, %rax
-    call mematb
-    movq %rax, -744(%rbp)
-    movq %rax, -752(%rbp)
+# load t219 to color1x
+    movq -704(%rbp), %rcx
+    movq %rcx, -584(%rbp)
     movq -8(%rbp), %rax # grid # grid
-    movq %rax, -760(%rbp)
-    movq $2, %rax
-    movq %rax, -768(%rbp)
+    movq %rax, -712(%rbp)
+    movq $1, %rax
+    movq %rax, -720(%rbp)
     movq -16(%rbp), %rax # bx # bx
-    addq -768(%rbp), %rax
-    movq %rax, -776(%rbp)
+    addq -720(%rbp), %rax
+    movq %rax, -728(%rbp)
     movq $16, %rax
-    movq %rax, -784(%rbp)
-    movq -776(%rbp), %rax # t229 # t229
-    imulq -784(%rbp), %rax
-    movq %rax, -792(%rbp)
+    movq %rax, -736(%rbp)
+    movq -728(%rbp), %rax # t222 # t222
+    imulq -736(%rbp), %rax
+    movq %rax, -744(%rbp)
     addq -24(%rbp), %rax
-    movq %rax, -800(%rbp)
-    movq -760(%rbp), %rdi # t227 # t227
-    movq -800(%rbp), %rsi # t232 # t232
+    movq %rax, -752(%rbp)
+    movq -712(%rbp), %rdi # t220 # t220
+    movq -752(%rbp), %rsi # t225 # t225
     movq $0, %rax
     call mematb
+    movq %rax, -760(%rbp)
+# load t226 to color2x
+    movq -760(%rbp), %rcx
+    movq %rcx, -592(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -768(%rbp)
+    movq $2, %rax
+    movq %rax, -776(%rbp)
+    movq -16(%rbp), %rax # bx # bx
+    addq -776(%rbp), %rax
+    movq %rax, -784(%rbp)
+    movq $16, %rax
+    movq %rax, -792(%rbp)
+    movq -784(%rbp), %rax # t229 # t229
+    imulq -792(%rbp), %rax
+    movq %rax, -800(%rbp)
+    addq -24(%rbp), %rax
     movq %rax, -808(%rbp)
+    movq -768(%rbp), %rdi # t227 # t227
+    movq -808(%rbp), %rsi # t232 # t232
+    movq $0, %rax
+    call mematb
     movq %rax, -816(%rbp)
+# load t233 to color3x
+    movq -816(%rbp), %rcx
+    movq %rcx, -600(%rbp)
     movq $0, %rax
     movq %rax, -824(%rbp)
-    movq -688(%rbp), %rax # color1x # color1x
+    movq -584(%rbp), %rax # color1x # color1x
     movq -824(%rbp), %rdi # t234 # t234
     cmpq %rdi, %rax
     setne %cl
@@ -868,7 +884,7 @@ for_start_208:
     movq %rdx, -832(%rbp)
     movq $0, %rax
     movq %rax, -840(%rbp)
-    movq -752(%rbp), %rax # color2x # color2x
+    movq -592(%rbp), %rax # color2x # color2x
     movq -840(%rbp), %rdi # t236 # t236
     cmpq %rdi, %rax
     setne %cl
@@ -885,7 +901,7 @@ for_start_208:
     movq %rax, -856(%rbp)
     movq $0, %rax
     movq %rax, -864(%rbp)
-    movq -816(%rbp), %rax # color3x # color3x
+    movq -600(%rbp), %rax # color3x # color3x
     movq -864(%rbp), %rdi # t239 # t239
     cmpq %rdi, %rax
     setne %cl
@@ -900,8 +916,8 @@ for_start_208:
     andb %al, %cl
     movzbq %cl, %rax
     movq %rax, -880(%rbp)
-    movq -688(%rbp), %rsi # color1x # color1x
-    movq -752(%rbp), %rdi # color2x # color2x
+    movq -584(%rbp), %rsi # color1x # color1x
+    movq -592(%rbp), %rdi # color2x # color2x
     cmpq %rdi, %rsi
     sete %cl
     movzbq %cl, %rdx
@@ -915,8 +931,8 @@ for_start_208:
     andb %al, %cl
     movzbq %cl, %rax
     movq %rax, -896(%rbp)
-    movq -688(%rbp), %rsi # color1x # color1x
-    movq -816(%rbp), %rdi # color3x # color3x
+    movq -584(%rbp), %rsi # color1x # color1x
+    movq -600(%rbp), %rdi # color3x # color3x
     cmpq %rdi, %rsi
     sete %cl
     movzbq %cl, %rdx
@@ -1002,7 +1018,7 @@ sublabel_if_246:
 sublabel_else_246: 
 sublabel_end_246: 
 for_post_209: 
-    movq -600(%rbp), %rax # x1 # x1
+    movq -568(%rbp), %rax # x1 # x1
     movq %rax, -1104(%rbp)
     movq $1, %rax
     movq %rax, -1112(%rbp)
@@ -1011,11 +1027,11 @@ for_post_209:
     movq %rax, -1120(%rbp)
 # load t272 to x1
     movq -1120(%rbp), %rcx
-    movq %rcx, -600(%rbp)
+    movq %rcx, -568(%rbp)
     jmp for_start_208
 for_end_208: 
 for_post_204: 
-    movq -568(%rbp), %rax # y1 # y1
+    movq -576(%rbp), %rax # y1 # y1
     movq %rax, -1128(%rbp)
     movq $1, %rax
     movq %rax, -1136(%rbp)
@@ -1024,11 +1040,567 @@ for_post_204:
     movq %rax, -1144(%rbp)
 # load t275 to y1
     movq -1144(%rbp), %rcx
-    movq %rcx, -568(%rbp)
+    movq %rcx, -576(%rbp)
     jmp for_start_203
 for_end_203: 
-    movq $0, %rax
+    movq $0, %rcx # here
+    movq %rcx, -576(%rbp)
+for_start_276: 
+    movq $14, %rax
     movq %rax, -1152(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    movq -1152(%rbp), %rdi # t278 # t278
+    cmpq %rdi, %rax
+    setl %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1160(%rbp)
+    movq -1160(%rbp), %rax # t279 # t279
+    cmpq $0, %rax
+    je for_end_276
+    movq $0, %rcx # here
+    movq %rcx, -568(%rbp)
+for_start_280: 
+    movq $7, %rax
+    movq %rax, -1168(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    movq -1168(%rbp), %rdi # t282 # t282
+    cmpq %rdi, %rax
+    setl %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1176(%rbp)
+    movq -1176(%rbp), %rax # t283 # t283
+    cmpq $0, %rax
+    je for_end_280
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1184(%rbp)
+    movq $16, %rax
+    movq %rax, -1192(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    imulq -1192(%rbp), %rax
+    movq %rax, -1200(%rbp)
+    addq -576(%rbp), %rax
+    movq %rax, -1208(%rbp)
+    movq -1184(%rbp), %rdi # t284 # t284
+    movq -1208(%rbp), %rsi # t287 # t287
+    movq $0, %rax
+    call mematb
+    movq %rax, -1216(%rbp)
+# load t288 to color1x
+    movq -1216(%rbp), %rcx
+    movq %rcx, -584(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1224(%rbp)
+    movq $1, %rax
+    movq %rax, -1232(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    addq -1232(%rbp), %rax
+    movq %rax, -1240(%rbp)
+    movq $16, %rax
+    movq %rax, -1248(%rbp)
+    movq -1240(%rbp), %rax # t291 # t291
+    imulq -1248(%rbp), %rax
+    movq %rax, -1256(%rbp)
+    movq $1, %rax
+    movq %rax, -1264(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -1264(%rbp), %rax
+    movq %rax, -1272(%rbp)
+    movq -1256(%rbp), %rax # t293 # t293
+    addq -1272(%rbp), %rax
+    movq %rax, -1280(%rbp)
+    movq -1224(%rbp), %rdi # t289 # t289
+    movq -1280(%rbp), %rsi # t296 # t296
+    movq $0, %rax
+    call mematb
+    movq %rax, -1288(%rbp)
+# load t297 to color2x
+    movq -1288(%rbp), %rcx
+    movq %rcx, -592(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1296(%rbp)
+    movq $2, %rax
+    movq %rax, -1304(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    addq -1304(%rbp), %rax
+    movq %rax, -1312(%rbp)
+    movq $16, %rax
+    movq %rax, -1320(%rbp)
+    movq -1312(%rbp), %rax # t300 # t300
+    imulq -1320(%rbp), %rax
+    movq %rax, -1328(%rbp)
+    movq $2, %rax
+    movq %rax, -1336(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -1336(%rbp), %rax
+    movq %rax, -1344(%rbp)
+    movq -1328(%rbp), %rax # t302 # t302
+    addq -1344(%rbp), %rax
+    movq %rax, -1352(%rbp)
+    movq -1296(%rbp), %rdi # t298 # t298
+    movq -1352(%rbp), %rsi # t305 # t305
+    movq $0, %rax
+    call mematb
+    movq %rax, -1360(%rbp)
+# load t306 to color3x
+    movq -1360(%rbp), %rcx
+    movq %rcx, -600(%rbp)
+    movq $0, %rax
+    movq %rax, -1368(%rbp)
+    movq -584(%rbp), %rax # color1x # color1x
+    movq -1368(%rbp), %rdi # t307 # t307
+    cmpq %rdi, %rax
+    setne %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1376(%rbp)
+    movq $0, %rax
+    movq %rax, -1384(%rbp)
+    movq -592(%rbp), %rax # color2x # color2x
+    movq -1384(%rbp), %rdi # t309 # t309
+    cmpq %rdi, %rax
+    setne %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1392(%rbp)
+    movq -1376(%rbp), %rsi # t308 # t308
+    cmpq $0, %rsi
+    setne %al
+    movq -1392(%rbp), %rdi # t310 # t310
+    cmpq $0, %rdi
+    setne %cl
+    andb %al, %cl
+    movzbq %cl, %rax
+    movq %rax, -1400(%rbp)
+    movq $0, %rax
+    movq %rax, -1408(%rbp)
+    movq -600(%rbp), %rax # color3x # color3x
+    movq -1408(%rbp), %rdi # t312 # t312
+    cmpq %rdi, %rax
+    setne %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1416(%rbp)
+    movq -1400(%rbp), %rsi # t311 # t311
+    cmpq $0, %rsi
+    setne %al
+    movq -1416(%rbp), %rdi # t313 # t313
+    cmpq $0, %rdi
+    setne %cl
+    andb %al, %cl
+    movzbq %cl, %rax
+    movq %rax, -1424(%rbp)
+    movq -584(%rbp), %rsi # color1x # color1x
+    movq -592(%rbp), %rdi # color2x # color2x
+    cmpq %rdi, %rsi
+    sete %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1432(%rbp)
+    movq -1424(%rbp), %rsi # t314 # t314
+    cmpq $0, %rsi
+    setne %al
+    movq -1432(%rbp), %rdi # t315 # t315
+    cmpq $0, %rdi
+    setne %cl
+    andb %al, %cl
+    movzbq %cl, %rax
+    movq %rax, -1440(%rbp)
+    movq -584(%rbp), %rsi # color1x # color1x
+    movq -600(%rbp), %rdi # color3x # color3x
+    cmpq %rdi, %rsi
+    sete %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1448(%rbp)
+    movq -1440(%rbp), %rsi # t316 # t316
+    cmpq $0, %rsi
+    setne %al
+    movq -1448(%rbp), %rdi # t317 # t317
+    cmpq $0, %rdi
+    setne %cl
+    andb %al, %cl
+    movzbq %cl, %rax
+    movq %rax, -1456(%rbp)
+    cmpq $0, %rax
+    je sublabel_else_319
+sublabel_if_319: 
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1464(%rbp)
+    movq $16, %rax
+    movq %rax, -1472(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    imulq -1472(%rbp), %rax
+    movq %rax, -1480(%rbp)
+    addq -576(%rbp), %rax
+    movq %rax, -1488(%rbp)
+    movq $0, %rax
+    movq %rax, -1496(%rbp)
+    movq -1464(%rbp), %rdi # t320 # t320
+    movq -1488(%rbp), %rsi # t323 # t323
+    movq -1496(%rbp), %rdx # t324 # t324
+    movq $0, %rax
+    call memstoreb
+    movq %rax, -1504(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1512(%rbp)
+    movq $1, %rax
+    movq %rax, -1520(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    addq -1520(%rbp), %rax
+    movq %rax, -1528(%rbp)
+    movq $16, %rax
+    movq %rax, -1536(%rbp)
+    movq -1528(%rbp), %rax # t328 # t328
+    imulq -1536(%rbp), %rax
+    movq %rax, -1544(%rbp)
+    movq $1, %rax
+    movq %rax, -1552(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -1552(%rbp), %rax
+    movq %rax, -1560(%rbp)
+    movq -1544(%rbp), %rax # t330 # t330
+    addq -1560(%rbp), %rax
+    movq %rax, -1568(%rbp)
+    movq $0, %rax
+    movq %rax, -1576(%rbp)
+    movq -1512(%rbp), %rdi # t326 # t326
+    movq -1568(%rbp), %rsi # t333 # t333
+    movq -1576(%rbp), %rdx # t334 # t334
+    movq $0, %rax
+    call memstoreb
+    movq %rax, -1584(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1592(%rbp)
+    movq $2, %rax
+    movq %rax, -1600(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    addq -1600(%rbp), %rax
+    movq %rax, -1608(%rbp)
+    movq $16, %rax
+    movq %rax, -1616(%rbp)
+    movq -1608(%rbp), %rax # t338 # t338
+    imulq -1616(%rbp), %rax
+    movq %rax, -1624(%rbp)
+    movq $2, %rax
+    movq %rax, -1632(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -1632(%rbp), %rax
+    movq %rax, -1640(%rbp)
+    movq -1624(%rbp), %rax # t340 # t340
+    addq -1640(%rbp), %rax
+    movq %rax, -1648(%rbp)
+    movq $0, %rax
+    movq %rax, -1656(%rbp)
+    movq -1592(%rbp), %rdi # t336 # t336
+    movq -1648(%rbp), %rsi # t343 # t343
+    movq -1656(%rbp), %rdx # t344 # t344
+    movq $0, %rax
+    call memstoreb
+    movq %rax, -1664(%rbp)
+    movq $0, %rax
+    movq %rax, -1672(%rbp)
+    leave
+    ret
+    jmp sublabel_end_319
+sublabel_else_319: 
+sublabel_end_319: 
+for_post_281: 
+    movq $1, %rax
+    movq %rax, -1680(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    addq -1680(%rbp), %rax
+    movq %rax, -1688(%rbp)
+# load t348 to x1
+    movq -1688(%rbp), %rcx
+    movq %rcx, -568(%rbp)
+    jmp for_start_280
+for_end_280: 
+for_post_277: 
+    movq $1, %rax
+    movq %rax, -1696(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -1696(%rbp), %rax
+    movq %rax, -1704(%rbp)
+# load t350 to y1
+    movq -1704(%rbp), %rcx
+    movq %rcx, -576(%rbp)
+    jmp for_start_276
+for_end_276: 
+    movq $0, %rcx # here
+    movq %rcx, -576(%rbp)
+for_start_351: 
+    movq $14, %rax
+    movq %rax, -1712(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    movq -1712(%rbp), %rdi # t353 # t353
+    cmpq %rdi, %rax
+    setl %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1720(%rbp)
+    movq -1720(%rbp), %rax # t354 # t354
+    cmpq $0, %rax
+    je for_end_351
+    movq $2, %rcx # here
+    movq %rcx, -568(%rbp)
+for_start_355: 
+    movq $9, %rax
+    movq %rax, -1728(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    movq -1728(%rbp), %rdi # t357 # t357
+    cmpq %rdi, %rax
+    setl %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1736(%rbp)
+    movq -1736(%rbp), %rax # t358 # t358
+    cmpq $0, %rax
+    je for_end_355
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1744(%rbp)
+    movq $16, %rax
+    movq %rax, -1752(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    imulq -1752(%rbp), %rax
+    movq %rax, -1760(%rbp)
+    addq -576(%rbp), %rax
+    movq %rax, -1768(%rbp)
+    movq -1744(%rbp), %rdi # t359 # t359
+    movq -1768(%rbp), %rsi # t362 # t362
+    movq $0, %rax
+    call mematb
+    movq %rax, -1776(%rbp)
+# load t363 to color1x
+    movq -1776(%rbp), %rcx
+    movq %rcx, -584(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1784(%rbp)
+    movq $1, %rax
+    movq %rax, -1792(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    subq -1792(%rbp), %rax
+    movq %rax, -1800(%rbp)
+    movq $16, %rax
+    movq %rax, -1808(%rbp)
+    movq -1800(%rbp), %rax # t366 # t366
+    imulq -1808(%rbp), %rax
+    movq %rax, -1816(%rbp)
+    movq $1, %rax
+    movq %rax, -1824(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -1824(%rbp), %rax
+    movq %rax, -1832(%rbp)
+    movq -1816(%rbp), %rax # t368 # t368
+    addq -1832(%rbp), %rax
+    movq %rax, -1840(%rbp)
+    movq -1784(%rbp), %rdi # t364 # t364
+    movq -1840(%rbp), %rsi # t371 # t371
+    movq $0, %rax
+    call mematb
+    movq %rax, -1848(%rbp)
+# load t372 to color2x
+    movq -1848(%rbp), %rcx
+    movq %rcx, -592(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -1856(%rbp)
+    movq $2, %rax
+    movq %rax, -1864(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    subq -1864(%rbp), %rax
+    movq %rax, -1872(%rbp)
+    movq $16, %rax
+    movq %rax, -1880(%rbp)
+    movq -1872(%rbp), %rax # t375 # t375
+    imulq -1880(%rbp), %rax
+    movq %rax, -1888(%rbp)
+    movq $2, %rax
+    movq %rax, -1896(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -1896(%rbp), %rax
+    movq %rax, -1904(%rbp)
+    movq -1888(%rbp), %rax # t377 # t377
+    addq -1904(%rbp), %rax
+    movq %rax, -1912(%rbp)
+    movq -1856(%rbp), %rdi # t373 # t373
+    movq -1912(%rbp), %rsi # t380 # t380
+    movq $0, %rax
+    call mematb
+    movq %rax, -1920(%rbp)
+# load t381 to color3x
+    movq -1920(%rbp), %rcx
+    movq %rcx, -600(%rbp)
+    movq $0, %rax
+    movq %rax, -1928(%rbp)
+    movq -584(%rbp), %rax # color1x # color1x
+    movq -1928(%rbp), %rdi # t382 # t382
+    cmpq %rdi, %rax
+    setne %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1936(%rbp)
+    movq $0, %rax
+    movq %rax, -1944(%rbp)
+    movq -592(%rbp), %rax # color2x # color2x
+    movq -1944(%rbp), %rdi # t384 # t384
+    cmpq %rdi, %rax
+    setne %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1952(%rbp)
+    movq -1936(%rbp), %rsi # t383 # t383
+    cmpq $0, %rsi
+    setne %al
+    movq -1952(%rbp), %rdi # t385 # t385
+    cmpq $0, %rdi
+    setne %cl
+    andb %al, %cl
+    movzbq %cl, %rax
+    movq %rax, -1960(%rbp)
+    movq $0, %rax
+    movq %rax, -1968(%rbp)
+    movq -600(%rbp), %rax # color3x # color3x
+    movq -1968(%rbp), %rdi # t387 # t387
+    cmpq %rdi, %rax
+    setne %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1976(%rbp)
+    movq -1960(%rbp), %rsi # t386 # t386
+    cmpq $0, %rsi
+    setne %al
+    movq -1976(%rbp), %rdi # t388 # t388
+    cmpq $0, %rdi
+    setne %cl
+    andb %al, %cl
+    movzbq %cl, %rax
+    movq %rax, -1984(%rbp)
+    movq -584(%rbp), %rsi # color1x # color1x
+    movq -592(%rbp), %rdi # color2x # color2x
+    cmpq %rdi, %rsi
+    sete %cl
+    movzbq %cl, %rdx
+    movq %rdx, -1992(%rbp)
+    movq -1984(%rbp), %rsi # t389 # t389
+    cmpq $0, %rsi
+    setne %al
+    movq -1992(%rbp), %rdi # t390 # t390
+    cmpq $0, %rdi
+    setne %cl
+    andb %al, %cl
+    movzbq %cl, %rax
+    movq %rax, -2000(%rbp)
+    movq -584(%rbp), %rsi # color1x # color1x
+    movq -600(%rbp), %rdi # color3x # color3x
+    cmpq %rdi, %rsi
+    sete %cl
+    movzbq %cl, %rdx
+    movq %rdx, -2008(%rbp)
+    movq -2000(%rbp), %rsi # t391 # t391
+    cmpq $0, %rsi
+    setne %al
+    movq -2008(%rbp), %rdi # t392 # t392
+    cmpq $0, %rdi
+    setne %cl
+    andb %al, %cl
+    movzbq %cl, %rax
+    movq %rax, -2016(%rbp)
+    cmpq $0, %rax
+    je sublabel_else_394
+sublabel_if_394: 
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -2024(%rbp)
+    movq $16, %rax
+    movq %rax, -2032(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    imulq -2032(%rbp), %rax
+    movq %rax, -2040(%rbp)
+    addq -576(%rbp), %rax
+    movq %rax, -2048(%rbp)
+    movq $0, %rax
+    movq %rax, -2056(%rbp)
+    movq -2024(%rbp), %rdi # t395 # t395
+    movq -2048(%rbp), %rsi # t398 # t398
+    movq -2056(%rbp), %rdx # t399 # t399
+    movq $0, %rax
+    call memstoreb
+    movq %rax, -2064(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -2072(%rbp)
+    movq $1, %rax
+    movq %rax, -2080(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    subq -2080(%rbp), %rax
+    movq %rax, -2088(%rbp)
+    movq $16, %rax
+    movq %rax, -2096(%rbp)
+    movq -2088(%rbp), %rax # t403 # t403
+    imulq -2096(%rbp), %rax
+    movq %rax, -2104(%rbp)
+    movq $1, %rax
+    movq %rax, -2112(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -2112(%rbp), %rax
+    movq %rax, -2120(%rbp)
+    movq -2104(%rbp), %rax # t405 # t405
+    addq -2120(%rbp), %rax
+    movq %rax, -2128(%rbp)
+    movq $0, %rax
+    movq %rax, -2136(%rbp)
+    movq -2072(%rbp), %rdi # t401 # t401
+    movq -2128(%rbp), %rsi # t408 # t408
+    movq -2136(%rbp), %rdx # t409 # t409
+    movq $0, %rax
+    call memstoreb
+    movq %rax, -2144(%rbp)
+    movq -8(%rbp), %rax # grid # grid
+    movq %rax, -2152(%rbp)
+    movq $2, %rax
+    movq %rax, -2160(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    subq -2160(%rbp), %rax
+    movq %rax, -2168(%rbp)
+    movq $16, %rax
+    movq %rax, -2176(%rbp)
+    movq -2168(%rbp), %rax # t413 # t413
+    imulq -2176(%rbp), %rax
+    movq %rax, -2184(%rbp)
+    movq $2, %rax
+    movq %rax, -2192(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -2192(%rbp), %rax
+    movq %rax, -2200(%rbp)
+    movq -2184(%rbp), %rax # t415 # t415
+    addq -2200(%rbp), %rax
+    movq %rax, -2208(%rbp)
+    movq $0, %rax
+    movq %rax, -2216(%rbp)
+    movq -2152(%rbp), %rdi # t411 # t411
+    movq -2208(%rbp), %rsi # t418 # t418
+    movq -2216(%rbp), %rdx # t419 # t419
+    movq $0, %rax
+    call memstoreb
+    movq %rax, -2224(%rbp)
+    movq $0, %rax
+    movq %rax, -2232(%rbp)
+    leave
+    ret
+    jmp sublabel_end_394
+sublabel_else_394: 
+sublabel_end_394: 
+for_post_356: 
+    movq $1, %rax
+    movq %rax, -2240(%rbp)
+    movq -568(%rbp), %rax # x1 # x1
+    addq -2240(%rbp), %rax
+    movq %rax, -2248(%rbp)
+# load t423 to x1
+    movq -2248(%rbp), %rcx
+    movq %rcx, -568(%rbp)
+    jmp for_start_355
+for_end_355: 
+for_post_352: 
+    movq $1, %rax
+    movq %rax, -2256(%rbp)
+    movq -576(%rbp), %rax # y1 # y1
+    addq -2256(%rbp), %rax
+    movq %rax, -2264(%rbp)
+# load t425 to y1
+    movq -2264(%rbp), %rcx
+    movq %rcx, -576(%rbp)
+    jmp for_start_351
+for_end_351: 
+    movq $0, %rax
+    movq %rax, -2272(%rbp)
     leave
     ret
 .globl move_blocks
@@ -1040,32 +1612,32 @@ move_blocks:
     movq %rdi, -8(%rbp)
     movq $0, %rax
     movq %rax, -16(%rbp)
-for_start_277: 
+for_start_427: 
     movq $11, %rax
     movq %rax, -24(%rbp)
     movq -16(%rbp), %rax # x # x
-    movq -24(%rbp), %rdi # t279 # t279
+    movq -24(%rbp), %rdi # t429 # t429
     cmpq %rdi, %rax
     setl %cl
     movzbq %cl, %rdx
     movq %rdx, -32(%rbp)
-    movq -32(%rbp), %rax # t280 # t280
+    movq -32(%rbp), %rax # t430 # t430
     cmpq $0, %rax
-    je for_end_277
+    je for_end_427
     movq $0, %rax
     movq %rax, -40(%rbp)
-for_start_281: 
+for_start_431: 
     movq $15, %rax
     movq %rax, -48(%rbp)
     movq -40(%rbp), %rax # y # y
-    movq -48(%rbp), %rdi # t283 # t283
+    movq -48(%rbp), %rdi # t433 # t433
     cmpq %rdi, %rax
     setl %cl
     movzbq %cl, %rdx
     movq %rdx, -56(%rbp)
-    movq -56(%rbp), %rax # t284 # t284
+    movq -56(%rbp), %rax # t434 # t434
     cmpq $0, %rax
-    je for_end_281
+    je for_end_431
     movq -8(%rbp), %rax # grid # grid
     movq %rax, -64(%rbp)
     movq $16, %rax
@@ -1075,8 +1647,8 @@ for_start_281:
     movq %rax, -80(%rbp)
     addq -40(%rbp), %rax
     movq %rax, -88(%rbp)
-    movq -64(%rbp), %rdi # t285 # t285
-    movq -88(%rbp), %rsi # t288 # t288
+    movq -64(%rbp), %rdi # t435 # t435
+    movq -88(%rbp), %rsi # t438 # t438
     movq $0, %rax
     call mematb
     movq %rax, -96(%rbp)
@@ -1093,11 +1665,11 @@ for_start_281:
     movq -40(%rbp), %rax # y # y
     addq -136(%rbp), %rax
     movq %rax, -144(%rbp)
-    movq -128(%rbp), %rax # t292 # t292
+    movq -128(%rbp), %rax # t442 # t442
     addq -144(%rbp), %rax
     movq %rax, -152(%rbp)
-    movq -112(%rbp), %rdi # t290 # t290
-    movq -152(%rbp), %rsi # t295 # t295
+    movq -112(%rbp), %rdi # t440 # t440
+    movq -152(%rbp), %rsi # t445 # t445
     movq $0, %rax
     call mematb
     movq %rax, -160(%rbp)
@@ -1105,7 +1677,7 @@ for_start_281:
     movq $0, %rax
     movq %rax, -176(%rbp)
     movq -168(%rbp), %rsi # color2 # color2
-    movq -176(%rbp), %rdi # t297 # t297
+    movq -176(%rbp), %rdi # t447 # t447
     cmpq %rdi, %rsi
     sete %cl
     movzbq %cl, %rdx
@@ -1113,23 +1685,23 @@ for_start_281:
     movq $0, %rax
     movq %rax, -192(%rbp)
     movq -104(%rbp), %rax # color1 # color1
-    movq -192(%rbp), %rdi # t299 # t299
+    movq -192(%rbp), %rdi # t449 # t449
     cmpq %rdi, %rax
     setne %cl
     movzbq %cl, %rdx
     movq %rdx, -200(%rbp)
-    movq -184(%rbp), %rsi # t298 # t298
+    movq -184(%rbp), %rsi # t448 # t448
     cmpq $0, %rsi
     setne %al
-    movq -200(%rbp), %rdi # t300 # t300
+    movq -200(%rbp), %rdi # t450 # t450
     cmpq $0, %rdi
     setne %cl
     andb %al, %cl
     movzbq %cl, %rax
     movq %rax, -208(%rbp)
     cmpq $0, %rax
-    je sublabel_else_302
-sublabel_if_302: 
+    je sublabel_else_452
+sublabel_if_452: 
     movq -8(%rbp), %rax # grid # grid
     movq %rax, -216(%rbp)
     movq $16, %rax
@@ -1141,9 +1713,9 @@ sublabel_if_302:
     movq %rax, -240(%rbp)
     movq $0, %rax
     movq %rax, -248(%rbp)
-    movq -216(%rbp), %rdi # t303 # t303
-    movq -240(%rbp), %rsi # t306 # t306
-    movq -248(%rbp), %rdx # t307 # t307
+    movq -216(%rbp), %rdi # t453 # t453
+    movq -240(%rbp), %rsi # t456 # t456
+    movq -248(%rbp), %rdx # t457 # t457
     movq $0, %rax
     call memstoreb
     movq %rax, -256(%rbp)
@@ -1159,11 +1731,11 @@ sublabel_if_302:
     movq -40(%rbp), %rax # y # y
     addq -288(%rbp), %rax
     movq %rax, -296(%rbp)
-    movq -280(%rbp), %rax # t311 # t311
+    movq -280(%rbp), %rax # t461 # t461
     addq -296(%rbp), %rax
     movq %rax, -304(%rbp)
-    movq -264(%rbp), %rdi # t309 # t309
-    movq -304(%rbp), %rsi # t314 # t314
+    movq -264(%rbp), %rdi # t459 # t459
+    movq -304(%rbp), %rsi # t464 # t464
     movq -104(%rbp), %rdx # color1 # color1
     movq $0, %rax
     call memstoreb
@@ -1172,31 +1744,31 @@ sublabel_if_302:
     movq %rax, -320(%rbp)
     leave
     ret
-    jmp sublabel_end_302
-sublabel_else_302: 
-sublabel_end_302: 
-for_post_282: 
+    jmp sublabel_end_452
+sublabel_else_452: 
+sublabel_end_452: 
+for_post_432: 
     movq $1, %rax
     movq %rax, -328(%rbp)
     movq -40(%rbp), %rax # y # y
     addq -328(%rbp), %rax
     movq %rax, -336(%rbp)
-# load t318 to y
+# load t468 to y
     movq -336(%rbp), %rcx
     movq %rcx, -40(%rbp)
-    jmp for_start_281
-for_end_281: 
-for_post_278: 
+    jmp for_start_431
+for_end_431: 
+for_post_428: 
     movq $1, %rax
     movq %rax, -344(%rbp)
     movq -16(%rbp), %rax # x # x
     addq -344(%rbp), %rax
     movq %rax, -352(%rbp)
-# load t320 to x
+# load t470 to x
     movq -352(%rbp), %rcx
     movq %rcx, -16(%rbp)
-    jmp for_start_277
-for_end_277: 
+    jmp for_start_427
+for_end_427: 
     movq $0, %rax
     movq %rax, -360(%rbp)
     leave
@@ -1213,10 +1785,10 @@ allocate_grid:
     movq %rax, -24(%rbp)
     movq -16(%rbp), %rax # h # h
     movq %rax, -32(%rbp)
-    movq -24(%rbp), %rax # t322 # t322
+    movq -24(%rbp), %rax # t472 # t472
     imulq -32(%rbp), %rax
     movq %rax, -40(%rbp)
-    movq -40(%rbp), %rdi # t324 # t324
+    movq -40(%rbp), %rdi # t474 # t474
     movq $0, %rax
     call malloc
     movq %rax, -48(%rbp)
@@ -1225,11 +1797,11 @@ allocate_grid:
     movq %rax, -64(%rbp)
     movq -16(%rbp), %rax # h # h
     movq %rax, -72(%rbp)
-    movq -64(%rbp), %rax # t326 # t326
+    movq -64(%rbp), %rax # t476 # t476
     imulq -72(%rbp), %rax
     movq %rax, -80(%rbp)
     movq -56(%rbp), %rdi # grid # grid
-    movq -80(%rbp), %rsi # t328 # t328
+    movq -80(%rbp), %rsi # t478 # t478
     movq $0, %rax
     call memclr
     movq %rax, -88(%rbp)
@@ -1244,7 +1816,7 @@ allocate_block:
     movq $0, %rcx
     movq $11, %rax
     movq %rax, -8(%rbp)
-    movq -8(%rbp), %rdi # t330 # t330
+    movq -8(%rbp), %rdi # t480 # t480
     movq $0, %rax
     call malloc
     movq %rax, -16(%rbp)
@@ -1252,7 +1824,7 @@ allocate_block:
     movq $10, %rax
     movq %rax, -32(%rbp)
     movq -24(%rbp), %rdi # block # block
-    movq -32(%rbp), %rsi # t332 # t332
+    movq -32(%rbp), %rsi # t482 # t482
     movq $0, %rax
     call memclr
     movq %rax, -40(%rbp)
@@ -1275,17 +1847,17 @@ setup_block:
     movq %rax, -32(%rbp)
     movq $3, %rax
     movq %rax, -40(%rbp)
-    movq -32(%rbp), %rax # t336 # t336
+    movq -32(%rbp), %rax # t486 # t486
     cqto
-    movq -40(%rbp), %rdi # t337 # t337
+    movq -40(%rbp), %rdi # t487 # t487
     idivq %rdi
     movq %rdx, -48(%rbp)
-    movq -24(%rbp), %rax # t335 # t335
+    movq -24(%rbp), %rax # t485 # t485
     addq -48(%rbp), %rax
     movq %rax, -56(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -16(%rbp), %rsi # t334 # t334
-    movq -56(%rbp), %rdx # t339 # t339
+    movq -16(%rbp), %rsi # t484 # t484
+    movq -56(%rbp), %rdx # t489 # t489
     movq $0, %rax
     call memstoreb
     movq %rax, -64(%rbp)
@@ -1295,18 +1867,18 @@ setup_block:
     movq %rax, -80(%rbp)
     movq $2, %rax
     movq %rax, -88(%rbp)
-    movq -80(%rbp), %rax # t342 # t342
+    movq -80(%rbp), %rax # t492 # t492
     cqto
     idivq -88(%rbp)
     movq %rax, -96(%rbp)
     movq $1, %rax
     movq %rax, -104(%rbp)
-    movq -96(%rbp), %rax # t344 # t344
+    movq -96(%rbp), %rax # t494 # t494
     subq -104(%rbp), %rax
     movq %rax, -112(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -72(%rbp), %rsi # t341 # t341
-    movq -112(%rbp), %rdx # t346 # t346
+    movq -72(%rbp), %rsi # t491 # t491
+    movq -112(%rbp), %rdx # t496 # t496
     movq $0, %rax
     call memstoreb
     movq %rax, -120(%rbp)
@@ -1315,8 +1887,8 @@ setup_block:
     movq $0, %rax
     movq %rax, -136(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -128(%rbp), %rsi # t348 # t348
-    movq -136(%rbp), %rdx # t349 # t349
+    movq -128(%rbp), %rsi # t498 # t498
+    movq -136(%rbp), %rdx # t499 # t499
     movq $0, %rax
     call memstoreb
     movq %rax, -144(%rbp)
@@ -1329,17 +1901,17 @@ setup_block:
     movq %rax, -168(%rbp)
     movq $3, %rax
     movq %rax, -176(%rbp)
-    movq -168(%rbp), %rax # t353 # t353
+    movq -168(%rbp), %rax # t503 # t503
     cqto
-    movq -176(%rbp), %rdi # t354 # t354
+    movq -176(%rbp), %rdi # t504 # t504
     idivq %rdi
     movq %rdx, -184(%rbp)
-    movq -160(%rbp), %rax # t352 # t352
+    movq -160(%rbp), %rax # t502 # t502
     addq -184(%rbp), %rax
     movq %rax, -192(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -152(%rbp), %rsi # t351 # t351
-    movq -192(%rbp), %rdx # t356 # t356
+    movq -152(%rbp), %rsi # t501 # t501
+    movq -192(%rbp), %rdx # t506 # t506
     movq $0, %rax
     call memstoreb
     movq %rax, -200(%rbp)
@@ -1349,18 +1921,18 @@ setup_block:
     movq %rax, -216(%rbp)
     movq $2, %rax
     movq %rax, -224(%rbp)
-    movq -216(%rbp), %rax # t359 # t359
+    movq -216(%rbp), %rax # t509 # t509
     cqto
     idivq -224(%rbp)
     movq %rax, -232(%rbp)
     movq $1, %rax
     movq %rax, -240(%rbp)
-    movq -232(%rbp), %rax # t361 # t361
+    movq -232(%rbp), %rax # t511 # t511
     subq -240(%rbp), %rax
     movq %rax, -248(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -208(%rbp), %rsi # t358 # t358
-    movq -248(%rbp), %rdx # t363 # t363
+    movq -208(%rbp), %rsi # t508 # t508
+    movq -248(%rbp), %rdx # t513 # t513
     movq $0, %rax
     call memstoreb
     movq %rax, -256(%rbp)
@@ -1369,8 +1941,8 @@ setup_block:
     movq $1, %rax
     movq %rax, -272(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -264(%rbp), %rsi # t365 # t365
-    movq -272(%rbp), %rdx # t366 # t366
+    movq -264(%rbp), %rsi # t515 # t515
+    movq -272(%rbp), %rdx # t516 # t516
     movq $0, %rax
     call memstoreb
     movq %rax, -280(%rbp)
@@ -1383,17 +1955,17 @@ setup_block:
     movq %rax, -304(%rbp)
     movq $3, %rax
     movq %rax, -312(%rbp)
-    movq -304(%rbp), %rax # t370 # t370
+    movq -304(%rbp), %rax # t520 # t520
     cqto
-    movq -312(%rbp), %rdi # t371 # t371
+    movq -312(%rbp), %rdi # t521 # t521
     idivq %rdi
     movq %rdx, -320(%rbp)
-    movq -296(%rbp), %rax # t369 # t369
+    movq -296(%rbp), %rax # t519 # t519
     addq -320(%rbp), %rax
     movq %rax, -328(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -288(%rbp), %rsi # t368 # t368
-    movq -328(%rbp), %rdx # t373 # t373
+    movq -288(%rbp), %rsi # t518 # t518
+    movq -328(%rbp), %rdx # t523 # t523
     movq $0, %rax
     call memstoreb
     movq %rax, -336(%rbp)
@@ -1403,18 +1975,18 @@ setup_block:
     movq %rax, -352(%rbp)
     movq $2, %rax
     movq %rax, -360(%rbp)
-    movq -352(%rbp), %rax # t376 # t376
+    movq -352(%rbp), %rax # t526 # t526
     cqto
     idivq -360(%rbp)
     movq %rax, -368(%rbp)
     movq $1, %rax
     movq %rax, -376(%rbp)
-    movq -368(%rbp), %rax # t378 # t378
+    movq -368(%rbp), %rax # t528 # t528
     subq -376(%rbp), %rax
     movq %rax, -384(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -344(%rbp), %rsi # t375 # t375
-    movq -384(%rbp), %rdx # t380 # t380
+    movq -344(%rbp), %rsi # t525 # t525
+    movq -384(%rbp), %rdx # t530 # t530
     movq $0, %rax
     call memstoreb
     movq %rax, -392(%rbp)
@@ -1423,8 +1995,8 @@ setup_block:
     movq $2, %rax
     movq %rax, -408(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -400(%rbp), %rsi # t382 # t382
-    movq -408(%rbp), %rdx # t383 # t383
+    movq -400(%rbp), %rsi # t532 # t532
+    movq -408(%rbp), %rdx # t533 # t533
     movq $0, %rax
     call memstoreb
     movq %rax, -416(%rbp)
@@ -1443,7 +2015,7 @@ set_block_in_grid:
     movq $0, %rax
     movq %rax, -24(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -24(%rbp), %rsi # t386 # t386
+    movq -24(%rbp), %rsi # t536 # t536
     movq $0, %rax
     call mematb
     movq %rax, -32(%rbp)
@@ -1451,7 +2023,7 @@ set_block_in_grid:
     movq $1, %rax
     movq %rax, -48(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -48(%rbp), %rsi # t388 # t388
+    movq -48(%rbp), %rsi # t538 # t538
     movq $0, %rax
     call mematb
     movq %rax, -56(%rbp)
@@ -1459,7 +2031,7 @@ set_block_in_grid:
     movq $2, %rax
     movq %rax, -72(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -72(%rbp), %rsi # t390 # t390
+    movq -72(%rbp), %rsi # t540 # t540
     movq $0, %rax
     call mematb
     movq %rax, -80(%rbp)
@@ -1472,7 +2044,7 @@ set_block_in_grid:
     addq -88(%rbp), %rax
     movq %rax, -112(%rbp)
     movq -8(%rbp), %rdi # grid # grid
-    movq -112(%rbp), %rsi # t394 # t394
+    movq -112(%rbp), %rsi # t544 # t544
     movq -40(%rbp), %rdx # val # val
     movq $0, %rax
     call memstoreb
@@ -1480,31 +2052,31 @@ set_block_in_grid:
     movq $3, %rax
     movq %rax, -128(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -128(%rbp), %rsi # t396 # t396
+    movq -128(%rbp), %rsi # t546 # t546
     movq $0, %rax
     call mematb
     movq %rax, -136(%rbp)
-# load t397 to val
+# load t547 to val
     movq -136(%rbp), %rcx
     movq %rcx, -40(%rbp)
     movq $4, %rax
     movq %rax, -144(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -144(%rbp), %rsi # t398 # t398
+    movq -144(%rbp), %rsi # t548 # t548
     movq $0, %rax
     call mematb
     movq %rax, -152(%rbp)
-# load t399 to bx
+# load t549 to bx
     movq -152(%rbp), %rcx
     movq %rcx, -64(%rbp)
     movq $5, %rax
     movq %rax, -160(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -160(%rbp), %rsi # t400 # t400
+    movq -160(%rbp), %rsi # t550 # t550
     movq $0, %rax
     call mematb
     movq %rax, -168(%rbp)
-# load t401 to by
+# load t551 to by
     movq -168(%rbp), %rcx
     movq %rcx, -88(%rbp)
     movq $16, %rax
@@ -1515,7 +2087,7 @@ set_block_in_grid:
     addq -88(%rbp), %rax
     movq %rax, -192(%rbp)
     movq -8(%rbp), %rdi # grid # grid
-    movq -192(%rbp), %rsi # t404 # t404
+    movq -192(%rbp), %rsi # t554 # t554
     movq -40(%rbp), %rdx # val # val
     movq $0, %rax
     call memstoreb
@@ -1523,31 +2095,31 @@ set_block_in_grid:
     movq $6, %rax
     movq %rax, -208(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -208(%rbp), %rsi # t406 # t406
+    movq -208(%rbp), %rsi # t556 # t556
     movq $0, %rax
     call mematb
     movq %rax, -216(%rbp)
-# load t407 to val
+# load t557 to val
     movq -216(%rbp), %rcx
     movq %rcx, -40(%rbp)
     movq $7, %rax
     movq %rax, -224(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -224(%rbp), %rsi # t408 # t408
+    movq -224(%rbp), %rsi # t558 # t558
     movq $0, %rax
     call mematb
     movq %rax, -232(%rbp)
-# load t409 to bx
+# load t559 to bx
     movq -232(%rbp), %rcx
     movq %rcx, -64(%rbp)
     movq $8, %rax
     movq %rax, -240(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -240(%rbp), %rsi # t410 # t410
+    movq -240(%rbp), %rsi # t560 # t560
     movq $0, %rax
     call mematb
     movq %rax, -248(%rbp)
-# load t411 to by
+# load t561 to by
     movq -248(%rbp), %rcx
     movq %rcx, -88(%rbp)
     movq $16, %rax
@@ -1558,7 +2130,7 @@ set_block_in_grid:
     addq -88(%rbp), %rax
     movq %rax, -272(%rbp)
     movq -8(%rbp), %rdi # grid # grid
-    movq -272(%rbp), %rsi # t414 # t414
+    movq -272(%rbp), %rsi # t564 # t564
     movq -40(%rbp), %rdx # val # val
     movq $0, %rax
     call memstoreb
@@ -1578,7 +2150,7 @@ move_block_down:
     movq $7, %rax
     movq %rax, -24(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -24(%rbp), %rsi # t417 # t417
+    movq -24(%rbp), %rsi # t567 # t567
     movq $0, %rax
     call mematb
     movq %rax, -32(%rbp)
@@ -1586,13 +2158,13 @@ move_block_down:
     movq $8, %rax
     movq %rax, -48(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -48(%rbp), %rsi # t419 # t419
+    movq -48(%rbp), %rsi # t569 # t569
     movq $0, %rax
     call mematb
     movq %rax, -56(%rbp)
     movq $1, %rax
     movq %rax, -64(%rbp)
-    movq -56(%rbp), %rax # t420 # t420
+    movq -56(%rbp), %rax # t570 # t570
     addq -64(%rbp), %rax
     movq %rax, -72(%rbp)
     movq %rax, -80(%rbp)
@@ -1613,14 +2185,14 @@ move_block_down:
     movq $8, %rax
     movq %rax, -136(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -136(%rbp), %rsi # t427 # t427
+    movq -136(%rbp), %rsi # t577 # t577
     movq $0, %rax
     call mematb
     movq %rax, -144(%rbp)
     movq $15, %rax
     movq %rax, -152(%rbp)
-    movq -144(%rbp), %rax # t428 # t428
-    movq -152(%rbp), %rdi # t429 # t429
+    movq -144(%rbp), %rax # t578 # t578
+    movq -152(%rbp), %rdi # t579 # t579
     cmpq %rdi, %rax
     setl %cl
     movzbq %cl, %rdx
@@ -1628,40 +2200,40 @@ move_block_down:
     movq $0, %rax
     movq %rax, -168(%rbp)
     movq -128(%rbp), %rsi # test_block # test_block
-    movq -168(%rbp), %rdi # t431 # t431
+    movq -168(%rbp), %rdi # t581 # t581
     cmpq %rdi, %rsi
     sete %cl
     movzbq %cl, %rdx
     movq %rdx, -176(%rbp)
-    movq -160(%rbp), %rsi # t430 # t430
+    movq -160(%rbp), %rsi # t580 # t580
     cmpq $0, %rsi
     setne %al
-    movq -176(%rbp), %rdi # t432 # t432
+    movq -176(%rbp), %rdi # t582 # t582
     cmpq $0, %rdi
     setne %cl
     andb %al, %cl
     movzbq %cl, %rax
     movq %rax, -184(%rbp)
     cmpq $0, %rax
-    je sublabel_else_434
-sublabel_if_434: 
+    je sublabel_else_584
+sublabel_if_584: 
     movq $2, %rax
     movq %rax, -192(%rbp)
     movq $2, %rax
     movq %rax, -200(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -200(%rbp), %rsi # t436 # t436
+    movq -200(%rbp), %rsi # t586 # t586
     movq $0, %rax
     call mematb
     movq %rax, -208(%rbp)
     movq $1, %rax
     movq %rax, -216(%rbp)
-    movq -208(%rbp), %rax # t437 # t437
+    movq -208(%rbp), %rax # t587 # t587
     addq -216(%rbp), %rax
     movq %rax, -224(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -192(%rbp), %rsi # t435 # t435
-    movq -224(%rbp), %rdx # t439 # t439
+    movq -192(%rbp), %rsi # t585 # t585
+    movq -224(%rbp), %rdx # t589 # t589
     movq $0, %rax
     call memstoreb
     movq %rax, -232(%rbp)
@@ -1670,18 +2242,18 @@ sublabel_if_434:
     movq $5, %rax
     movq %rax, -248(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -248(%rbp), %rsi # t442 # t442
+    movq -248(%rbp), %rsi # t592 # t592
     movq $0, %rax
     call mematb
     movq %rax, -256(%rbp)
     movq $1, %rax
     movq %rax, -264(%rbp)
-    movq -256(%rbp), %rax # t443 # t443
+    movq -256(%rbp), %rax # t593 # t593
     addq -264(%rbp), %rax
     movq %rax, -272(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -240(%rbp), %rsi # t441 # t441
-    movq -272(%rbp), %rdx # t445 # t445
+    movq -240(%rbp), %rsi # t591 # t591
+    movq -272(%rbp), %rdx # t595 # t595
     movq $0, %rax
     call memstoreb
     movq %rax, -280(%rbp)
@@ -1690,23 +2262,23 @@ sublabel_if_434:
     movq $8, %rax
     movq %rax, -296(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -296(%rbp), %rsi # t448 # t448
+    movq -296(%rbp), %rsi # t598 # t598
     movq $0, %rax
     call mematb
     movq %rax, -304(%rbp)
     movq $1, %rax
     movq %rax, -312(%rbp)
-    movq -304(%rbp), %rax # t449 # t449
+    movq -304(%rbp), %rax # t599 # t599
     addq -312(%rbp), %rax
     movq %rax, -320(%rbp)
     movq -16(%rbp), %rdi # block # block
-    movq -288(%rbp), %rsi # t447 # t447
-    movq -320(%rbp), %rdx # t451 # t451
+    movq -288(%rbp), %rsi # t597 # t597
+    movq -320(%rbp), %rdx # t601 # t601
     movq $0, %rax
     call memstoreb
     movq %rax, -328(%rbp)
-    jmp sublabel_end_434
-sublabel_else_434: 
+    jmp sublabel_end_584
+sublabel_else_584: 
     movq -8(%rbp), %rdi # grid # grid
     movq -16(%rbp), %rsi # block # block
     movq $0, %rax
@@ -1716,7 +2288,7 @@ sublabel_else_434:
     movq $0, %rax
     call setup_block
     movq %rax, -344(%rbp)
-sublabel_end_434: 
+sublabel_end_584: 
     movq $0, %rax
     movq %rax, -352(%rbp)
     leave
@@ -1731,7 +2303,7 @@ swap_colors:
     movq $0, %rax
     movq %rax, -16(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -16(%rbp), %rsi # t456 # t456
+    movq -16(%rbp), %rsi # t606 # t606
     movq $0, %rax
     call mematb
     movq %rax, -24(%rbp)
@@ -1739,7 +2311,7 @@ swap_colors:
     movq $3, %rax
     movq %rax, -40(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -40(%rbp), %rsi # t458 # t458
+    movq -40(%rbp), %rsi # t608 # t608
     movq $0, %rax
     call mematb
     movq %rax, -48(%rbp)
@@ -1747,7 +2319,7 @@ swap_colors:
     movq $6, %rax
     movq %rax, -64(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -64(%rbp), %rsi # t460 # t460
+    movq -64(%rbp), %rsi # t610 # t610
     movq $0, %rax
     call mematb
     movq %rax, -72(%rbp)
@@ -1755,7 +2327,7 @@ swap_colors:
     movq $0, %rax
     movq %rax, -88(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -88(%rbp), %rsi # t462 # t462
+    movq -88(%rbp), %rsi # t612 # t612
     movq -80(%rbp), %rdx # c3 # c3
     movq $0, %rax
     call memstoreb
@@ -1763,7 +2335,7 @@ swap_colors:
     movq $3, %rax
     movq %rax, -104(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -104(%rbp), %rsi # t464 # t464
+    movq -104(%rbp), %rsi # t614 # t614
     movq -32(%rbp), %rdx # c1 # c1
     movq $0, %rax
     call memstoreb
@@ -1771,7 +2343,7 @@ swap_colors:
     movq $6, %rax
     movq %rax, -120(%rbp)
     movq -8(%rbp), %rdi # block # block
-    movq -120(%rbp), %rsi # t466 # t466
+    movq -120(%rbp), %rsi # t616 # t616
     movq -56(%rbp), %rdx # c2 # c2
     movq $0, %rax
     call memstoreb
@@ -1789,25 +2361,25 @@ init:
     movq $0, %rax
     call sdl_init
     movq %rax, -8(%rbp)
-    leaq t470(%rip), %rax
+    leaq t620(%rip), %rax
     movq %rax, -16(%rbp)
     movq $1440, %rax
     movq %rax, -24(%rbp)
     movq $1080, %rax
     movq %rax, -32(%rbp)
-    movq -16(%rbp), %rdi # t470 # t470
-    movq -24(%rbp), %rsi # t471 # t471
-    movq -32(%rbp), %rdx # t472 # t472
+    movq -16(%rbp), %rdi # t620 # t620
+    movq -24(%rbp), %rsi # t621 # t621
+    movq -32(%rbp), %rdx # t622 # t622
     movq $0, %rax
     call sdl_create
     movq %rax, -40(%rbp)
     movq $0, %rax
     movq %rax, -48(%rbp)
-    movq -48(%rbp), %rdi # t474 # t474
+    movq -48(%rbp), %rdi # t624 # t624
     movq $0, %rax
     call time
     movq %rax, -56(%rbp)
-    movq -56(%rbp), %rdi # t475 # t475
+    movq -56(%rbp), %rdi # t625 # t625
     movq $0, %rax
     call srand
     movq %rax, -64(%rbp)
@@ -1815,8 +2387,8 @@ init:
     movq %rax, -72(%rbp)
     movq $16, %rax
     movq %rax, -80(%rbp)
-    movq -72(%rbp), %rdi # t477 # t477
-    movq -80(%rbp), %rsi # t478 # t478
+    movq -72(%rbp), %rdi # t627 # t627
+    movq -80(%rbp), %rsi # t628 # t628
     movq $0, %rax
     call allocate_grid
     movq %rax, -88(%rbp)
@@ -1837,12 +2409,12 @@ init:
     call sdl_getticks
     movq %rax, -144(%rbp)
     movq %rax, -152(%rbp)
-while_start_484: 
+while_start_634: 
     movq $0, %rax
     call sdl_pump
     movq %rax, -160(%rbp)
     cmpq $0, %rax
-    je while_end_484
+    je while_end_634
     movq $0, %rax
     call sdl_clear
     movq %rax, -168(%rbp)
@@ -1870,16 +2442,16 @@ while_start_484:
     movq %rax, -224(%rbp)
     movq $750, %rax
     movq %rax, -232(%rbp)
-    movq -224(%rbp), %rax # t492 # t492
-    movq -232(%rbp), %rdi # t493 # t493
+    movq -224(%rbp), %rax # t642 # t642
+    movq -232(%rbp), %rdi # t643 # t643
     cmpq %rdi, %rax
     setge %cl
     movzbq %cl, %rdx
     movq %rdx, -240(%rbp)
-    movq -240(%rbp), %rax # t494 # t494
+    movq -240(%rbp), %rax # t644 # t644
     cmpq $0, %rax
-    je sublabel_else_495
-sublabel_if_495: 
+    je sublabel_else_645
+sublabel_if_645: 
     movq -96(%rbp), %rdi # grid # grid
     movq -112(%rbp), %rsi # block # block
     movq $0, %rax
@@ -1888,9 +2460,9 @@ sublabel_if_495:
 # load ctime to update_time
     movq -216(%rbp), %rcx
     movq %rcx, -152(%rbp)
-    jmp sublabel_end_495
-sublabel_else_495: 
-sublabel_end_495: 
+    jmp sublabel_end_645
+sublabel_else_645: 
+sublabel_end_645: 
     movq $0, %rax
     call sdl_getticks
     movq %rax, -256(%rbp)
@@ -1899,36 +2471,36 @@ sublabel_end_495:
     movq %rax, -272(%rbp)
     movq $100, %rax
     movq %rax, -280(%rbp)
-    movq -272(%rbp), %rax # t498 # t498
-    movq -280(%rbp), %rdi # t499 # t499
+    movq -272(%rbp), %rax # t648 # t648
+    movq -280(%rbp), %rdi # t649 # t649
     cmpq %rdi, %rax
     setge %cl
     movzbq %cl, %rdx
     movq %rdx, -288(%rbp)
-    movq -288(%rbp), %rax # t500 # t500
+    movq -288(%rbp), %rax # t650 # t650
     cmpq $0, %rax
-    je sublabel_else_501
-sublabel_if_501: 
+    je sublabel_else_651
+sublabel_if_651: 
 # load current_time to prev_time
     movq -264(%rbp), %rcx
     movq %rcx, -136(%rbp)
     movq $7, %rax
     movq %rax, -296(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -296(%rbp), %rsi # t502 # t502
+    movq -296(%rbp), %rsi # t652 # t652
     movq $0, %rax
     call mematb
     movq %rax, -304(%rbp)
     movq $1, %rax
     movq %rax, -312(%rbp)
-    movq -304(%rbp), %rax # t503 # t503
+    movq -304(%rbp), %rax # t653 # t653
     addq -312(%rbp), %rax
     movq %rax, -320(%rbp)
     movq %rax, -328(%rbp)
     movq $8, %rax
     movq %rax, -336(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -336(%rbp), %rsi # t506 # t506
+    movq -336(%rbp), %rsi # t656 # t656
     movq $0, %rax
     call mematb
     movq %rax, -344(%rbp)
@@ -1949,22 +2521,22 @@ sublabel_if_501:
     movq %rax, -400(%rbp)
     movq $79, %rax
     movq %rax, -408(%rbp)
-    movq -408(%rbp), %rdi # t512 # t512
+    movq -408(%rbp), %rdi # t662 # t662
     movq $0, %rax
     call sdl_keydown
     movq %rax, -416(%rbp)
     movq $0, %rax
     movq %rax, -424(%rbp)
     movq -400(%rbp), %rsi # test_block # test_block
-    movq -424(%rbp), %rdi # t514 # t514
+    movq -424(%rbp), %rdi # t664 # t664
     cmpq %rdi, %rsi
     sete %cl
     movzbq %cl, %rdx
     movq %rdx, -432(%rbp)
-    movq -416(%rbp), %rsi # t513 # t513
+    movq -416(%rbp), %rsi # t663 # t663
     cmpq $0, %rsi
     setne %al
-    movq -432(%rbp), %rdi # t515 # t515
+    movq -432(%rbp), %rdi # t665 # t665
     cmpq $0, %rdi
     setne %cl
     andb %al, %cl
@@ -1973,7 +2545,7 @@ sublabel_if_501:
     movq $1, %rax
     movq %rax, -448(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -448(%rbp), %rsi # t517 # t517
+    movq -448(%rbp), %rsi # t667 # t667
     movq $0, %rax
     call mematb
     movq %rax, -456(%rbp)
@@ -1983,53 +2555,53 @@ sublabel_if_501:
     movq %rax, -472(%rbp)
     movq $4, %rax
     movq %rax, -480(%rbp)
-    movq -472(%rbp), %rax # t520 # t520
+    movq -472(%rbp), %rax # t670 # t670
     imulq -480(%rbp), %rax
     movq %rax, -488(%rbp)
-    movq -464(%rbp), %rax # t519 # t519
+    movq -464(%rbp), %rax # t669 # t669
     cqto
     idivq -488(%rbp)
     movq %rax, -496(%rbp)
     movq $1, %rax
     movq %rax, -504(%rbp)
-    movq -496(%rbp), %rax # t523 # t523
+    movq -496(%rbp), %rax # t673 # t673
     subq -504(%rbp), %rax
     movq %rax, -512(%rbp)
-    movq -456(%rbp), %rax # t518 # t518
-    movq -512(%rbp), %rdi # t525 # t525
+    movq -456(%rbp), %rax # t668 # t668
+    movq -512(%rbp), %rdi # t675 # t675
     cmpq %rdi, %rax
     setl %cl
     movzbq %cl, %rdx
     movq %rdx, -520(%rbp)
-    movq -440(%rbp), %rsi # t516 # t516
+    movq -440(%rbp), %rsi # t666 # t666
     cmpq $0, %rsi
     setne %al
-    movq -520(%rbp), %rdi # t526 # t526
+    movq -520(%rbp), %rdi # t676 # t676
     cmpq $0, %rdi
     setne %cl
     andb %al, %cl
     movzbq %cl, %rax
     movq %rax, -528(%rbp)
     cmpq $0, %rax
-    je sublabel_else_528
-sublabel_if_528: 
+    je sublabel_else_678
+sublabel_if_678: 
     movq $1, %rax
     movq %rax, -536(%rbp)
     movq $1, %rax
     movq %rax, -544(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -544(%rbp), %rsi # t530 # t530
+    movq -544(%rbp), %rsi # t680 # t680
     movq $0, %rax
     call mematb
     movq %rax, -552(%rbp)
     movq $1, %rax
     movq %rax, -560(%rbp)
-    movq -552(%rbp), %rax # t531 # t531
+    movq -552(%rbp), %rax # t681 # t681
     addq -560(%rbp), %rax
     movq %rax, -568(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -536(%rbp), %rsi # t529 # t529
-    movq -568(%rbp), %rdx # t533 # t533
+    movq -536(%rbp), %rsi # t679 # t679
+    movq -568(%rbp), %rdx # t683 # t683
     movq $0, %rax
     call memstoreb
     movq %rax, -576(%rbp)
@@ -2038,18 +2610,18 @@ sublabel_if_528:
     movq $4, %rax
     movq %rax, -592(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -592(%rbp), %rsi # t536 # t536
+    movq -592(%rbp), %rsi # t686 # t686
     movq $0, %rax
     call mematb
     movq %rax, -600(%rbp)
     movq $1, %rax
     movq %rax, -608(%rbp)
-    movq -600(%rbp), %rax # t537 # t537
+    movq -600(%rbp), %rax # t687 # t687
     addq -608(%rbp), %rax
     movq %rax, -616(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -584(%rbp), %rsi # t535 # t535
-    movq -616(%rbp), %rdx # t539 # t539
+    movq -584(%rbp), %rsi # t685 # t685
+    movq -616(%rbp), %rdx # t689 # t689
     movq $0, %rax
     call memstoreb
     movq %rax, -624(%rbp)
@@ -2058,46 +2630,46 @@ sublabel_if_528:
     movq $7, %rax
     movq %rax, -640(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -640(%rbp), %rsi # t542 # t542
+    movq -640(%rbp), %rsi # t692 # t692
     movq $0, %rax
     call mematb
     movq %rax, -648(%rbp)
     movq $1, %rax
     movq %rax, -656(%rbp)
-    movq -648(%rbp), %rax # t543 # t543
+    movq -648(%rbp), %rax # t693 # t693
     addq -656(%rbp), %rax
     movq %rax, -664(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -632(%rbp), %rsi # t541 # t541
-    movq -664(%rbp), %rdx # t545 # t545
+    movq -632(%rbp), %rsi # t691 # t691
+    movq -664(%rbp), %rdx # t695 # t695
     movq $0, %rax
     call memstoreb
     movq %rax, -672(%rbp)
-    jmp sublabel_end_528
-sublabel_else_528: 
+    jmp sublabel_end_678
+sublabel_else_678: 
     movq $7, %rax
     movq %rax, -680(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -680(%rbp), %rsi # t547 # t547
+    movq -680(%rbp), %rsi # t697 # t697
     movq $0, %rax
     call mematb
     movq %rax, -688(%rbp)
     movq $1, %rax
     movq %rax, -696(%rbp)
-    movq -688(%rbp), %rax # t548 # t548
+    movq -688(%rbp), %rax # t698 # t698
     subq -696(%rbp), %rax
     movq %rax, -704(%rbp)
-# load t550 to bx
+# load t700 to bx
     movq -704(%rbp), %rcx
     movq %rcx, -328(%rbp)
     movq $8, %rax
     movq %rax, -712(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -712(%rbp), %rsi # t551 # t551
+    movq -712(%rbp), %rsi # t701 # t701
     movq $0, %rax
     call mematb
     movq %rax, -720(%rbp)
-# load t552 to by
+# load t702 to by
     movq -720(%rbp), %rcx
     movq %rcx, -352(%rbp)
     movq $16, %rax
@@ -2107,7 +2679,7 @@ sublabel_else_528:
     movq %rax, -736(%rbp)
     addq -352(%rbp), %rax
     movq %rax, -744(%rbp)
-# load t555 to pos
+# load t705 to pos
     movq -744(%rbp), %rcx
     movq %rcx, -384(%rbp)
     movq -96(%rbp), %rdi # grid # grid
@@ -2115,27 +2687,27 @@ sublabel_else_528:
     movq $0, %rax
     call mematb
     movq %rax, -752(%rbp)
-# load t556 to test_block
+# load t706 to test_block
     movq -752(%rbp), %rcx
     movq %rcx, -400(%rbp)
     movq $80, %rax
     movq %rax, -760(%rbp)
-    movq -760(%rbp), %rdi # t557 # t557
+    movq -760(%rbp), %rdi # t707 # t707
     movq $0, %rax
     call sdl_keydown
     movq %rax, -768(%rbp)
     movq $0, %rax
     movq %rax, -776(%rbp)
     movq -400(%rbp), %rsi # test_block # test_block
-    movq -776(%rbp), %rdi # t559 # t559
+    movq -776(%rbp), %rdi # t709 # t709
     cmpq %rdi, %rsi
     sete %cl
     movzbq %cl, %rdx
     movq %rdx, -784(%rbp)
-    movq -768(%rbp), %rsi # t558 # t558
+    movq -768(%rbp), %rsi # t708 # t708
     cmpq $0, %rsi
     setne %al
-    movq -784(%rbp), %rdi # t560 # t560
+    movq -784(%rbp), %rdi # t710 # t710
     cmpq $0, %rdi
     setne %cl
     andb %al, %cl
@@ -2144,47 +2716,47 @@ sublabel_else_528:
     movq $1, %rax
     movq %rax, -800(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -800(%rbp), %rsi # t562 # t562
+    movq -800(%rbp), %rsi # t712 # t712
     movq $0, %rax
     call mematb
     movq %rax, -808(%rbp)
     movq $0, %rax
     movq %rax, -816(%rbp)
-    movq -808(%rbp), %rax # t563 # t563
-    movq -816(%rbp), %rdi # t564 # t564
+    movq -808(%rbp), %rax # t713 # t713
+    movq -816(%rbp), %rdi # t714 # t714
     cmpq %rdi, %rax
     setg %cl
     movzbq %cl, %rdx
     movq %rdx, -824(%rbp)
-    movq -792(%rbp), %rsi # t561 # t561
+    movq -792(%rbp), %rsi # t711 # t711
     cmpq $0, %rsi
     setne %al
-    movq -824(%rbp), %rdi # t565 # t565
+    movq -824(%rbp), %rdi # t715 # t715
     cmpq $0, %rdi
     setne %cl
     andb %al, %cl
     movzbq %cl, %rax
     movq %rax, -832(%rbp)
     cmpq $0, %rax
-    je sublabel_else_567
-sublabel_if_567: 
+    je sublabel_else_717
+sublabel_if_717: 
     movq $1, %rax
     movq %rax, -840(%rbp)
     movq $1, %rax
     movq %rax, -848(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -848(%rbp), %rsi # t569 # t569
+    movq -848(%rbp), %rsi # t719 # t719
     movq $0, %rax
     call mematb
     movq %rax, -856(%rbp)
     movq $1, %rax
     movq %rax, -864(%rbp)
-    movq -856(%rbp), %rax # t570 # t570
+    movq -856(%rbp), %rax # t720 # t720
     subq -864(%rbp), %rax
     movq %rax, -872(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -840(%rbp), %rsi # t568 # t568
-    movq -872(%rbp), %rdx # t572 # t572
+    movq -840(%rbp), %rsi # t718 # t718
+    movq -872(%rbp), %rdx # t722 # t722
     movq $0, %rax
     call memstoreb
     movq %rax, -880(%rbp)
@@ -2193,18 +2765,18 @@ sublabel_if_567:
     movq $4, %rax
     movq %rax, -896(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -896(%rbp), %rsi # t575 # t575
+    movq -896(%rbp), %rsi # t725 # t725
     movq $0, %rax
     call mematb
     movq %rax, -904(%rbp)
     movq $1, %rax
     movq %rax, -912(%rbp)
-    movq -904(%rbp), %rax # t576 # t576
+    movq -904(%rbp), %rax # t726 # t726
     subq -912(%rbp), %rax
     movq %rax, -920(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -888(%rbp), %rsi # t574 # t574
-    movq -920(%rbp), %rdx # t578 # t578
+    movq -888(%rbp), %rsi # t724 # t724
+    movq -920(%rbp), %rdx # t728 # t728
     movq $0, %rax
     call memstoreb
     movq %rax, -928(%rbp)
@@ -2213,63 +2785,63 @@ sublabel_if_567:
     movq $7, %rax
     movq %rax, -944(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -944(%rbp), %rsi # t581 # t581
+    movq -944(%rbp), %rsi # t731 # t731
     movq $0, %rax
     call mematb
     movq %rax, -952(%rbp)
     movq $1, %rax
     movq %rax, -960(%rbp)
-    movq -952(%rbp), %rax # t582 # t582
+    movq -952(%rbp), %rax # t732 # t732
     subq -960(%rbp), %rax
     movq %rax, -968(%rbp)
     movq -112(%rbp), %rdi # block # block
-    movq -936(%rbp), %rsi # t580 # t580
-    movq -968(%rbp), %rdx # t584 # t584
+    movq -936(%rbp), %rsi # t730 # t730
+    movq -968(%rbp), %rdx # t734 # t734
     movq $0, %rax
     call memstoreb
     movq %rax, -976(%rbp)
-    jmp sublabel_end_567
-sublabel_else_567: 
+    jmp sublabel_end_717
+sublabel_else_717: 
     movq $81, %rax
     movq %rax, -984(%rbp)
-    movq -984(%rbp), %rdi # t586 # t586
+    movq -984(%rbp), %rdi # t736 # t736
     movq $0, %rax
     call sdl_keydown
     movq %rax, -992(%rbp)
     cmpq $0, %rax
-    je sublabel_else_588
-sublabel_if_588: 
+    je sublabel_else_738
+sublabel_if_738: 
     movq -96(%rbp), %rdi # grid # grid
     movq -112(%rbp), %rsi # block # block
     movq $0, %rax
     call move_block_down
     movq %rax, -1000(%rbp)
-    jmp sublabel_end_588
-sublabel_else_588: 
+    jmp sublabel_end_738
+sublabel_else_738: 
     movq $82, %rax
     movq %rax, -1008(%rbp)
-    movq -1008(%rbp), %rdi # t590 # t590
+    movq -1008(%rbp), %rdi # t740 # t740
     movq $0, %rax
     call sdl_keydown
     movq %rax, -1016(%rbp)
     cmpq $0, %rax
-    je sublabel_else_592
-sublabel_if_592: 
+    je sublabel_else_742
+sublabel_if_742: 
     movq -112(%rbp), %rdi # block # block
     movq $0, %rax
     call swap_colors
     movq %rax, -1024(%rbp)
-    jmp sublabel_end_592
-sublabel_else_592: 
-sublabel_end_592: 
-sublabel_end_588: 
-sublabel_end_567: 
-sublabel_end_528: 
-    jmp sublabel_end_501
-sublabel_else_501: 
-sublabel_end_501: 
-    jmp while_start_484
-while_end_484: 
+    jmp sublabel_end_742
+sublabel_else_742: 
+sublabel_end_742: 
+sublabel_end_738: 
+sublabel_end_717: 
+sublabel_end_678: 
+    jmp sublabel_end_651
+sublabel_else_651: 
+sublabel_end_651: 
+    jmp while_start_634
+while_end_634: 
     movq -96(%rbp), %rdi # grid # grid
     movq $0, %rax
     call free

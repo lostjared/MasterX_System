@@ -59,25 +59,25 @@ SDL_Texture *sdl_loadtex(const char *src) {
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
-    SDL_FreeSurface(surf);
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(ren, surf);
-    if(!tex) {
+    SDL_Texture *text = SDL_CreateTextureFromSurface(ren, surf);
+    if(!text) {
+        SDL_FreeSurface(surf);
         fprintf(stderr, "Error creating texture: %s", src);
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
-    return tex;
+    SDL_FreeSurface(surf);
+    return text;
 }
 
-void sdl_destroytex(SDL_Texture *tex) {
-    if(tex != NULL)
+void sdl_destroytex(SDL_Texture *text) {
+    if(text != NULL)
         SDL_DestroyTexture(tex);
 }
 
 void sdl_copytex(SDL_Texture *text, int x, int y, int w, int h) {
     SDL_Rect rc = {x,y,w,h};
-    SDL_SetRenderTarget(ren, tex);
-    SDL_RenderCopy(ren, tex, NULL, &rc);
+    SDL_RenderCopy(ren, text, NULL, &rc);
 }
 
 long sdl_keydown(long key) {
@@ -103,8 +103,15 @@ long sdl_pump() {
     return 1;
 }
 
+void sdl_settarget(SDL_Texture *tex) {
+    SDL_SetRenderTarget(ren, tex);
+}
+void sdl_cleartarget() {
+    SDL_SetRenderTarget(ren, NULL);
+}
+
 void sdl_clear() {
-     SDL_RenderClear(ren);
+    SDL_RenderClear(ren);
 }
 
 void sdl_flip() {

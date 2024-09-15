@@ -1,9 +1,9 @@
-# 0 "square.e"
+# 0 "image.e"
 # 0 "<built-in>"
 # 0 "<command-line>"
 # 1 "/usr/include/stdc-predef.h" 1 3 4
 # 0 "<command-line>" 2
-# 1 "square.e"
+# 1 "image.e"
 # 1 "/usr/local/include/libetl/etl.e" 1 3
 
 
@@ -28,7 +28,7 @@ define mematb(@memory, index);
 define memclr(@memory, size);
 define memstorel(@memory, index, value);
 define memstoreb(@memory, index, value);
-# 2 "square.e" 2
+# 2 "image.e" 2
 # 1 "sdl.e" 1
 
 
@@ -50,35 +50,23 @@ define sdl_destroytex(@tex);
 define sdl_copytex(@tex, x, y, w, h);
 define sdl_settarget(@target);
 define sdl_cleartarget();
-# 3 "square.e" 2
-
-
-
-proc draw_grid(w, h) {
-
-
-    for(let x = 0; x < w; x = x + 4) {
-        for(let y = 0; y < h; y = y + 4) {
-            sdl_setcolor(rand()%255,rand()%255,rand()%255, 255);
-            sdl_fillrect(x, y, 4, 4);
-        }
-    }
-    return 0;
-}
+# 3 "image.e" 2
 
 
 proc init() {
 
     let width = 800;
-    let height = 600;
+    let height = 800;
     sdl_init();
-    sdl_create("Random Squares", width, height);
-    srand(time(0));
+    sdl_create("draw image", width, height);
+    let img = sdl_loadtex("alien.bmp");
+    sdl_cleartarget();
     while (sdl_pump()) {
         sdl_clear();
-        draw_grid(width, height);
+        sdl_copytex(img, 0, 0, width, height);
         sdl_flip();
     }
+    sdl_destroytex(img);
     sdl_release();
     sdl_quit();
     return 0;

@@ -33,8 +33,7 @@ define memstoreb(@memory, index, value);
 
 
 
-
-# 4 "sdl.e"
+# 3 "sdl.e"
 define sdl_init();
 define sdl_quit();
 define sdl_pump();
@@ -46,6 +45,11 @@ define sdl_flip();
 define sdl_clear();
 define sdl_keydown(key);
 define sdl_getticks();
+define @sdl_loadtex($source);
+define sdl_destroytex(@tex);
+define sdl_copytex(@tex, x, y, w, h);
+define sdl_settarget(@target);
+define sdl_cleartarget();
 # 3 "piece.e" 2
 
 proc set_block_color(color) {
@@ -105,10 +109,8 @@ proc draw_grid(@grid, @block) {
 }
 
 proc check_blocks(@grid) {
-
     let bx = 0;
     let by = 0;
-
     for(let x = 0; x < 11; x = x + 1) {
         for(let y = 0; y < 14; y = y + 1) {
             bx = x;
@@ -124,18 +126,51 @@ proc check_blocks(@grid) {
             }
         }
     }
+    let x1 = 0;
+    let y1 = 0;
+    let color1x = 0;
+    let color2x = 0;
+    let color3x = 0;
 
-    for(let y1 = 0; y1 < 16; y1 = y1 + 1) {
-        for(let x1 = 0; x1 < 9; x1 = x1 + 1) {
+    for(y1 = 0; y1 < 16; y1 = y1 + 1) {
+        for(x1 = 0; x1 < 9; x1 = x1 + 1) {
             bx = x1;
             by = y1;
-            let color1x = mematb(grid, bx * 16 + by);
-            let color2x = mematb(grid, (bx+1) * 16 + (by));
-            let color3x = mematb(grid, (bx+2) * 16 + (by));
+            color1x = mematb(grid, bx * 16 + by);
+            color2x = mematb(grid, (bx+1) * 16 + (by));
+            color3x = mematb(grid, (bx+2) * 16 + (by));
             if(color1x != 0 && color2x != 0 && color3x != 0 && color1x == color2x && color1x == color3x) {
                 memstoreb(grid, bx * 16 + by, 0);
                 memstoreb(grid, (bx+1) * 16 + by, 0);
                 memstoreb(grid, (bx+2) * 16 + by, 0);
+                return 0;
+            }
+        }
+    }
+
+    for (y1 = 0; y1 < 14; y1 = y1 + 1) {
+        for (x1 = 0; x1 < 7; x1 = x1 + 1) {
+            color1x = mematb(grid, x1 * 16 + y1);
+            color2x = mematb(grid, (x1 + 1) * 16 + (y1 + 1));
+            color3x = mematb(grid, (x1 + 2) * 16 + (y1 + 2));
+            if (color1x != 0 && color2x != 0 && color3x != 0 && color1x == color2x && color1x == color3x) {
+                memstoreb(grid, x1 * 16 + y1, 0);
+                memstoreb(grid, (x1 + 1) * 16 + (y1 + 1), 0);
+                memstoreb(grid, (x1 + 2) * 16 + (y1 + 2), 0);
+                return 0;
+            }
+        }
+    }
+
+    for (y1 = 0; y1 < 14; y1 = y1 + 1) {
+        for (x1 = 2; x1 < 9; x1 = x1 + 1) {
+            color1x = mematb(grid, x1 * 16 + y1);
+            color2x = mematb(grid, (x1 - 1) * 16 + (y1 + 1));
+            color3x = mematb(grid, (x1 - 2) * 16 + (y1 + 2));
+            if (color1x != 0 && color2x != 0 && color3x != 0 && color1x == color2x && color1x == color3x) {
+                memstoreb(grid, x1 * 16 + y1, 0);
+                memstoreb(grid, (x1 - 1) * 16 + (y1 + 1), 0);
+                memstoreb(grid, (x1 - 2) * 16 + (y1 + 2), 0);
                 return 0;
             }
         }
@@ -158,7 +193,6 @@ proc move_blocks(@grid) {
     }
     return 0;
 }
-
 
 proc @allocate_grid(w, h) {
     let grid = malloc (w * h);
