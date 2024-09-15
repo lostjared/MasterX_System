@@ -62,16 +62,16 @@ namespace mx {
                 std::string completePath;
                 std::mutex directoryMutex;
         #ifdef _WIN32
-                HANDLE hChildStdinRd, hChildStdinWr;  // Pipe for bash input
-                HANDLE hChildStdoutRd, hChildStdoutWr;  // Pipe for bash output
-                PROCESS_INFORMATION procInfo;  // Process information for bash
+                HANDLE hChildStdinRd, hChildStdinWr;  
+                HANDLE hChildStdoutRd, hChildStdoutWr;  
+                PROCESS_INFORMATION procInfo;  
                 HANDLE bashThread;
                 static DWORD WINAPI bashReaderThread(LPVOID param);
                 std::mutex outputMutex;
         #elif !defined(FOR_WASM)
                 pid_t bashPID;
-                int pipe_in[2];  // Pipe for sending input to bash
-                int pipe_out[2]; // Pipe for reading output from bash
+                int pipe_in[2];  
+                int pipe_out[2]; 
                 SDL_Thread *bashThread;
                 static int bashReaderThread(void *ptr);
                 std::mutex outputMutex;

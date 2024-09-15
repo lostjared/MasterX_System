@@ -33,6 +33,7 @@ namespace mx {
         font = TTF_OpenFont(getPath("fonts/consolas.ttf").c_str(), 15);
         if(!font) {
             std::cerr << "MasterX System Error: could not load system font.\n";
+            std::cerr.flush();
             exit(EXIT_FAILURE);
         }
 
@@ -247,12 +248,13 @@ namespace mx {
             SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), text_color);
             if(surface == nullptr) {
                 std::cerr << "MasterX System Error: Render Text failed.\n";
-                exit(EXIT_FAILURE);
+                std::cerr.flush();
+                return;
             }
             SDL_Texture* texture = SDL_CreateTextureFromSurface(app.ren, surface);
             if(texture == nullptr) {
                 std::cerr << "MasterX System Error: Create Texture failed.\n";
-                exit(EXIT_FAILURE);
+                std::cerr.flush();
             }
             SDL_Rect dstRect = {x, y, surface->w, surface->h};
             SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
@@ -488,7 +490,10 @@ namespace mx {
             print("MasterX System written by Jared Bruni\n(C) 2024 LostSideDead Software.\nhttps://lostsidedead.biz\n");
             command.clear();
         } else if(words.size() == 1  && words[0] == "clear") {
-            orig_text = "";    
+            {
+                std::lock_guard<std::mutex> lock(outputMutex);
+                orig_text = "";    
+            }
 #ifdef FOR_WASM
         clear = true;
 #endif
@@ -777,7 +782,7 @@ namespace mx {
         FD_ZERO(&read_fds);
         FD_SET(terminal->pipe_out[0], &read_fds);
         tv.tv_sec = 0;
-        tv.tv_usec = 10000;
+        tv.tv_usec = 5000;
 
         while (terminal->active) {
             ssize_t count;
