@@ -56,11 +56,12 @@ namespace mx {
                 int calculateWrappedLinesForText(const std::string &text, int, int);
                 std::atomic<bool> active;
                 int total_Lines();
+                void scrollToBottom();
                 bool render_text = true;
                 void requestCurrentDirectory();
-                std::string currentDirectory;
-                std::string completePath;
-                std::mutex directoryMutex;
+                std::string new_output;
+                std::string new_data;
+                std::atomic<bool> newData;
         #ifdef _WIN32
                 HANDLE hChildStdinRd, hChildStdinWr;  
                 HANDLE hChildStdoutRd, hChildStdoutWr;  

@@ -6,14 +6,6 @@
 #include<mutex>
 #include"mx_window.hpp"
 #include"mx_system_bar.hpp"
-
-#ifdef FOR_WASM
-#include"./apps/ats/ats.h"
-#endif                    
-
-#ifndef _WIN32
-#include<sys/select.h>
-#endif
 template<typename T>
 T my_max(const T& a, const T& b) {
     return a > b ? a : b;
@@ -26,7 +18,6 @@ T my_min(const T& a, const T& b) {
 
 namespace mx {
 
- 
     Terminal::Terminal(mxApp  &app) : Window(app) {
         active = true;
         text_color = { 255, 255, 255 };
@@ -39,15 +30,9 @@ namespace mx {
 
         Window::setCanResize(true);
         print("MasterX System - Logged in...\n");
-        #ifdef FOR_WASM
-        print("type help for instruction list\n");
-        #endif
         SDL_Rect rc;
         Window::getRect(rc);
         scroll();  
-        auto d = get_current_directory();
-        if(d.has_value())
-            currentDirectory = getLastDirectory(d.value());
 #ifdef _WIN32
         SECURITY_ATTRIBUTES saAttr = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
         if (!CreatePipe(&hChildStdoutRd, &hChildStdoutWr, &saAttr, 0)) {
@@ -90,7 +75,7 @@ namespace mx {
             dup2(pipe_out[1], STDOUT_FILENO);
             dup2(pipe_out[1], STDERR_FILENO);
 
-            execlp("/bin/bash", "bash", NULL);
+            execlp("stdbuf", "stdbuf", "-o0", "bash", NULL);
             exit(1);  
         } else {
             close(pipe_in[0]);
@@ -126,6 +111,7 @@ namespace mx {
     }
 
     void Terminal::draw(mxApp &app) {        
+
         if(!isVisible())
             return;
 
@@ -133,6 +119,16 @@ namespace mx {
 
         if(isDraw() == false)
             return;
+#ifndef FOR_WASM
+        if(newData == true) { 
+            std::lock_guard<std::mutex> lock(outputMutex);
+            std::string temp;
+            temp = new_data;
+            print(temp);
+            newData = false;
+            new_data = "";
+        } 
+#endif
 
         SDL_Rect rc;
         Window::getRect(rc);
@@ -144,73 +140,61 @@ namespace mx {
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         Window::drawMenubar(app);
         int lineHeight = TTF_FontHeight(font);
-        int maxWidth = rc.w - 10;
+        int maxWidth = rc.x+rc.w - 10;
         int y = rc.y + 5;
-        {
-#ifndef FOR_WASM
-            std::lock_guard<std::mutex> lock(outputMutex);
-#endif
-            int offsetLine = 0;
+
+        int offsetLine = 0;
             if(scrollOffset > maxVisibleLines-static_cast<int>(outputLines.size()) ){
                 if (!(scrollOffset >= total_Lines() - maxVisibleLines)) {
                     offsetLine = 1; 
-                }
-            }
-
-            for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
-                if(y + lineHeight + lineHeight > rc.y+rc.h) {
-                    break;
                 } 
-                renderText(app, outputLines[i], rc.x + 5, y);
-                y += lineHeight;
+                
             }
 
-            if(atBottom()) {
-                if (!outputLines.empty()) {
-                    std::string lastLine = outputLines.back(); 
-                    int textWidth = 0, textHeight = 0;
-                    TTF_SizeText(font, lastLine.c_str(), &textWidth, &textHeight);
+        for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
+            if(y + lineHeight+lineHeight > rc.y+rc.h) {
+                break;
+            } 
 
-                    int cy = y - textHeight;  
-                    int cx = rc.x + 5;  
-
-                    if(offsetLine != 1) {
-                        renderText(app, lastLine, cx, cy);
-                    }         
-                    cx -= 5;
-                    cy += lineHeight;
-                    renderTextWrapped(app, "$ ", inputText, cx, cy, maxWidth);
-                } else {
-                    std::string lastLine = " ";
-                    int textWidth = 0, textHeight = 0;
-                    TTF_SizeText(font, lastLine.c_str(), &textWidth, &textHeight);
-                    int cy = y - textHeight;  
-                    int cx = rc.x + 5;             
-                    cx -= 5;
-                    cy += lineHeight;
-                    renderTextWrapped(app, "$ ", inputText, cx, cy, maxWidth);
-                }
-            }
+            
+            renderText(app, outputLines[i], rc.x + 5, y);
+            y += lineHeight;
+       
         }
+        if (!outputLines.empty()) {
+            std::string lastLine = outputLines.back(); 
+            int textWidth = 0, textHeight = 0;
+            TTF_SizeText(font, lastLine.c_str(), &textWidth, &textHeight);
+            
+            int cy = y - textHeight;  
+            int cx = rc.x + 5;  
+
+            if(offsetLine != 1) {
+                renderText(app, lastLine, cx, cy);
+            }         
+                cx -= 5;
+                cy += lineHeight;
+                renderTextWrapped(app, "$ ",  inputText, cx, cy, maxWidth);
+        } else {
+            std::string lastLine = " ";
+            int textWidth = 0, textHeight = 0;
+            TTF_SizeText(font, lastLine.c_str(), &textWidth, &textHeight);
+            int cy = y - textHeight;  
+            int cx = rc.x + 5;             
+            cx -= 5;
+            cy += lineHeight;
+            renderTextWrapped(app, "$ ",  inputText, cx, cy, maxWidth);
+        }
+
 
         int totalLines = static_cast<int>(outputLines.size());
         std::string prompt;
-
-        {
-#ifndef FOR_WASM
-            std::lock_guard<std::mutex> dlock(directoryMutex);
-#endif
-            if(currentDirectory.empty()) {
-                prompt = "$ ";
-            } else {
-                prompt = "[" + currentDirectory + "] $ ";
-            }
-        }
-
+        prompt = "$ ";
         int promptWidth;
         TTF_SizeText(font,prompt.c_str(), &promptWidth, nullptr);
         int total = calculateWrappedLinesForText(inputText, rc.w - 20, promptWidth);
         totalLines += total;
+    
 
         if (totalLines > maxVisibleLines) {
             int offx = rc.x + rc.w;    
@@ -235,16 +219,8 @@ namespace mx {
         }
     }
 
-
     void Terminal::renderText(mxApp &app, const std::string &text, int x, int y) {
         if(!text.empty()) {
-
-            SDL_Rect rc;
-            Window::getRect(rc);
-            if(!atBottom() && y >= rc.y+(rc.h-28)) 
-                return;
-       
-
             SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), text_color);
             if(surface == nullptr) {
                 std::cerr << "MasterX System Error: Render Text failed.\n";
@@ -255,6 +231,7 @@ namespace mx {
             if(texture == nullptr) {
                 std::cerr << "MasterX System Error: Create Texture failed.\n";
                 std::cerr.flush();
+                return;
             }
             SDL_Rect dstRect = {x, y, surface->w, surface->h};
             SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
@@ -283,80 +260,67 @@ namespace mx {
             SDL_RenderDrawLine(app.ren, x, y, x, y + textHeight);  
         }
     }
-
-    void Terminal::requestCurrentDirectory() {
-        #ifdef _WIN32
-            std::string cmd = "echo BEGIN_PWD && pwd && echo END_PWD\n";
-            DWORD written;
-            WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
-        #elif !defined(FOR_WASM)
-            std::string cmd = "echo BEGIN_PWD && pwd && echo END_PWD\n";
-            if(write(pipe_in[1], cmd.c_str(), cmd.size()) < 0) {
-                std::cerr << "MasterX System: Eerror on write!\n";
-            }
-        #endif
-    }
-
-    bool Terminal::atBottom() {
-        int totalLines = total_Lines();
-        return scrollOffset >= totalLines - maxVisibleLines;
-    }
             
     void Terminal::renderTextWrapped(mxApp &app, const std::string &prompt, const std::string &inputText, int &x, int &y, int maxWidth) {
+        
+                
         SDL_Rect rc;
         Window::getRect(rc);
 
         int margin = 5;
-        int availableWidth = maxWidth - margin * 2;
+        int availableWidth = maxWidth - margin * 2;  
         x = rc.x + margin;
 
         int promptWidth;
-        std::string nprompt;
-        {      
-#ifndef FOR_WASM
-        std::lock_guard<std::mutex> dlock(directoryMutex);
-#endif
-            if (currentDirectory.empty()) {
-                nprompt = "$ ";
-            } else {
-                nprompt = "[" + currentDirectory + "] $ ";
-            }
-        }
+        std::string nprompt = "$ ";
         TTF_SizeText(font, nprompt.c_str(), &promptWidth, nullptr);
         renderText(app, nprompt, x, y);
         x += promptWidth;
         availableWidth -= promptWidth;
-
+   
         std::string remainingText = inputText;
         int lineHeight = TTF_FontHeight(font);
         int cursorX = x;
         int cursorY = y;
+        bool firstLine = true;
 
         while (!remainingText.empty()) {
             std::string lineToRender;
             int currentWidth = 0;
             size_t i = 0;
-            int thisLineWidth = availableWidth;
+            int thisLineWidth = firstLine ? availableWidth-20 : (maxWidth-31);
+            firstLine = false;
 
             while (i < remainingText.length()) {
                 std::string testLine = lineToRender + remainingText[i];
                 TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
 
                 if (currentWidth > thisLineWidth) {
-                    break;
+                    if (!lineToRender.empty()) {
+                        break;
+                    } else {
+                        while (currentWidth > thisLineWidth) {
+                            lineToRender += remainingText[i++];
+                            TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
+
+                            if (currentWidth > thisLineWidth) {
+                                renderText(app, lineToRender, x, y);
+                                y += lineHeight;
+                                x = rc.x + margin;
+                                thisLineWidth = maxWidth - (margin * 2);
+                                lineToRender.clear();
+                            }
+                        }
+                    }
+                } else {
+                    lineToRender += remainingText[i++];
                 }
-
-                lineToRender += remainingText[i++];
             }
-
             renderText(app, lineToRender, x, y);
             cursorX = x + currentWidth;
             cursorY = y;
-
             y += lineHeight;
             x = rc.x + margin;
-            thisLineWidth = maxWidth - margin * 2;
-
             remainingText = remainingText.substr(i);
         }
 
@@ -423,8 +387,6 @@ namespace mx {
             scrollOffset = (newScrollPosY * totalLines - maxVisibleLines) / (rc.y+rc.h- scrollBarHeight);
             scrollOffset = my_max(0, my_min(scrollOffset, (totalLines - maxVisibleLines)));
             render_text = false;
-            if(atBottom())
-                scroll();
         }
 
         if (e.type == SDL_MOUSEWHEEL) {
@@ -441,11 +403,8 @@ namespace mx {
 
     void Terminal::handleScrolling(int direction) {
         scrollOffset -= direction;
-        int totalLines = total_Lines();
+        int totalLines = static_cast<int>(outputLines.size());
          scrollOffset = my_max(0, my_min(scrollOffset, (totalLines - maxVisibleLines)));
-
-        if(atBottom()) 
-            scroll();
     }
 
     void Terminal::processCommand(mxApp &app, std::string command) {
@@ -453,21 +412,12 @@ namespace mx {
 #ifdef FOR_WASM        
         bool clear = false;
 #endif
-        {
-            std::lock_guard<std::mutex> lock(directoryMutex);
-            if(currentDirectory.empty())
-                print("\n$ " + command + "\n");
-            else
-                print("\n[" + currentDirectory + "] $ " + command + "\n");
-        }
-
+        print("\n$ " + command + "\n");
         std::vector<std::string> words;
         words = splitText(command);
 
         if(words.size()==0)
             return;
-
-
 
         if(command == "exit") {
             app.shutdown();
@@ -490,10 +440,7 @@ namespace mx {
             print("MasterX System written by Jared Bruni\n(C) 2024 LostSideDead Software.\nhttps://lostsidedead.biz\n");
             command.clear();
         } else if(words.size() == 1  && words[0] == "clear") {
-            {
-                std::lock_guard<std::mutex> lock(outputMutex);
-                orig_text = "";    
-            }
+            orig_text = "";    
 #ifdef FOR_WASM
         clear = true;
 #endif
@@ -505,29 +452,30 @@ namespace mx {
         }
         
 #ifdef _WIN32
-        std::string cmd = command + "\n";
-        DWORD written;
-        if (hChildStdinWr == INVALID_HANDLE_VALUE) {
-            std::cerr << "MasterX System: Invalid handle for stdin.\n";
-        }
+    std::string cmd = command + "\n";
 
-        std::cout << "MasterX: commad [ "  << command << " ]\n";
 
-        WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
-        if(written == 0) {
-            std::cerr << "MasterX System: Error wrote zero bytes..\n";
-        } 
-    requestCurrentDirectory();
+
+    DWORD written;
+    if (hChildStdinWr == INVALID_HANDLE_VALUE) {
+        std::cerr << "MasterX System: Invalid handle for stdin.\n";
+    }
+
+    std::cout << "MasterX: commad [ "  << command << " ]\n";
+
+    WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
+    if(written == 0) {
+        std::cerr << "MasterX System: Error wrote zero bytes..\n";
+    } 
 #elif !defined(FOR_WASM) 
-        std::string cmd = command + "\n";
-        if(command != "clear")
+    std::string cmd = command + "\n";
+    if(command != "clear")
         if(write(pipe_in[1], cmd.c_str(), cmd.size()) < 0) {
-                std::cerr << "MasterX System: Error on write.\n";
+            std::cerr << "MasterX System: Error on write..\n";
         }
-        requestCurrentDirectory();
-#elif defined(FOR_WASM)
+#else
     if(command.length()>0 && clear == false) {
-        print(scanATS(command));
+        print(" - command not found\n");
     }
 #endif
         scroll();
@@ -556,16 +504,10 @@ namespace mx {
     void Terminal::updateText(const std::string &text) {
         if(!text.empty()) 
             orig_text += text;
-
-         if (orig_text.length() > 4096) {
-            orig_text = orig_text.substr(orig_text.length() - 4096);
-        }
+        
     }
 
     void Terminal::print(const std::string &s) {
-#ifndef FOR_WASM
-        std::lock_guard<std::mutex> lock(outputMutex);
-#endif
         updateText(s);
         std::string line;
         SDL_Rect rc;
@@ -580,7 +522,7 @@ namespace mx {
                 std::string currentLine;
                 for (size_t i = 0; i < line.length(); ++i) {
                     currentLine += line[i];
-                    TTF_SizeText(font, currentLine.c_str(), &w, &h);                    
+                    TTF_SizeText(font, currentLine.c_str(), &w, &h);
                     if (w > maxWidth) {
                     
                         size_t lastSpace = currentLine.find_last_of(' ');
@@ -631,8 +573,6 @@ namespace mx {
         }
         if(inputText.empty())
             lineCount++;
-
-
         return lineCount;
     }
 
@@ -661,16 +601,11 @@ namespace mx {
 
     int Terminal::total_Lines() {
         int totalLines = static_cast<int>(outputLines.size());
-        
         SDL_Rect rc;
         Window::getRect(rc);
 
         std::string prompt;
-        if(currentDirectory.empty()) {
-            prompt = "$ ";
-        } else {
-            prompt = "[" + currentDirectory + "] $ ";
-        }
+        prompt = "$ ";
         int promptWidth;
         TTF_SizeText(font,prompt.c_str(), &promptWidth, nullptr);
         int total = calculateWrappedLinesForText(inputText, rc.w - 20, promptWidth);
@@ -691,10 +626,6 @@ namespace mx {
         } else {
             scrollOffset = 0;
         }
-
-        if(!atBottom()) {
-            maxVisibleLines -= 1;
-        }
     }
 
 
@@ -704,63 +635,21 @@ namespace mx {
         Window::dragging = false;
     }
 
-    std::string getLastDirectory(const std::string& fullPath) {
-        std::size_t pos = fullPath.find_last_of("\\/");
-        if (pos != std::string::npos) {
-            return trimR(fullPath.substr(pos + 1));  
-        }
-        return trimR(fullPath);  
-    }
-
 #ifdef _WIN32
     DWORD WINAPI Terminal::bashReaderThread(LPVOID param) {
         Terminal* terminal = static_cast<Terminal*>(param);
         char buffer[1024];
-        std::string output;
-        std::string pwdOutput;
-        bool inPwdBlock = false;
         DWORD bytesRead;
-
         while (terminal->active) {
             while (ReadFile(terminal->hChildStdoutRd, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
                 buffer[bytesRead] = '\0';
-                output.append(buffer);
-
-                while (!output.empty()) {
-                    if (!inPwdBlock) {
-                        std::size_t beginPos = output.find("BEGIN_PWD");
-                        if (beginPos != std::string::npos) {
-                            terminal->print(output.substr(0, beginPos));
-                            output = output.substr(beginPos + std::string("BEGIN_PWD").length());
-                            inPwdBlock = true;
-                            pwdOutput.clear();
-                        } else {
-                            terminal->print(output);
-                            output.clear();
-                        }
-                    } else {
-                        std::size_t endPos = output.find("END_PWD");
-                        if (endPos != std::string::npos) {
-                            pwdOutput += output.substr(0, endPos);
-                            {
-                                std::lock_guard<std::mutex> lock(terminal->directoryMutex);
-                                terminal->currentDirectory = getLastDirectory(pwdOutput);
-                                terminal->completePath = trimR(pwdOutput);
-                            }
-                            output = output.substr(endPos + std::string("END_PWD").length());
-                            inPwdBlock = false;
-                        } else {
-                            pwdOutput += output;
-                            output.clear();
-                        }
-                    }
-                }
+                std::lock_guard<std::mutex> lock(terminal->outputMutex);
+                terminal->new_data += buffer;
+                terminal->newData = true;
             }
-
             if (bytesRead == 0 || GetLastError() != ERROR_MORE_DATA) {
                 break;
             }
-
             Sleep(10);
         }
         return 0;
@@ -768,73 +657,27 @@ namespace mx {
 #elif !defined(FOR_WASM)
     int Terminal::bashReaderThread(void *ptr) {
         Terminal *terminal = static_cast<Terminal *>(ptr);
-        char buffer[4096];
-        std::string output;
-        std::string pwdOutput;
-        bool inPwdBlock = false;
-
-        fd_set read_fds;
-        struct timeval tv;
-        FD_ZERO(&read_fds);
-        FD_SET(terminal->pipe_out[0], &read_fds);
-        tv.tv_sec = 0;
-        tv.tv_usec = 5000;
-
-        while (terminal->active) {
-            ssize_t count;
-
-            FD_ZERO(&read_fds);
-            FD_SET(terminal->pipe_out[0], &read_fds);
-     
-            int retval = select(terminal->pipe_out[0] + 1, &read_fds, NULL, NULL, &tv);
-
-            if (retval == -1) {
-                std::cerr << "Error in select: " << strerror(errno) << std::endl;
-                break;
-            } else if (retval > 0) {
-                    while ((count = read(terminal->pipe_out[0], buffer, sizeof(buffer) - 1)) > 0) {
-                        buffer[count] = '\0';
-                        output.append(buffer);
-
-                        while (!output.empty()) {
-                            if (!inPwdBlock) {
-                                std::size_t beginPos = output.find("BEGIN_PWD");
-                                if (beginPos != std::string::npos) {
-                                    terminal->print(output.substr(0, beginPos));
-                                    output = output.substr(beginPos + std::string("BEGIN_PWD").length());
-                                    inPwdBlock = true;
-                                    pwdOutput.clear();
-                                } else {
-                                    terminal->print(output);
-                                    output.clear();
-                                }
-                            } else {
-                                std::size_t endPos = output.find("END_PWD");
-                                if (endPos != std::string::npos) {
-                                    pwdOutput += output.substr(0, endPos);
-                                    {
-                                        std::lock_guard<std::mutex> lock(terminal->directoryMutex);
-                                        terminal->currentDirectory = getLastDirectory(pwdOutput);
-                                        terminal->completePath = trimR(pwdOutput);
-                                    }
-                                    output = output.substr(endPos + std::string("END_PWD").length());
-                                    inPwdBlock = false;
-                                } else {
-                                    pwdOutput += output;
-                                    output.clear();
-                                }
-                            }
-                        }
-                    }
-
-                    if (count == -1 && errno != EAGAIN) {
-                        std::cerr << "Error reading from pipe: " << strerror(errno) << std::endl;
-                        break;
-                    }
+            char buffer[128];
+            std::string output;
+            std::string pwdOutput;
+            while (terminal->active) {
+                ssize_t count;
+                while ((count = read(terminal->pipe_out[0], buffer, sizeof(buffer) - 1)) > 0) {
+                       buffer[count] = '\0';
+                       std::lock_guard<std::mutex> lock(terminal->outputMutex);
+                       terminal->new_data += buffer;    
+                       terminal->newData = true;
                 }
+                        
+                if (count == -1 && errno != EAGAIN) {
+                    std::cerr << "Error reading from pipe: " << strerror(errno) << std::endl;
+                    break;
+                }
+    
             }
             return 0;
-        }
-#endif
+    }
+                
+#endif    
 }
  
