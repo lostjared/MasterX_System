@@ -505,36 +505,31 @@ namespace mx {
         }
         
 #ifdef _WIN32
-    std::lock_guard<std::mutex> lock(outputMutex);
-    std::string cmd = command + "\n";
+        std::string cmd = command + "\n";
+        DWORD written;
+        if (hChildStdinWr == INVALID_HANDLE_VALUE) {
+            std::cerr << "MasterX System: Invalid handle for stdin.\n";
+        }
 
+        std::cout << "MasterX: commad [ "  << command << " ]\n";
 
-
-    DWORD written;
-    if (hChildStdinWr == INVALID_HANDLE_VALUE) {
-        std::cerr << "MasterX System: Invalid handle for stdin.\n";
-    }
-
-    std::cout << "MasterX: commad [ "  << command << " ]\n";
-
-    WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
-    if(written == 0) {
-        std::cerr << "MasterX System: Error wrote zero bytes..\n";
-    } 
+        WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
+        if(written == 0) {
+            std::cerr << "MasterX System: Error wrote zero bytes..\n";
+        } 
     requestCurrentDirectory();
 #elif !defined(FOR_WASM) 
-    std::string cmd = command + "\n";
-    if(command != "clear")
-       if(write(pipe_in[1], cmd.c_str(), cmd.size()) < 0) {
-            std::cerr << "MasterX System: Error on write.\n";
-       }
-    requestCurrentDirectory();
+        std::string cmd = command + "\n";
+        if(command != "clear")
+        if(write(pipe_in[1], cmd.c_str(), cmd.size()) < 0) {
+                std::cerr << "MasterX System: Error on write.\n";
+        }
+        requestCurrentDirectory();
 #elif defined(FOR_WASM)
     if(command.length()>0 && clear == false) {
         print(scanATS(command));
     }
 #endif
-        
         scroll();
     }
 
@@ -666,6 +661,7 @@ namespace mx {
 
     int Terminal::total_Lines() {
         int totalLines = static_cast<int>(outputLines.size());
+        
         SDL_Rect rc;
         Window::getRect(rc);
 
