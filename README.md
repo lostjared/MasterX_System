@@ -10,6 +10,13 @@ For Windows users, the application requires the latest Visual C++/Studio Runtime
 ## Motivation
 The motivation behind this project is simply that it’s a hobby I’ve been working on in my spare time for fun, while also learning new things about programming and software development.
 
+## Things I need TODO
+
+- Better implementation of the terminal
+- A TextEditor app in so you can edit files directly in the program
+- Menus
+- lots of other stuff
+
 The Dependencies are:
 
 SDL2
