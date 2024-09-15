@@ -504,7 +504,9 @@ namespace mx {
     void Terminal::updateText(const std::string &text) {
         if(!text.empty()) 
             orig_text += text;
-        
+
+        if(orig_text.length() > 4096)
+             orig_text = orig_text.substr(orig_text.size() - 4096);
     }
 
     void Terminal::print(const std::string &s) {
