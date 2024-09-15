@@ -10,7 +10,8 @@ For a demonstration of the WebAssembly version, which runs ATS as the shell, and
 For Windows users, the application requires the latest Visual C++/Studio Runtimes and WSL2 (Windows Subsystem for Linux) since the program utilizes Bash as its shell and the compiler is for Linux.
 
 ## Motivation
-The motivation behind this project is simply that it’s a hobby I’ve been working on in my spare time for fun, while also learning new things about programming and software development.
+This project is a personal endeavor undertaken to enhance my skills and knowledge. As I believe the best way to learn is through practical application, this hobby project allows me to explore and experiment with compilers, 
+and system-level programming. It represents my commitment to continuous learning and personal growth.
 
 ## Things I need TODO
 
