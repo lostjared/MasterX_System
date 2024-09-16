@@ -270,7 +270,7 @@ namespace mx {
         SDL_Rect rc;
         Window::getRect(rc);
         int margin = 5;
-        int availableWidth = maxWidth - margin * 2;
+        int availableWidth = maxWidth;
         x = rc.x + margin;
         int promptWidth;
         std::string nprompt = "$ ";
@@ -290,9 +290,9 @@ namespace mx {
             std::string lineToRender;
             int currentWidth = 0;
             size_t i = 0;
-            int thisLineWidth = firstLine ? availableWidth - 20 : (maxWidth - 31);
+            int thisLineWidth = firstLine ? availableWidth - 5 : (maxWidth - 5);
             firstLine = false;
-            int lineY = y; 
+            int lineY = y;
             while (i < remainingText.length()) {
                 std::string testLine = lineToRender + remainingText[i];
                 TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
