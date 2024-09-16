@@ -12,7 +12,9 @@ all: $(OUTPUT)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(OUTPUT): $(OBJECTS)
+	make -C ./src/apps/ats
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(OUTPUT) $(PRELOAD)  ./src/apps/ats/libats.a -s USE_SDL=2 -s USE_SDL_TTF=2 -s ALLOW_MEMORY_GROWTH -s ASSERTIONS -s ENVIRONMENT=web
 
 clean:
+	make -C ./src/apps/ats clean
 	rm -f $(OUTPUT) $(OBJECTS)
