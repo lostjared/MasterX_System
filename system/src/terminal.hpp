@@ -9,10 +9,16 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <pty.h>
+#include <utmp.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <termios.h>
 #endif
 #include<thread>
 #include<mutex>
 #include<atomic>
+#include<regex>
 
 namespace mx {
 
@@ -29,7 +35,15 @@ namespace mx {
                 void setWallpaper(SDL_Texture *tex);
                 void drawCursor(mxApp &, int, int, bool);
                 bool atBottom();
+                std::string parseTerminalData(const std::string &);
+                void sendCommand(const std::string &cmd);
         private:
+                std::string prompt = "$ ";
+#ifndef FOR_WASM
+                int master_fd, slave_fd;
+                bool cursorVisible = true;
+#endif
+                std::string handleBackspaces(const std::string &str); 
                 std::string inputText;
                 int cursorPosition = 0;
                 std::vector<std::string> outputLines;

@@ -29,7 +29,7 @@ namespace mx {
         }
 
         Window::setCanResize(true);
-        print("MasterX System - Logged in...\n");
+        
         SDL_Rect rc;
         Window::getRect(rc);
         scroll();  
@@ -58,39 +58,103 @@ namespace mx {
 
         CloseHandle(hChildStdinRd);
         CloseHandle(hChildStdoutWr);
-    bashThread = CreateThread(NULL, 0, bashReaderThread, this, 0, NULL);
+        bashThread = CreateThread(NULL, 0, bashReaderThread, this, 0, NULL);
 
  #elif !defined(FOR_WASM)
-        if (pipe(pipe_in) == -1 || pipe(pipe_out) == -1) {
-            mx::system_out << "Error creating pipes for bash\n ";
-            return;
-        }
-        bashPID = fork();
-        if (bashPID == -1) {
-            mx::system_out << "Failed to fork bash process"; 
-        } else if (bashPID == 0) {
-            close(pipe_in[1]);  
-            close(pipe_out[0]); 
-            dup2(pipe_in[0], STDIN_FILENO);
-            dup2(pipe_out[1], STDOUT_FILENO);
-            dup2(pipe_out[1], STDERR_FILENO);
-#ifdef __linux__
-            execlp("stdbuf", "stdbuf", "-o0", "bash", NULL);
-#elif defined(__APPLE__)
-            execlp("/bin/bash", "bash", NULL);
-#endif
-            exit(1);  
-        } else {
-            close(pipe_in[0]);
-            close(pipe_out[1]);
-        }
-             bashThread = SDL_CreateThread(bashReaderThread, "bashReaderThread", this);
+    if (openpty(&master_fd, &slave_fd, NULL, NULL, NULL) == -1) {
+        perror("Failed to create PTY");
+        exit(1);
+    }
+    bashPID = fork();
+    if (bashPID == -1) {
+        perror("Failed to fork bash");
+        exit(1);
+    } else if (bashPID == 0) {
+        close(master_fd);  
+        setsid();  
+        ioctl(slave_fd, TIOCSCTTY, 0);  
+        dup2(slave_fd, STDIN_FILENO);
+        dup2(slave_fd, STDOUT_FILENO);
+        dup2(slave_fd, STDERR_FILENO);
+        close(slave_fd);  
+        execlp("bash", "bash", NULL);
+        perror("Failed to exec bash");
+        exit(1);
+    } else {
+        close(slave_fd);  
+        std::string ps1 = R"(\[\e]0;BEGIN_PROMPT\u@\h:\WEND_PROMPT\a\]\u@\h:\W$ )";
+        sendCommand("export PS1=\"" + ps1 + "\"\n");
+    }
+    bashThread = SDL_CreateThread(bashReaderThread, "bashReaderThread", this);
     #endif
+        print("MasterX System - Logged in...\n");
     }
 
      void Terminal::setWallpaper(SDL_Texture *tex) {
         wallpaper = tex;
      }
+
+    void Terminal::sendCommand(const std::string &cmd) {
+        #ifdef __linux__
+            int bytes = 0;
+            while(bytes < static_cast<int>(cmd.size())) {
+                int wrote = write(master_fd, cmd.c_str(), cmd.size());
+                if(wrote < 0) {
+                    mx::system_err << "MasterX: System error could write.\n";
+                    return;
+                }
+                bytes += wrote;
+            }
+        #endif
+    }
+
+    std::string Terminal::handleBackspaces(const std::string &str) {
+        std::string result;
+        for (char c : str) {
+            if (c == '\b') {
+                if (!result.empty()) {
+                    result.pop_back();
+                }
+            } else {
+                result += c;
+            }
+        }
+        return result;
+    }
+
+
+
+    std::string cleanTerminalOutput(const std::string &input) {
+        std::regex ps1LineRegex(R"((export PS1=.*))");
+        return std::regex_replace(input, ps1LineRegex, "");
+    }
+
+
+    std::string Terminal::parseTerminalData(const std::string &input) {
+        std::regex oscRegex(R"(\x1B\].*?(\x07|\x1B\\))");
+        std::string inputWithoutOSC = std::regex_replace(input, oscRegex, "");
+        std::regex cursorRegex(R"(\x1B\[\?25([hl]))");
+        std::smatch cursorMatch;
+        std::string tempInput = inputWithoutOSC;
+        while (std::regex_search(tempInput, cursorMatch, cursorRegex)) {
+            cursorVisible = (cursorMatch[1] == "h");
+            tempInput = cursorMatch.suffix();
+        }
+        std::string inputWithoutCursor = std::regex_replace(inputWithoutOSC, cursorRegex, "");
+        std::regex escapeRegex(R"(\x1B\[[0-9;?]*[ -/]*[@-~])");
+        std::string cleanedInput = std::regex_replace(inputWithoutCursor, escapeRegex, "");
+
+        cleanedInput = handleBackspaces(cleanedInput);
+        std::regex promptRegex(R"(BEGIN_PROMPT(.*?)END_PROMPT)");
+        std::smatch promptMatch;
+        std::string prompt = "";
+        if (std::regex_search(cleanedInput, promptMatch, promptRegex)) {
+            prompt = promptMatch[1].str();
+            cleanedInput = cleanedInput.substr(promptMatch.position() + promptMatch.length());
+        }
+        print(cleanTerminalOutput(cleanedInput));
+        return prompt;
+    }
 
     Terminal::~Terminal() {
         active = false;
@@ -101,13 +165,24 @@ namespace mx {
         CloseHandle(hChildStdinWr);
         CloseHandle(hChildStdoutRd);
 #elif !defined(FOR_WASM)
+        pid_t fg_pgid = tcgetpgrp(master_fd);
+        if (fg_pgid == -1) {
+            mx::system_err << "MasterX: Failed to get foreground process group\n";
+            mx::system_err.flush();
+        }
+        if (killpg(fg_pgid, SIGINT) == 0) {
+            print("- Sent SIGINT to foreground process\n");
+        } else {
+            mx::system_err << "MasterX: failed to kill process..\n";
+        }
+        std::string exit_cmd = "exit\n";
+        sendCommand(exit_cmd);
         if (bashPID > 0) {
             kill(bashPID, SIGTERM);
             waitpid(bashPID, nullptr, 0);
         }
-        close(pipe_in[1]);
-        close(pipe_out[0]);
-        if (bashThread) {
+        close(master_fd);
+      if (bashThread) {
             SDL_WaitThread(bashThread, nullptr);
         }
 #endif
@@ -129,10 +204,15 @@ namespace mx {
             std::lock_guard<std::mutex> lock(outputMutex);
             std::string temp;
             temp = new_data;
-            print(temp);
+            parseTerminalData(temp);;
             newData = false;
             new_data = "";
         } 
+#endif
+#ifdef __linux__
+        if(!outputLines.empty()) {
+            prompt = outputLines.back();
+        }
 #endif
 
         SDL_Rect rc;
@@ -179,7 +259,7 @@ namespace mx {
             }         
                 cx -= 5;
                 cy += lineHeight;
-                renderTextWrapped(app, "$ ",  inputText, cx, cy, maxWidth);
+                renderTextWrapped(app, prompt,  inputText, cx, cy, maxWidth);
         } else {
             std::string lastLine = " ";
             int textWidth = 0, textHeight = 0;
@@ -188,13 +268,11 @@ namespace mx {
             int cx = rc.x + 5;             
             cx -= 5;
             cy += lineHeight;
-            renderTextWrapped(app, "$ ",  inputText, cx, cy, maxWidth);
+            renderTextWrapped(app, prompt,  inputText, cx, cy, maxWidth);
         }
 
 
         int totalLines = static_cast<int>(outputLines.size());
-        std::string prompt;
-        prompt = "$ ";
         int promptWidth;
         TTF_SizeText(font,prompt.c_str(), &promptWidth, nullptr);
         int total = calculateWrappedLinesForText(inputText, rc.w - 20, promptWidth);
@@ -259,13 +337,17 @@ namespace mx {
     }
     
     void Terminal::drawCursor(mxApp &app, int x, int y, bool showCursor) {
+        #ifdef __linux__
+        if(cursorVisible && showCursor) {
+        #else
         if (showCursor) {
+        #endif
             int textHeight = TTF_FontHeight(font);
             SDL_SetRenderDrawColor(app.ren, text_color.r, text_color.g, text_color.b, 255);
             SDL_RenderDrawLine(app.ren, x, y, x, y + textHeight);  
         }
     }
-    
+
     void Terminal::renderTextWrapped(mxApp &app, const std::string &prompt, const std::string &inputText, int &x, int &y, int maxWidth) {
         SDL_Rect rc;
         Window::getRect(rc);
@@ -273,10 +355,14 @@ namespace mx {
         int availableWidth = maxWidth;
         x = rc.x + margin;
         int promptWidth;
-        std::string nprompt = "$ ";
-        TTF_SizeText(font, nprompt.c_str(), &promptWidth, nullptr);
+        TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
+ #if defined(__linux__) || defined(__APPLE__)
+        y -= TTF_FontHeight(font);
+#endif
         int promptY = y;
-        renderText(app, nprompt, x, y);
+#if defined(_WIN32) || defined(FOR_WASM)
+        renderText(app, prompt, x, y);
+#endif
         x += promptWidth;
         availableWidth -= promptWidth;
         std::string remainingText = inputText;
@@ -351,6 +437,25 @@ namespace mx {
 
         if (e.type == SDL_KEYDOWN) {
             switch (e.key.keysym.sym) {
+                case SDLK_c:
+                if (e.key.keysym.mod & KMOD_CTRL) {
+                    
+                    #if !defined(FOR_WASM) && !defined(_WIN32)
+                        pid_t fg_pgid = tcgetpgrp(master_fd);
+                        if (fg_pgid == -1) {
+                            mx::system_err << "MasterX: Failed to get foreground process group\n";
+                            mx::system_err.flush();
+                            return true;
+                        }
+                        if (killpg(fg_pgid, SIGINT) == 0) {
+                            print("- Sent SIGINT to foreground process\n");
+                        } else {
+                            mx::system_err << "MasterX: failed to kill process..\n";
+                            return true;
+                        }
+                    #endif
+                }
+                break;
                 case SDLK_BACKSPACE:
                     if (!inputText.empty() && cursorPosition > 0) {
                         inputText.erase(cursorPosition - 1, 1);
@@ -466,7 +571,9 @@ namespace mx {
 
         stored_commands.push_back(command);
         store_offset = stored_commands.size()-1;
+#if defined(_WIN32) || defined(FOR_WASM)
         print("\n$ " + command + "\n");
+#endif
         std::vector<std::string> words;
         words = splitText(command);
 
@@ -524,7 +631,7 @@ namespace mx {
 #elif !defined(FOR_WASM) 
     std::string cmd = command + "\n";
     if(command != "clear")
-        if(write(pipe_in[1], cmd.c_str(), cmd.size()) < 0) {
+        if(write(master_fd, cmd.c_str(), cmd.size()) < 0) {
             mx::system_err << "MasterX System: Error on write..\n";
         }
 #else
@@ -714,23 +821,20 @@ namespace mx {
 #elif !defined(FOR_WASM)
     int Terminal::bashReaderThread(void *ptr) {
         Terminal *terminal = static_cast<Terminal *>(ptr);
-            char buffer[4096];
+            char buffer[128];
             std::string output;
             std::string pwdOutput;
             while (terminal->active) {
                 ssize_t count;
-                while ((count = read(terminal->pipe_out[0], buffer, sizeof(buffer) - 1)) > 0) {
+                while ((count = read(terminal->master_fd, buffer, sizeof(buffer) - 1)) > 0) {
                        buffer[count] = '\0';
                        std::lock_guard<std::mutex> lock(terminal->outputMutex);
                        terminal->new_data += buffer;    
                        terminal->newData = true;
-                }
-                        
+                }       
                 if (count == -1 && errno != EAGAIN) {
-                    mx::system_err << "Error reading from pipe: " << strerror(errno) << std::endl;
                     break;
                 }
-    
             }
             return 0;
     }
