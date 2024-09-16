@@ -369,14 +369,46 @@ namespace mx {
                         cursorPosition++;
                     }
                     break;
-
-                case SDLK_RETURN:
-                    if (!inputText.empty()) {
-                        processCommand(app, inputText);
-                        inputText.clear();
-                        cursorPosition = 0;
-                        scroll();
+               case SDLK_UP:
+                    if (!stored_commands.empty()) {
+                        if (!cyclingThroughHistory) {
+                            savedInputText = inputText; 
+                            cyclingThroughHistory = true; 
+                        }
+                        if (store_offset > 0) {
+                            store_offset--;
+                        } else {
+                            store_offset = stored_commands.size() - 1;  
+                        }
+                        inputText = stored_commands[store_offset];
+                        cursorPosition = inputText.length();  
                     }
+                    break;
+
+            case SDLK_DOWN:
+                    if (!stored_commands.empty()) {
+                        if (store_offset < static_cast<int>(stored_commands.size() - 1)) {
+                            store_offset++;
+                            inputText = stored_commands[store_offset];
+                            cursorPosition = inputText.length();  
+                        } else {
+                            inputText = savedInputText;
+                            cursorPosition = inputText.length();  
+                            cyclingThroughHistory = false;  
+                        }
+                    }
+                    break;
+            case SDLK_RETURN:
+                if (!inputText.empty()) {
+                    processCommand(app, inputText);
+                    stored_commands.push_back(inputText);  
+                    store_offset = stored_commands.size();  
+                    inputText.clear();
+                    cursorPosition = 0;
+                    scroll();
+                }
+                break;
+                default:
                     break;
             }
         }
@@ -431,6 +463,9 @@ namespace mx {
 #ifdef FOR_WASM        
         bool clear = false;
 #endif
+
+        stored_commands.push_back(command);
+        store_offset = stored_commands.size()-1;
         print("\n$ " + command + "\n");
         std::vector<std::string> words;
         words = splitText(command);
@@ -520,7 +555,8 @@ namespace mx {
         return temp;
     }
 
-    void Terminal::updateText(const std::string &text) {
+
+    void Terminal::updateText(const std::string &text) {                                               
         if(!text.empty()) 
             orig_text += text;
 

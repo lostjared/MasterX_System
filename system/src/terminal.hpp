@@ -40,6 +40,8 @@ namespace mx {
                 void updateText(const std::string &text);
                 std::string orig_text;
                 std::vector<std::string> splitText(const std::string &text);
+                std::vector<std::string> stored_commands;
+                int store_offset = 0;
                 int scrollOffset = 0; 
                 int maxVisibleLines = 10; 
                 bool showCursor = true;
@@ -53,6 +55,8 @@ namespace mx {
                 int scrollBarHeight = 0;
                 int scrollBarPosY = 0;
                 int scrollBarDragOffset = 0;
+                std::string savedInputText;
+                bool cyclingThroughHistory = false;
                 int calculateTotalWrappedLines();
                 int calculateWrappedLinesForText(const std::string &text, int, int);
                 std::atomic<bool> active;
