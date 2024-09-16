@@ -31,6 +31,7 @@ namespace mx {
                 bool atBottom();
         private:
                 std::string inputText;
+                int cursorPosition = 0;
                 std::vector<std::string> outputLines;
                 void renderText(mxApp &app, const std::string &text, int x, int y);
                 void renderTextWrapped(mxApp &app, const std::string &prompt, const std::string &text, int &x, int &y, int maxWidth);

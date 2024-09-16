@@ -265,86 +265,86 @@ namespace mx {
             SDL_RenderDrawLine(app.ren, x, y, x, y + textHeight);  
         }
     }
-            
+    
     void Terminal::renderTextWrapped(mxApp &app, const std::string &prompt, const std::string &inputText, int &x, int &y, int maxWidth) {
-        
-                
         SDL_Rect rc;
         Window::getRect(rc);
-
         int margin = 5;
-        int availableWidth = maxWidth - margin * 2;  
+        int availableWidth = maxWidth - margin * 2;
         x = rc.x + margin;
-
         int promptWidth;
         std::string nprompt = "$ ";
         TTF_SizeText(font, nprompt.c_str(), &promptWidth, nullptr);
+        int promptY = y;
         renderText(app, nprompt, x, y);
         x += promptWidth;
         availableWidth -= promptWidth;
-   
         std::string remainingText = inputText;
         int lineHeight = TTF_FontHeight(font);
         int cursorX = x;
         int cursorY = y;
+        int charCount = 0;
         bool firstLine = true;
-
+        bool cursorDrawn = false;
         while (!remainingText.empty()) {
             std::string lineToRender;
             int currentWidth = 0;
             size_t i = 0;
-            int thisLineWidth = firstLine ? availableWidth-20 : (maxWidth-31);
+            int thisLineWidth = firstLine ? availableWidth - 20 : (maxWidth - 31);
             firstLine = false;
-
+            int lineY = y; 
             while (i < remainingText.length()) {
                 std::string testLine = lineToRender + remainingText[i];
                 TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
-
                 if (currentWidth > thisLineWidth) {
                     if (!lineToRender.empty()) {
                         break;
                     } else {
-                        while (currentWidth > thisLineWidth) {
+                        while (currentWidth > thisLineWidth && i < remainingText.length()) {
                             lineToRender += remainingText[i++];
                             TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
-
-                            if (currentWidth > thisLineWidth) {
-                                renderText(app, lineToRender, x, y);
-                                y += lineHeight;
-                                x = rc.x + margin;
-                                thisLineWidth = maxWidth - (margin * 2);
-                                lineToRender.clear();
-                            }
                         }
+                        break;
                     }
                 } else {
                     lineToRender += remainingText[i++];
                 }
+                charCount++;
+                if (!cursorDrawn && charCount == cursorPosition) {
+                    cursorX = x + currentWidth;
+                    cursorY = lineY; 
+                    cursorDrawn = true;
+                }
             }
-            renderText(app, lineToRender, x, y);
-            cursorX = x + currentWidth;
-            cursorY = y;
+            renderText(app, lineToRender, x, lineY);
+            if (!cursorDrawn && charCount == cursorPosition) {
+                cursorX = x + currentWidth;
+                cursorY = lineY; 
+                cursorDrawn = true;
+            }
             y += lineHeight;
             x = rc.x + margin;
             remainingText = remainingText.substr(i);
         }
-
+        if (!cursorDrawn) {
+            cursorX = rc.x + promptWidth + margin;
+            cursorY = promptY; 
+        }
         Uint32 currentTime = SDL_GetTicks();
         if (currentTime - cursorTimer >= cursorBlinkInterval) {
             showCursor = !showCursor;
             cursorTimer = currentTime;
         }
-
         drawCursor(app, cursorX, cursorY, showCursor);
     }
 
     bool Terminal::event(mxApp &app, SDL_Event &e) {
-        
-        if(!Window::isVisible())
-            return false;
+        if (!Window::isVisible())
+           return false;
 
         if (e.type == SDL_TEXTINPUT) {
-            inputText += e.text.text;
+            inputText.insert(cursorPosition, e.text.text);
+            cursorPosition += strlen(e.text.text);
             scroll();
             return true;
         }
@@ -352,21 +352,35 @@ namespace mx {
         if (e.type == SDL_KEYDOWN) {
             switch (e.key.keysym.sym) {
                 case SDLK_BACKSPACE:
-                    if (!inputText.empty()) {
-                        inputText.pop_back(); 
+                    if (!inputText.empty() && cursorPosition > 0) {
+                        inputText.erase(cursorPosition - 1, 1);
+                        cursorPosition--;
+                    }
+                    break;
+
+                case SDLK_LEFT:
+                    if (cursorPosition > 0) {
+                        cursorPosition--;
+                    }
+                    break;
+
+                case SDLK_RIGHT:
+                    if (cursorPosition < static_cast<int>(inputText.length())) {
+                        cursorPosition++;
                     }
                     break;
 
                 case SDLK_RETURN:
-                   if(!inputText.empty()) {
+                    if (!inputText.empty()) {
                         processCommand(app, inputText);
-                        inputText.clear(); 
+                        inputText.clear();
+                        cursorPosition = 0;
                         scroll();
-                   }
+                    }
                     break;
             }
-            return true;
         }
+
         SDL_Rect rc;
         Window::getRect(rc);
         rc.y += 28;
