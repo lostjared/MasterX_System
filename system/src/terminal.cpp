@@ -95,7 +95,7 @@ namespace mx {
      }
 
     void Terminal::sendCommand(const std::string &cmd) {
-        #ifdef __linux__
+        #if defined(__linux__) || defined(__APPLE__)
             int bytes = 0;
             while(bytes < static_cast<int>(cmd.size())) {
                 int wrote = write(master_fd, cmd.c_str(), cmd.size());
@@ -105,6 +105,9 @@ namespace mx {
                 }
                 bytes += wrote;
             }
+        #elif defined(_WIN32)
+            DWORD written;
+            WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
         #endif
     }
 
@@ -646,9 +649,8 @@ namespace mx {
             command.clear();
         } else if(words.size() == 1  && words[0] == "clear") {
             orig_text = "";   
-            #if defined(__linux__) || defined(__APPLE__)
             sendCommand("\n");
-            #endif
+            print("");
             scroll(); 
 #ifdef FOR_WASM
         clear = true;
