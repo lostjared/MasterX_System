@@ -462,13 +462,15 @@ namespace mx {
                     bool altPressed = (mod & KMOD_ALT) != 0;
 
                     if (altPressed && (keycode == SDLK_d)) {
-                        char eofChar = 0x04; 
+                        
 #ifndef _WIN32
+                        char eofChar = 0x04; 
                         if(write(master_fd, &eofChar, 1) < 0) {
                             mx::system_err << "MasterX System: Error could not write...\n";
                             return false;
                         }
 #endif
+                        
                     }
                 }
                 break;
