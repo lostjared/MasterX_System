@@ -6,6 +6,9 @@
 #include<mutex>
 #include"mx_window.hpp"
 #include"mx_system_bar.hpp"
+#ifdef FOR_WASM
+#include "apps/ats/ats.h"
+#endif
 template<typename T>
 T my_max(const T& a, const T& b) {
     return a > b ? a : b;
@@ -492,7 +495,7 @@ namespace mx {
 
                     if (altPressed && (keycode == SDLK_d)) {
                         
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(FOR_WASM)
                         char eofChar = 0x04; 
                         if(write(master_fd, &eofChar, 1) < 0) {
                             mx::system_err << "MasterX System: Error could not write...\n";
@@ -706,7 +709,7 @@ namespace mx {
         }
 #else
     if(command.length()>0 && clear == false) {
-        print(" - command not found\n");
+        print(scanATS(command));
     }
 #endif
         scroll();
