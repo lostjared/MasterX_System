@@ -401,6 +401,8 @@ namespace mx {
         TTF_SizeText(font, "$ ",  &prompt_w, nullptr);
 #endif
 
+        int sx = x, sy = y;
+
         std::string remainingText = inputText;
         while (!remainingText.empty()) {
             std::string lineToRender;
@@ -443,6 +445,12 @@ namespace mx {
             cursorX = x;
             cursorY = y; 
         }
+
+        if(cursorPosition == 0) {
+            cursorX = sx;
+            cursorY = sy;
+        }
+
 
         Uint32 currentTime = SDL_GetTicks();
         if (currentTime - cursorTimer >= cursorBlinkInterval) {
