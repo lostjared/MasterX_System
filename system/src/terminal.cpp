@@ -74,8 +74,11 @@ namespace mx {
             dup2(pipe_in[0], STDIN_FILENO);
             dup2(pipe_out[1], STDOUT_FILENO);
             dup2(pipe_out[1], STDERR_FILENO);
-
+#ifdef __linux__
             execlp("stdbuf", "stdbuf", "-o0", "bash", NULL);
+#elif defined(__APPLE__)
+            execlp("/bin/bash", "bash", NULL);
+#endif
             exit(1);  
         } else {
             close(pipe_in[0]);
