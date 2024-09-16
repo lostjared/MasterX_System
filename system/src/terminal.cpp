@@ -227,7 +227,7 @@ namespace mx {
         rc.y += 28;
 
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 128);
+        SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
         SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
         SDL_RenderFillRect(app.ren, &rc);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);

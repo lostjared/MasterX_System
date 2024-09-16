@@ -9,11 +9,17 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <pty.h>
-#include <utmp.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <termios.h>
+#ifdef __linux__
+#include <pty.h>
+#elif defined(__APPLE__)
+#include <stdlib.h>
+#include <unistd.h>
+#include <util.h>
+#include <sys/ioctl.h>
+#endif
+#include <utmp.h>
+#include <fcntl.h>
 #endif
 #include<thread>
 #include<mutex>
