@@ -5,26 +5,26 @@ namespace mx {
     Splash::Splash(mxApp &app) {
         SDL_Surface *temp = SDL_LoadBMP(getPath("images/startup.bmp").c_str());
         if(!temp) {
-            std::cerr << "Error loading bitmap: " << getPath("images/startup.bmp") << "\n";
-            std::cerr.flush();
+            mx::system_err << "Error loading bitmap: " << getPath("images/startup.bmp") << "\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
         bg = SDL_CreateTextureFromSurface(app.ren, temp);
         if(!bg) {
-            std::cerr << "Error creating texture...\n";
-            std::cerr.flush();
+            mx::system_err << "Error creating texture...\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
         font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 120);
         if(!font) {
-            std::cerr << "Error could not load font: " << getPath("fonts/arial.ttf") << "\n";
-            std::cerr.flush();
+            mx::system_err << "Error could not load font: " << getPath("fonts/arial.ttf") << "\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
     }
 
     Splash::~Splash() {
-        std::cout << "MasterX: Releasing Splash..\n";
+        mx::system_out << "MasterX: Releasing Splash..\n";
         SDL_DestroyTexture(bg);
         TTF_CloseFont(font);
     }
@@ -38,14 +38,14 @@ namespace mx {
         SDL_Color textColor = {0xBD, 0, 0, 255};
         SDL_Surface* textSurface = TTF_RenderText_Blended(font, "MasterX", textColor);
         if (!textSurface) {
-            std::cerr << "MasterX: Error rendering text: " << TTF_GetError() << "\n";
+            mx::system_err << "MasterX: Error rendering text: " << TTF_GetError() << "\n";
             return;
         }
         int tw = textSurface->w;
         int th = textSurface->h;
         SDL_Texture *tex1 = SDL_CreateTextureFromSurface(app.ren, textSurface);
         if(!tex1) {
-            std::cerr << "MasterX: Error creating texture..\n";
+            mx::system_err << "MasterX: Error creating texture..\n";
             return;
         }
         SDL_SetRenderTarget(app.ren, app.tex);
@@ -80,7 +80,7 @@ namespace mx {
         SDL_FreeSurface(textSurface);
         if (progress >= 0.95f) {
             setScreen(ID_DIM);
-            std::cout << "MasterX: Screen Dimension\n";
+            mx::system_out << "MasterX: Screen Dimension\n";
         }
     }
 

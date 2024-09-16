@@ -9,6 +9,7 @@
 #include<memory>
 #include<vector>
 #include<optional>
+#include"tee_stream.hpp"
 
 extern std::string getPath(const std::string &name);
 extern std::optional<std::string> get_current_directory();

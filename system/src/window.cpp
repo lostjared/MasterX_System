@@ -7,14 +7,14 @@ namespace mx {
                                         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
                                         w, h, SDL_WINDOW_SHOWN);
         if (win == nullptr) {
-            std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
+            mx::system_err << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
             SDL_Quit();
             return false;
         }
 
         ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
         if (ren == nullptr) {
-            std::cerr << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
+            mx::system_err << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
             SDL_DestroyWindow(win);
             SDL_Quit();
             return false;
@@ -22,7 +22,7 @@ namespace mx {
 
         tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
         if (tex == nullptr) {
-            std::cerr << "SDL_CreateTexture Error: " << SDL_GetError() << std::endl;
+            mx::system_err << "SDL_CreateTexture Error: " << SDL_GetError() << std::endl;
             SDL_DestroyRenderer(ren);
             SDL_DestroyWindow(win);
             SDL_Quit();
@@ -33,15 +33,15 @@ namespace mx {
         height = h;
         font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 14);
         if(!font) {
-            std::cerr << "MasterX System: font: " << getPath("fonts/arial.ttf") << " Could not be loaded.\n";
-            std::cerr.flush();
+            mx::system_err << "MasterX System: font: " << getPath("fonts/arial.ttf") << " Could not be loaded.\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
         icon = loadTexture(*this, "images/icon.bmp");
         SDL_Surface *ico = SDL_LoadBMP(getPath("images/icon.bmp").c_str());
         SDL_SetWindowIcon(win, ico);
         SDL_FreeSurface(ico);
-        std::cout << "MasterX: Initalized System Objects\n";
+        mx::system_out << "MasterX: Initalized System Objects\n";
         return true;
     }
 
@@ -51,7 +51,7 @@ namespace mx {
         SDL_QueryTexture(originalTexture, &format, nullptr, &width, &height);
         SDL_Texture* streamingTexture = SDL_CreateTexture(ren, format, SDL_TEXTUREACCESS_STREAMING, width, height);
         if (!streamingTexture) {
-            std::cerr << "Error creating streaming texture: " << SDL_GetError() << "\n";
+            mx::system_err << "Error creating streaming texture: " << SDL_GetError() << "\n";
             return nullptr;
         }
         SDL_SetRenderTarget(ren, streamingTexture);
@@ -62,7 +62,7 @@ namespace mx {
 
     void mxApp::release() {
         if(init_ == true) {
-            std::cout << "MasterX: Releasing System Objects\n";
+            mx::system_out << "MasterX: Releasing System Objects\n";
             SDL_DestroyTexture(icon);
             SDL_DestroyTexture(tex);
             SDL_DestroyRenderer(ren);

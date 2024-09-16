@@ -34,8 +34,8 @@ namespace mx {
 
             SDL_Surface *surf = TTF_RenderText_Blended(font_, text_.c_str(), color_);
             if(surf == nullptr) {
-                std::cerr << "MasterX System: Error creating surface.\n";
-                std::cerr.flush();
+                mx::system_err << "MasterX System: Error creating surface.\n";
+                mx::system_err.flush();
                 return;
             }
             int sw = surf->w;
@@ -44,8 +44,8 @@ namespace mx {
             h = sh;
             SDL_Texture *t = SDL_CreateTextureFromSurface(app.ren, surf);
             if(t == nullptr) {
-                std::cerr << "MasterX System: Error creating texture.\n";
-                std::cerr.flush();
+                mx::system_err << "MasterX System: Error creating texture.\n";
+                mx::system_err.flush();
                 return;
             }
             SDL_FreeSurface(surf);
@@ -62,8 +62,8 @@ namespace mx {
                 if(multi_text[i].length()==0) continue;
                 SDL_Surface *surf = TTF_RenderText_Blended(font_, multi_text[i].c_str(), color_);
                 if(surf == nullptr) {
-                    std::cerr << "MasterX System: Error creating surface.\n";
-                    std::cerr.flush();
+                    mx::system_err << "MasterX System: Error creating surface.\n";
+                    mx::system_err.flush();
                     return;
                 }
                 int sw = surf->w;
@@ -72,8 +72,8 @@ namespace mx {
                 h = sh;
                 SDL_Texture *t = SDL_CreateTextureFromSurface(app.ren, surf);
                 if(t == nullptr) {
-                    std::cerr << "MasterX System: Error creating texture.\n";
-                    std::cerr.flush();
+                    mx::system_err << "MasterX System: Error creating texture.\n";
+                    mx::system_err.flush();
                     return;
                 }
                 SDL_FreeSurface(surf);
@@ -137,8 +137,8 @@ namespace mx {
         size_ = sizex;
         font_ = TTF_OpenFont(getPath(name).c_str(), size_);
         if(font_ == nullptr) {
-            std::cerr << "Error opening font: " << getPath(name) << "\n";
-            std::cerr.flush();
+            mx::system_err << "Error opening font: " << getPath(name) << "\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
     }

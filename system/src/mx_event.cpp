@@ -25,7 +25,7 @@ namespace mx {
         for(auto it = window_stack.begin(); it != window_stack.end(); ++it) {
             Window *win = *it;
             if(win == window) {
-                std::cout << "MasterX: Removing Window: " << window->title << "\n";
+                mx::system_out << "MasterX: Removing Window: " << window->title << "\n";
                 window_stack.erase(it);
                 if(!window_stack.empty()) {
                     setFocus(window_stack.back());

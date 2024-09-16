@@ -13,7 +13,7 @@ namespace mx {
     }
 
     Window::~Window() {
-        std::cout << "MasterX: Releasing Window: " << title << "\n";
+        mx::system_out << "MasterX: Releasing Window: " << title << "\n";
     }
 
 
@@ -356,20 +356,20 @@ namespace mx {
     Control *Window::getControl() {
         if(children.size()>0)
             return children[children.size()-1].get();
-        std::cerr << "MasterX System: Trying to acess out of bounds control.\n";
+        mx::system_err << "MasterX System: Trying to acess out of bounds control.\n";
         return nullptr;
     }
     Control *Window::getControl(int index) {
         if(index >= 0 && index < static_cast<int>(children.size()))
             return children[index].get();
-        std::cerr << "MasterX System: Trying to acess out of bounds control.\n";
+        mx::system_err << "MasterX System: Trying to acess out of bounds control.\n";
         return nullptr;
     }
 
     void Window::minimize(bool m) {
 
         if(!systemBar) {
-            std::cerr << "MasterX: Window " << this->title << " missing system bar link\n";
+            mx::system_err << "MasterX: Window " << this->title << " missing system bar link\n";
             return;
         }
 

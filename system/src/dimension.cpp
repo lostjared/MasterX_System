@@ -16,7 +16,7 @@ namespace mx {
     DimensionContainer::DimensionContainer(mxApp &app) : wallpaper{nullptr} , events{app}, active{false} {}
 
     DimensionContainer::~DimensionContainer() {
-        std::cout << "MasterX: Releasing Dimension: " << name << "\n";
+        mx::system_out << "MasterX: Releasing Dimension: " << name << "\n";
         if(wallpaper) {
             SDL_DestroyTexture(wallpaper);
         }
@@ -36,7 +36,7 @@ namespace mx {
             if(auto w = dynamic_cast<Window *>(r->get())) {
                 if(w == win) {
                     objects.erase(r);
-                    std::cout << "MasterX System: Destroyed Window..\n";
+                    mx::system_out << "MasterX System: Destroyed Window..\n";
                     return;
                 }
             }
@@ -265,29 +265,29 @@ namespace mx {
         system_bar->activateDimension(1);
         SDL_Surface *hand_cursor_surf = SDL_LoadBMP(getPath("images/hand.bmp").c_str());
         if(hand_cursor_surf == nullptr) {
-            std::cerr << "MasterX: Error loading cursor..\n";
+            mx::system_err << "MasterX: Error loading cursor..\n";
             exit(EXIT_FAILURE);
         }
         SDL_SetColorKey(hand_cursor_surf, SDL_TRUE, SDL_MapRGB(hand_cursor_surf->format, 0, 128, 128));
         hand_cursor = SDL_CreateTextureFromSurface(app.ren, hand_cursor_surf);
         SDL_FreeSurface(hand_cursor_surf);
         if(hand_cursor == nullptr) {
-            std::cerr << "MasterX System: Error creating texture from surface...\n";
-            std::cerr.flush();
+            mx::system_err << "MasterX System: Error creating texture from surface...\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
         SDL_Surface *cursor_surf = SDL_LoadBMP(getPath("images/cursor.bmp").c_str());
         if(cursor_surf == nullptr) {
-            std::cerr << "MasterX: Error loading cursor..\n";
-            std::cerr.flush();
+            mx::system_err << "MasterX: Error loading cursor..\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
         SDL_SetColorKey(cursor_surf, SDL_TRUE, SDL_MapRGB(cursor_surf->format, 0, 128, 128));
         reg_cursor = SDL_CreateTextureFromSurface(app.ren, cursor_surf);
         SDL_FreeSurface(cursor_surf);
         if(reg_cursor == nullptr) {
-            std::cerr << "MasterX System: Error creating texture from surface...\n";
-            std::cerr.flush();
+            mx::system_err << "MasterX System: Error creating texture from surface...\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
     }
@@ -311,7 +311,7 @@ namespace mx {
         if(reg_cursor != nullptr) {
             SDL_DestroyTexture(reg_cursor);
         }
-        std::cout << "MasterX: Releasing Dimensions\n";
+        mx::system_out << "MasterX: Releasing Dimensions\n";
     }
 
     void Dimension::drawDash(mxApp &app) {
@@ -344,7 +344,7 @@ namespace mx {
    Screen *Dimension::getDimension() {
         if(dimensions.size()>0)
             return dimensions[dimensions.size()-1].get();
-        std::cerr << "MasterX System: Trying to access out of bounds dimension.\n";
+        mx::system_err << "MasterX System: Trying to access out of bounds dimension.\n";
         return nullptr;
    }
     
@@ -352,7 +352,7 @@ namespace mx {
         if(index >= 0 && index < static_cast<int>(dimensions.size()))
             return dimensions[index].get();
 
-        std::cerr << "MasterX System: Trying to access out of bounds dimension.\n";
+        mx::system_err << "MasterX System: Trying to access out of bounds dimension.\n";
         return nullptr;
     }
 

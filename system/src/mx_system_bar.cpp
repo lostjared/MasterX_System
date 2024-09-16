@@ -9,8 +9,8 @@ namespace mx {
         dimensions = nullptr;
         font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 14);
         if (!font) {
-            std::cerr << "Error opening font: " << getPath("fonts/arial.ttf") << "\n";
-            std::cerr.flush();
+            mx::system_err << "Error opening font: " << getPath("fonts/arial.ttf") << "\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
         objects.push_back(std::make_unique<MenuBar>(app));
@@ -31,9 +31,9 @@ namespace mx {
           DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](cur_dim).get());
           if(con != nullptr) {
             con->mini_win.push_back(window);
-            std::cout << "MasterX System: Minimized Window.\n";
+            mx::system_out << "MasterX System: Minimized Window.\n";
           } else {
-            std::cerr << "MasterX System: Error: Wrong Type\n";
+            mx::system_err << "MasterX System: Error: Wrong Type\n";
           }
     }
 
@@ -250,7 +250,7 @@ namespace mx {
             if (setv) {
                 setv->setActive(true);  
                 setv->setVisible(true);
-                std::cout << "MasterX System: Switching from: " << old->name << " to " << setv->name << "\n";
+                mx::system_out << "MasterX System: Switching from: " << old->name << " to " << setv->name << "\n";
                 setv->startTransition(old ? old->wallpaper : nullptr);  
             }
         }    
@@ -449,7 +449,7 @@ namespace mx {
                     SDL_Rect textRect = {menu_x + 10, menu_y + yOffset, 180, 20};  
                     if (SDL_PointInRect(&rc, &textRect)) {
                         restoreWindow(con->mini_win[i]);  
-                        std::cout << "MasterX System: Restored Window\n";
+                        mx::system_out << "MasterX System: Restored Window\n";
                         showMinimizedMenu = false;
                         return true;
                     }
@@ -707,21 +707,21 @@ namespace mx {
             }
                 break;
             case 4:
-                std::cout << "Find clicked\n";
+                mx::system_out << "Find clicked\n";
                 break;
             case 5: {
                 loadDimension(2);
             }
                 break;
             case 6:
-                std::cout << "Run clicked\n";
+                mx::system_out << "Run clicked\n";
                 break;
             case 7:
-                std::cout << "MasterX System: Shutdown signal sent...\n";
+                mx::system_out << "MasterX System: Shutdown signal sent...\n";
                 app.shutdown();
                 break;    
             default:
-                std::cout << "No valid action\n";
+                mx::system_out << "No valid action\n";
                 break;
         }
     }
@@ -732,7 +732,7 @@ namespace mx {
         targetY = app.height / 2;  
         font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 14);
         if (!font) {
-            std::cerr << "Error opening font: " << getPath("fonts/arial.ttf") << "\n";
+            mx::system_err << "Error opening font: " << getPath("fonts/arial.ttf") << "\n";
             exit(EXIT_FAILURE);
         }
         white = { 255,255,255,255 };

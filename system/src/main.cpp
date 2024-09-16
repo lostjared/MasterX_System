@@ -25,6 +25,15 @@
 #endif
 
 
+std::string curTime() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+    std::tm* localTime = std::localtime(&currentTime);
+    std::ostringstream oss;
+    oss << std::put_time(localTime, "%Y-%m-%d %H:%M:%S");
+    return oss.str();
+}
+
 std::vector<std::unique_ptr<mx::Screen>> *screens = nullptr;
 int cur_screen = 0;
 mx::mxApp *p_app = nullptr;
@@ -33,7 +42,7 @@ void setScreen(int scr) {
     if(screens != nullptr && scr >= 0 && scr < static_cast<int>(screens->size()))
         cur_screen = scr;
     else {
-        std::cerr << "Error screen out of bounds\n";
+        mx::system_err << "Error screen out of bounds\n";
     }
 }
 
@@ -107,23 +116,23 @@ SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name) {
 extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w, int &h) {
     SDL_Surface *surf = SDL_LoadBMP(getPath(name).c_str());
     if(!surf) {
-        std::cerr << "Error loading surface; " << getPath(name) << "\n";
-        std::cerr.flush();
+        mx::system_err << "Error loading surface; " << getPath(name) << "\n";
+        mx::system_err.flush();
         exit(EXIT_FAILURE);
     }
     w = surf->w;
     h = surf->h;
     SDL_Texture *tex = SDL_CreateTextureFromSurface(app.ren, surf);
     if(!tex) {
-        std::cerr << "Error creating texture from surface: " << name << "\n";
-        std::cerr.flush();
+        mx::system_err << "Error creating texture from surface: " << name << "\n";
+        mx::system_err.flush();
         exit(EXIT_FAILURE);
     }
     return tex;
 }
 
 void quit() {
-    std::cout << "MasterX System: Exiting...\n";
+    mx::system_out << "MasterX System: Exiting...\n";
     SDL_ShowCursor(SDL_TRUE);
     TTF_Quit();
     SDL_Quit();
@@ -141,7 +150,7 @@ int main(int argc, char **argv) {
             switch(value) {
                 case 'h':
                 case 'v':
-                    argz.help(std::cout);
+                    argz.help(mx::system_out);
                     exit(EXIT_SUCCESS);
                     break;
                 case 'p':
@@ -155,11 +164,11 @@ int main(int argc, char **argv) {
             }
         }
     } catch(const ArgException<std::string> &e) {
-        std::cerr << "Syntax Error: " << e.text() << "\n";
+        mx::system_err << "Syntax Error: " << e.text() << "\n";
     }
 
     if(path.length()>0) {
-        std::cout << "MasterX System: path set to: " << path << "\n";
+        mx::system_out << "MasterX System: path set to: " << path << "\n";
         cur_path = path;
     } else {
     #ifndef FOR_WASM
@@ -173,12 +182,12 @@ int main(int argc, char **argv) {
     p_app = &app;
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        std::cerr << "SDL_Init Error: " << SDL_GetError() << std::endl;
+        mx::system_err << "SDL_Init Error: " << SDL_GetError() << std::endl;
         return 1;
     }
 
     if(TTF_Init() < 0) {
-        std::cerr << "Error initializing SDL_ttf: " << TTF_GetError() << "\n";
+        mx::system_err << "Error initializing SDL_ttf: " << TTF_GetError() << "\n";
         return 1;
     }
 
@@ -189,8 +198,8 @@ int main(int argc, char **argv) {
     std::vector<std::unique_ptr<mx::Screen>> screen_obj;
     screens = &screen_obj;
     if(!app.init("MasterX", 1280, 720)) {
-        std::cerr.flush();
-        std::cout.flush();
+        mx::system_err.flush();
+        mx::system_out.flush();
         exit(EXIT_FAILURE);
         return 1;
     }
@@ -201,6 +210,7 @@ int main(int argc, char **argv) {
     }
 
     app.active = true;
+    mx::system_out << "MasterX System: Up and running @ " << curTime() << "\n";
 
 #ifndef FOR_WASM
     while(app.active == true) {

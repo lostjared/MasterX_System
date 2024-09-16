@@ -23,8 +23,8 @@ namespace mx {
         text_color = { 255, 255, 255 };
         font = TTF_OpenFont(getPath("fonts/consolas.ttf").c_str(), 15);
         if(!font) {
-            std::cerr << "MasterX System Error: could not load system font.\n";
-            std::cerr.flush();
+            mx::system_err << "MasterX System Error: could not load system font.\n";
+            mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
 
@@ -62,12 +62,12 @@ namespace mx {
 
  #elif !defined(FOR_WASM)
         if (pipe(pipe_in) == -1 || pipe(pipe_out) == -1) {
-            std::cout << "Error creating pipes for bash\n ";
+            mx::system_out << "Error creating pipes for bash\n ";
             return;
         }
         bashPID = fork();
         if (bashPID == -1) {
-            std::cout << "Failed to fork bash process"; 
+            mx::system_out << "Failed to fork bash process"; 
         } else if (bashPID == 0) {
             close(pipe_in[1]);  
             close(pipe_out[0]); 
@@ -228,14 +228,14 @@ namespace mx {
         if(!text.empty()) {
             SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), text_color);
             if(surface == nullptr) {
-                std::cerr << "MasterX System Error: Render Text failed.\n";
-                std::cerr.flush();
+                mx::system_err << "MasterX System Error: Render Text failed.\n";
+                mx::system_err.flush();
                 return;
             }
             SDL_Texture* texture = SDL_CreateTextureFromSurface(app.ren, surface);
             if(texture == nullptr) {
-                std::cerr << "MasterX System Error: Create Texture failed.\n";
-                std::cerr.flush();
+                mx::system_err << "MasterX System Error: Create Texture failed.\n";
+                mx::system_err.flush();
                 return;
             }
             SDL_Rect dstRect = {x, y, surface->w, surface->h};
@@ -463,20 +463,20 @@ namespace mx {
 
     DWORD written;
     if (hChildStdinWr == INVALID_HANDLE_VALUE) {
-        std::cerr << "MasterX System: Invalid handle for stdin.\n";
+        mx::system_err << "MasterX System: Invalid handle for stdin.\n";
     }
 
-    std::cout << "MasterX: commad [ "  << command << " ]\n";
+    mx::system_out << "MasterX: commad [ "  << command << " ]\n";
 
     WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
     if(written == 0) {
-        std::cerr << "MasterX System: Error wrote zero bytes..\n";
+        mx::system_err << "MasterX System: Error wrote zero bytes..\n";
     } 
 #elif !defined(FOR_WASM) 
     std::string cmd = command + "\n";
     if(command != "clear")
         if(write(pipe_in[1], cmd.c_str(), cmd.size()) < 0) {
-            std::cerr << "MasterX System: Error on write..\n";
+            mx::system_err << "MasterX System: Error on write..\n";
         }
 #else
     if(command.length()>0 && clear == false) {
@@ -677,7 +677,7 @@ namespace mx {
                 }
                         
                 if (count == -1 && errno != EAGAIN) {
-                    std::cerr << "Error reading from pipe: " << strerror(errno) << std::endl;
+                    mx::system_err << "Error reading from pipe: " << strerror(errno) << std::endl;
                     break;
                 }
     
