@@ -39,7 +39,7 @@ namespace mx {
                 void sendCommand(const std::string &cmd);
         private:
                 std::string prompt = "$ ";
-#ifndef FOR_WASM
+#if !defined(FOR_WASM) && !defined(WIN32)
                 int master_fd, slave_fd;
                 bool cursorVisible = true;
 #endif

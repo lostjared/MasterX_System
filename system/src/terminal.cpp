@@ -137,7 +137,9 @@ namespace mx {
         std::smatch cursorMatch;
         std::string tempInput = inputWithoutOSC;
         while (std::regex_search(tempInput, cursorMatch, cursorRegex)) {
+            #ifdef __linux__
             cursorVisible = (cursorMatch[1] == "h");
+            #endif
             tempInput = cursorMatch.suffix();
         }
         std::string inputWithoutCursor = std::regex_replace(inputWithoutOSC, cursorRegex, "");
@@ -330,7 +332,8 @@ namespace mx {
         int availableWidth = maxWidth - margin * 2;
         x = rc.x + margin;
 
-        
+        int prompt_w;
+        TTF_SizeText(font, prompt.c_str(), &prompt_w, nullptr);
         int lineHeight = TTF_FontHeight(font);
 
     #if defined(__linux__) || defined(__APPLE__)
@@ -392,12 +395,15 @@ namespace mx {
         } else {
             x = rc.x + margin;
         }
+
+        bool firstLine = true;
+
         std::string remainingText = inputText;
         while (!remainingText.empty()) {
             std::string lineToRender;
             int currentWidth = 0;
             size_t i = 0;
-            int lineWidth = availableWidth;
+            int lineWidth = firstLine == true ? availableWidth - prompt_w : availableWidth;
             int lineY = y;
 
             while (i < remainingText.length()) {
@@ -427,6 +433,7 @@ namespace mx {
 
             y += lineHeight;
             x = rc.x + margin;
+            firstLine = false;
             remainingText = remainingText.substr(i);
         }
 
