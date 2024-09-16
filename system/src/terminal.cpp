@@ -327,23 +327,23 @@ namespace mx {
         SDL_Rect rc;
         Window::getRect(rc);
         int margin = 5;
-        int availableWidth = maxWidth - margin * 2; // Adjust available width considering margins
+        int availableWidth = maxWidth - margin * 2;
         x = rc.x + margin;
 
-        // Get the font height for line spacing
+        
         int lineHeight = TTF_FontHeight(font);
 
     #if defined(__linux__) || defined(__APPLE__)
         y -= lineHeight;
     #endif
 
-         // Variables for cursor positioning
+        
         int cursorX = x;
         int cursorY = y;
         int charCount = 0;
         bool cursorDrawn = false;
 
-        // === Process the prompt with wrapping ===
+        
         std::string remainingPrompt = prompt;
         int promptEndX = x;
         int promptEndY = y;
@@ -354,7 +354,7 @@ namespace mx {
             size_t i = 0;
             int promptLineWidth = availableWidth;
  
-            // Build the line to render
+        
             while (i < remainingPrompt.length()) {
                 std::string testLine = promptLineToRender + remainingPrompt[i];
                 TTF_SizeText(font, testLine.c_str(), &promptCurrentWidth, nullptr);
@@ -363,7 +363,6 @@ namespace mx {
                     if (!promptLineToRender.empty()) {
                         break;
                     } else {
-                        // Handle single character exceeding line width
                         promptLineToRender += remainingPrompt[i++];
                         break;
                     }
@@ -376,28 +375,23 @@ namespace mx {
             renderText(app, promptLineToRender, x, y);
 #endif
 
-            // Update promptEndX and promptEndY
+            
             promptEndX = x + promptCurrentWidth;
             promptEndY = y;
 
-            // Move to the next line
+            
             y += lineHeight;
             x = rc.x + margin;
             remainingPrompt = remainingPrompt.substr(i);
         }
 
-        // === Determine starting position for input text ===
+        
         if (promptEndX < rc.x + margin + availableWidth) {
-            // Last line of prompt did not fill the line, continue from promptEndX
             x = promptEndX;
             y = promptEndY;
         } else {
-            // Prompt ended at the end of line, start input text from new line
             x = rc.x + margin;
-            // y is already incremented after the last prompt line
         }
-
-        // === Process the input text with wrapping ===
         std::string remainingText = inputText;
         while (!remainingText.empty()) {
             std::string lineToRender;
@@ -414,7 +408,6 @@ namespace mx {
                     if (!lineToRender.empty()) {
                         break;
                     } else {
-                        // Handle single character exceeding line width
                         lineToRender += remainingText[i++];
                         break;
                     }
@@ -422,7 +415,6 @@ namespace mx {
                     lineToRender += remainingText[i++];
                 }
 
-                // Update cursor position
                 charCount++;
                 if (!cursorDrawn && charCount == cursorPosition) {
                     cursorX = x + currentWidth;
@@ -431,22 +423,18 @@ namespace mx {
                 }
             }
 
-            // Render the input text line
             renderText(app, lineToRender, x, lineY);
 
-            // Move to the next line
             y += lineHeight;
             x = rc.x + margin;
             remainingText = remainingText.substr(i);
         }
 
-        // Handle cursor drawing if it hasn't been drawn yet
         if (!cursorDrawn) {
             cursorX = x;
-            cursorY = y; // Adjust y to the last rendered line
+            cursorY = y; 
         }
 
-        // === Cursor Blinking Logic ===
         Uint32 currentTime = SDL_GetTicks();
         if (currentTime - cursorTimer >= cursorBlinkInterval) {
             showCursor = !showCursor;
