@@ -21,7 +21,7 @@ namespace mx {
     Terminal::Terminal(mxApp  &app) : Window(app) {
         active = true;
         text_color = { 255, 255, 255 };
-        font = TTF_OpenFont(getPath("fonts/consolas.ttf").c_str(), 15);
+        font = TTF_OpenFont(getPath("fonts/consolas.ttf").c_str(), 18);
         if(!font) {
             mx::system_err << "MasterX System Error: could not load system font.\n";
             mx::system_err.flush();
@@ -190,99 +190,73 @@ namespace mx {
             TTF_CloseFont(font);
     }
 
-    void Terminal::draw(mxApp &app) {        
-
-        if(!isVisible())
+    void Terminal::draw(mxApp &app) {
+        if (!isVisible())
             return;
 
         Window::draw(app);
 
-        if(isDraw() == false)
+        if (isDraw() == false)
             return;
-#ifndef FOR_WASM
-        if(newData == true) { 
+
+    #ifndef FOR_WASM
+        if (newData == true) {
             std::lock_guard<std::mutex> lock(outputMutex);
-            std::string temp;
-            temp = new_data;
-            parseTerminalData(temp);;
+            std::string temp = new_data;
+            parseTerminalData(temp);
             newData = false;
             new_data = "";
-        } 
-#endif
-#ifdef __linux__
-        if(!outputLines.empty()) {
+        }
+    #endif
+
+    #ifdef __linux__
+        if (!outputLines.empty()) {
             prompt = outputLines.back();
         }
-#endif
+    #endif
 
         SDL_Rect rc;
         Window::getRect(rc);
         rc.y += 28;
+
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 128);
         SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
         SDL_RenderFillRect(app.ren, &rc);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         Window::drawMenubar(app);
+
         int lineHeight = TTF_FontHeight(font);
         int maxWidth = rc.w - 10;
         int y = rc.y + 5;
 
-        int offsetLine = 0;
-            if(scrollOffset > maxVisibleLines-static_cast<int>(outputLines.size()) ){
-                if (!(scrollOffset >= total_Lines() - maxVisibleLines)) {
-                    offsetLine = 1; 
-                } 
-                
-            }
 
         for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
-            if(y + lineHeight+lineHeight > rc.y+rc.h) {
+            if (y + lineHeight + lineHeight > rc.y + rc.h) {
                 break;
-            } 
-
-            
+            }
             renderText(app, outputLines[i], rc.x + 5, y);
             y += lineHeight;
-       
         }
-        if (!outputLines.empty()) {
-            std::string lastLine = outputLines.back(); 
-            int textWidth = 0, textHeight = 0;
-            TTF_SizeText(font, lastLine.c_str(), &textWidth, &textHeight);
-            
-            int cy = y - textHeight;  
-            int cx = rc.x + 5;  
 
-            if(offsetLine != 1) {
-                renderText(app, lastLine, cx, cy);
-            }         
-                cx -= 5;
-                cy += lineHeight;
-                renderTextWrapped(app, prompt,  inputText, cx, cy, maxWidth);
-        } else {
-            std::string lastLine = " ";
-            int textWidth = 0, textHeight = 0;
-            TTF_SizeText(font, lastLine.c_str(), &textWidth, &textHeight);
-            int cy = y - textHeight;  
-            int cx = rc.x + 5;             
-            cx -= 5;
-            cy += lineHeight;
-            renderTextWrapped(app, prompt,  inputText, cx, cy, maxWidth);
-        }
+        int cx = rc.x + 5;
+        int cy = y;
+
+
+        renderTextWrapped(app, prompt, inputText, cx, cy, maxWidth);
 
 
         int totalLines = static_cast<int>(outputLines.size());
+
         int promptWidth;
-        TTF_SizeText(font,prompt.c_str(), &promptWidth, nullptr);
-        int total = calculateWrappedLinesForText(inputText, rc.w - 20, promptWidth);
-        totalLines += total;
-    
+        TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
+        int totalWrappedLines = calculateWrappedLinesForText(inputText, maxWidth - promptWidth, promptWidth);
+        totalLines += totalWrappedLines;
 
         if (totalLines > maxVisibleLines) {
-            int offx = rc.x + rc.w;    
-            int offy = rc.y;     
-            int availableHeight = rc.h - 28;  
+            int offx = rc.x + rc.w;
+            int offy = rc.y;
+            int availableHeight = rc.h - 28;
 
             scrollBarHeight = (maxVisibleLines * availableHeight) / totalLines;
 
@@ -301,6 +275,7 @@ namespace mx {
             SDL_RenderFillRect(app.ren, &scrollBarRect);
         }
     }
+
 
     void Terminal::renderText(mxApp &app, const std::string &text, int x, int y) {
         if(!text.empty()) {
@@ -352,70 +327,126 @@ namespace mx {
         SDL_Rect rc;
         Window::getRect(rc);
         int margin = 5;
-        int availableWidth = maxWidth;
+        int availableWidth = maxWidth - margin * 2; // Adjust available width considering margins
         x = rc.x + margin;
-        int promptWidth;
-        TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
- #if defined(__linux__) || defined(__APPLE__)
-        y -= TTF_FontHeight(font);
-#endif
-        int promptY = y;
-#if defined(_WIN32) || defined(FOR_WASM)
-        renderText(app, prompt, x, y);
-#endif
-        x += promptWidth;
-        availableWidth -= promptWidth;
-        std::string remainingText = inputText;
+
+        // Get the font height for line spacing
         int lineHeight = TTF_FontHeight(font);
+
+    #if defined(__linux__) || defined(__APPLE__)
+        y -= lineHeight;
+    #endif
+
+         // Variables for cursor positioning
         int cursorX = x;
         int cursorY = y;
         int charCount = 0;
-        bool firstLine = true;
         bool cursorDrawn = false;
+
+        // === Process the prompt with wrapping ===
+        std::string remainingPrompt = prompt;
+        int promptEndX = x;
+        int promptEndY = y;
+
+        while (!remainingPrompt.empty()) {
+            std::string promptLineToRender;
+            int promptCurrentWidth = 0;
+            size_t i = 0;
+            int promptLineWidth = availableWidth;
+ 
+            // Build the line to render
+            while (i < remainingPrompt.length()) {
+                std::string testLine = promptLineToRender + remainingPrompt[i];
+                TTF_SizeText(font, testLine.c_str(), &promptCurrentWidth, nullptr);
+
+                if (promptCurrentWidth > promptLineWidth) {
+                    if (!promptLineToRender.empty()) {
+                        break;
+                    } else {
+                        // Handle single character exceeding line width
+                        promptLineToRender += remainingPrompt[i++];
+                        break;
+                    }
+                } else {
+                    promptLineToRender += remainingPrompt[i++];
+                }
+            }
+
+#if !defined(__linux__) && !defined(__APPLE__)
+            renderText(app, promptLineToRender, x, y);
+#endif
+
+            // Update promptEndX and promptEndY
+            promptEndX = x + promptCurrentWidth;
+            promptEndY = y;
+
+            // Move to the next line
+            y += lineHeight;
+            x = rc.x + margin;
+            remainingPrompt = remainingPrompt.substr(i);
+        }
+
+        // === Determine starting position for input text ===
+        if (promptEndX < rc.x + margin + availableWidth) {
+            // Last line of prompt did not fill the line, continue from promptEndX
+            x = promptEndX;
+            y = promptEndY;
+        } else {
+            // Prompt ended at the end of line, start input text from new line
+            x = rc.x + margin;
+            // y is already incremented after the last prompt line
+        }
+
+        // === Process the input text with wrapping ===
+        std::string remainingText = inputText;
         while (!remainingText.empty()) {
             std::string lineToRender;
             int currentWidth = 0;
             size_t i = 0;
-            int thisLineWidth = firstLine ? availableWidth - 5 : (maxWidth - 5);
-            firstLine = false;
+            int lineWidth = availableWidth;
             int lineY = y;
+
             while (i < remainingText.length()) {
                 std::string testLine = lineToRender + remainingText[i];
                 TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
-                if (currentWidth > thisLineWidth) {
+
+                if (currentWidth > lineWidth) {
                     if (!lineToRender.empty()) {
                         break;
                     } else {
-                        while (currentWidth > thisLineWidth && i < remainingText.length()) {
-                            lineToRender += remainingText[i++];
-                            TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
-                        }
+                        // Handle single character exceeding line width
+                        lineToRender += remainingText[i++];
                         break;
                     }
                 } else {
                     lineToRender += remainingText[i++];
                 }
+
+                // Update cursor position
                 charCount++;
                 if (!cursorDrawn && charCount == cursorPosition) {
                     cursorX = x + currentWidth;
-                    cursorY = lineY; 
+                    cursorY = lineY;
                     cursorDrawn = true;
                 }
             }
+
+            // Render the input text line
             renderText(app, lineToRender, x, lineY);
-            if (!cursorDrawn && charCount == cursorPosition) {
-                cursorX = x + currentWidth;
-                cursorY = lineY; 
-                cursorDrawn = true;
-            }
+
+            // Move to the next line
             y += lineHeight;
             x = rc.x + margin;
             remainingText = remainingText.substr(i);
         }
+
+        // Handle cursor drawing if it hasn't been drawn yet
         if (!cursorDrawn) {
-            cursorX = rc.x + promptWidth + margin;
-            cursorY = promptY; 
+            cursorX = x;
+            cursorY = y; // Adjust y to the last rendered line
         }
+
+        // === Cursor Blinking Logic ===
         Uint32 currentTime = SDL_GetTicks();
         if (currentTime - cursorTimer >= cursorBlinkInterval) {
             showCursor = !showCursor;
@@ -437,6 +468,22 @@ namespace mx {
 
         if (e.type == SDL_KEYDOWN) {
             switch (e.key.keysym.sym) {
+                case SDLK_d: {
+                    SDL_Keycode keycode = e.key.keysym.sym;
+                    Uint16 mod = e.key.keysym.mod;
+                    bool altPressed = (mod & KMOD_ALT) != 0;
+
+                    if (altPressed && (keycode == SDLK_d)) {
+                        char eofChar = 0x04; 
+#ifndef _WIN32
+                        if(write(master_fd, &eofChar, 1) < 0) {
+                            mx::system_err << "MasterX System: Error could not write...\n";
+                            return false;
+                        }
+#endif
+                    }
+                }
+                break;
                 case SDLK_c:
                 if (e.key.keysym.mod & KMOD_CTRL) {
                     
@@ -735,8 +782,10 @@ namespace mx {
             lineCount++;
 
         }
+//#if defined (_WIN32) || defined(FOR_WASM)
         if(inputText.empty())
-            lineCount++;
+            lineCount++;               
+//#endif
         return lineCount;
     }
 
@@ -821,7 +870,7 @@ namespace mx {
 #elif !defined(FOR_WASM)
     int Terminal::bashReaderThread(void *ptr) {
         Terminal *terminal = static_cast<Terminal *>(ptr);
-            char buffer[128];
+            char buffer[1024];
             std::string output;
             std::string pwdOutput;
             while (terminal->active) {
