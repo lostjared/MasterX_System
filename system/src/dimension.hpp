@@ -43,8 +43,6 @@ namespace mx {
         bool active = false;
         bool visible = false;
         bool transitioning = false;
-        int currentDimension = 0;
-        int nextDimension = -1;
         int transitionAlpha = 255;
         int transitionSpeed = 3;
         
@@ -79,8 +77,6 @@ namespace mx {
         Button *about_window_ok, *welcome_ok, *toggle_fullscreen;
         Image *welcome_image;
         Label *about_window_info, *welcome_help_info;
-        Image *about_window_logo;
-        int current_dim;
         SDL_Texture *hand_cursor, *reg_cursor;
         int cursor_x = 0, cursor_y = 0;
         Terminal *termx;
