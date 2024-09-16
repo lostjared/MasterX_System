@@ -108,6 +108,8 @@ namespace mx {
             SDL_WaitThread(bashThread, nullptr);
         }
 #endif
+        if(font != nullptr)
+            TTF_CloseFont(font);
     }
 
     void Terminal::draw(mxApp &app) {        

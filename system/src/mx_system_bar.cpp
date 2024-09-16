@@ -23,6 +23,8 @@ namespace mx {
     }
 
     SystemBar::~SystemBar() {
+        if(font != nullptr)
+            TTF_CloseFont(font);
     }
 
     void SystemBar::addMinimizedWindow(Window *window) {
@@ -742,7 +744,7 @@ namespace mx {
     }
 
     MenuBar::~MenuBar() {
-       // TTF_CloseFont(font);
+        TTF_CloseFont(font);
     }
 
     void MenuBar::draw(mxApp &app) {

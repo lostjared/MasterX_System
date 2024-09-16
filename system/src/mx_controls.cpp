@@ -9,6 +9,8 @@ namespace mx {
         }
 
     Label::~Label() {
+        if(font_ != nullptr)
+            TTF_CloseFont(font_);
     }
 
     void Label::setWindowPos(int xx, int yy) {

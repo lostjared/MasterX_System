@@ -67,6 +67,7 @@ namespace mx {
             SDL_DestroyTexture(tex);
             SDL_DestroyRenderer(ren);
             SDL_DestroyWindow(win);
+            init_ = false;
         }
     }
 
@@ -85,5 +86,6 @@ namespace mx {
 
     mxApp::~mxApp() {
         release();
+        TTF_CloseFont(font);
     }
 }
