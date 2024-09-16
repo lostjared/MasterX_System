@@ -43,41 +43,12 @@ void sdl_create(char *name, long width, long height) {
         exit(EXIT_FAILURE);
     }
     
-    tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, width, height);
-      
+    tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
     if(tex == NULL) {
         fprintf(stderr, "Error could not create texture: %s\n", SDL_GetError());
         SDL_Quit();
         exit(EXIT_FAILURE);
     }
-}
-
-SDL_Texture *sdl_loadtex(const char *src) {
-    SDL_Surface *surf = SDL_LoadBMP(src);
-    if(!surf) {
-        fprintf(stderr, "Error loading surface: %s\n", src);
-        fflush(stderr);
-        exit(EXIT_FAILURE);
-    }
-    SDL_FreeSurface(surf);
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(ren, surf);
-    if(!tex) {
-        fprintf(stderr, "Error creating texture: %s", src);
-        fflush(stderr);
-        exit(EXIT_FAILURE);
-    }
-    return tex;
-}
-
-void sdl_destroytex(SDL_Texture *tex) {
-    if(tex != NULL)
-        SDL_DestroyTexture(tex);
-}
-
-void sdl_copytex(SDL_Texture *text, int x, int y, int w, int h) {
-    SDL_Rect rc = {x,y,w,h};
-    SDL_SetRenderTarget(ren, tex);
-    SDL_RenderCopy(ren, tex, NULL, &rc);
 }
 
 long sdl_keydown(long key) {
