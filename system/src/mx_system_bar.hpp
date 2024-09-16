@@ -22,7 +22,6 @@ namespace mx {
         TTF_Font *font;
         SDL_Surface *itemSurface;
         SDL_Texture *itemTexture;
-        SDL_Rect itemRect = { 0,0,0,0 };
         SDL_Color white;
     };
 
