@@ -211,10 +211,12 @@ namespace mx {
         }
     #endif
 
-    #ifdef __linux__
+    #if defined(__linux__) || defined(__APPLE__)
         if (!outputLines.empty()) {
             prompt = outputLines.back();
         }
+    #elif defined(_WIN32)
+        prompt = "$ ";
     #endif
 
         SDL_Rect rc;
@@ -243,7 +245,6 @@ namespace mx {
 
         int cx = rc.x + 5;
         int cy = y;
-
 
         renderTextWrapped(app, prompt, inputText, cx, cy, maxWidth);
 
@@ -331,22 +332,18 @@ namespace mx {
         int margin = 5;
         int availableWidth = maxWidth - margin * 2;
         x = rc.x + margin;
-
-        int prompt_w;
-        TTF_SizeText(font, prompt.c_str(), &prompt_w, nullptr);
         int lineHeight = TTF_FontHeight(font);
-
+        int prompt_w = 0;
+        TTF_SizeText(font, prompt.c_str(), &prompt_w, nullptr);
     #if defined(__linux__) || defined(__APPLE__)
         y -= lineHeight;
     #endif
-
         
         int cursorX = x;
         int cursorY = y;
         int charCount = 0;
         bool cursorDrawn = false;
-
-        
+       
         std::string remainingPrompt = prompt;
         int promptEndX = x;
         int promptEndY = y;
@@ -397,6 +394,9 @@ namespace mx {
         }
 
         bool firstLine = true;
+#ifdef _WIN32
+        TTF_SizeText(font, "$ ",  &prompt_w, nullptr);
+#endif
 
         std::string remainingText = inputText;
         while (!remainingText.empty()) {
@@ -430,7 +430,6 @@ namespace mx {
             }
 
             renderText(app, lineToRender, x, lineY);
-
             y += lineHeight;
             x = rc.x + margin;
             firstLine = false;
@@ -476,6 +475,7 @@ namespace mx {
                             mx::system_err << "MasterX System: Error could not write...\n";
                             return false;
                         }
+                        return true;
 #endif
                         
                     }
@@ -645,7 +645,11 @@ namespace mx {
             print("MasterX System written by Jared Bruni\n(C) 2024 LostSideDead Software.\nhttps://lostsidedead.biz\n");
             command.clear();
         } else if(words.size() == 1  && words[0] == "clear") {
-            orig_text = "";    
+            orig_text = "";   
+            #if defined(__linux__) || defined(__APPLE__)
+            sendCommand("\n");
+            #endif
+            scroll(); 
 #ifdef FOR_WASM
         clear = true;
 #endif
