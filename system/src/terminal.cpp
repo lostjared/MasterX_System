@@ -204,16 +204,28 @@ namespace mx {
         if (isDraw() == false)
             return;
 
+ 
     #ifndef FOR_WASM
         if (newData == true) {
             std::lock_guard<std::mutex> lock(outputMutex);
             std::string temp = new_data;
-            parseTerminalData(temp);
+#if defined(__linux__) || defined(__APPLE__)
+           static int cnt = 0;
+            if(cnt == 0) {
+                cnt ++;
+                sendCommand("\n");
+            } else {
+                parseTerminalData(temp);
+            }
+#else
+                parseTerminalData(temp);
+#endif
             newData = false;
             new_data = "";
+            
         }
     #endif
-
+ 
     #if defined(__linux__) || defined(__APPLE__)
         if (!outputLines.empty()) {
             prompt = outputLines.back();
