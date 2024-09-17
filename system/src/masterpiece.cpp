@@ -15,6 +15,11 @@ namespace mx {
         resetGame();
     }
 
+    void MasterPiece::newGame() {
+        cur_screen = 2;
+        matrix.Game.newgame();
+    }
+
     void MasterPiece::resetGame() {
         startTime = 0;
         waitTime = 3000;
@@ -46,6 +51,7 @@ namespace mx {
                         case 1:
                         switch(cursor_pos) {
                             case 0:
+                            newGame();
                             break;
                             case 1:
                             break;
@@ -82,11 +88,10 @@ namespace mx {
             case 1:
             draw_start(app);
             break;
+            case 2:
+            draw_game(app);
+            break;
         }
-    }
-
-    void MasterPiece::newGame() {
-         
     }
 
     void MasterPiece::load_gfx(mxApp &app) {
@@ -95,6 +100,7 @@ namespace mx {
         SDL_Color color = {255,0,255};
         int w, h;
         cursor = loadTexture(app, "images/mp_dat/cursor.png", w, h, true, color);
+        gamebg = loadTexture(app, "images/mp_dat/gamebg.png");
     }
 
     void MasterPiece::release_gfx() {
@@ -104,6 +110,8 @@ namespace mx {
             SDL_DestroyTexture(start);
         if(cursor != nullptr) 
             SDL_DestroyTexture(start);
+        if(gamebg != nullptr) 
+            SDL_DestroyTexture(gamebg);
     }
 
     void MasterPiece::draw_intro(mxApp &app) {
@@ -143,5 +151,11 @@ namespace mx {
         cy = 170 + (cursor_pos * 70) - 16;
         SDL_Rect c_rct = { drc.x + cx, drc.y + cy, 64, 64 };
         SDL_RenderCopy(app.ren, cursor, nullptr, &c_rct);
+    }
+
+    void MasterPiece::draw_game(mxApp &app) {
+        SDL_Rect rc;
+        Window::getDrawRect(rc);
+        SDL_RenderCopy(app.ren, gamebg, nullptr, &rc);
     }
 }
