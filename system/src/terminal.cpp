@@ -424,7 +424,7 @@ namespace mx {
             std::string lineToRender;
             int currentWidth = 0;
             size_t i = 0;
-            int lineWidth = firstLine == true ? availableWidth - prompt_w : availableWidth;
+            int lineWidth = firstLine == true ? availableWidth - prompt_w-10 : availableWidth-10;
             int lineY = y;
 
             while (i < remainingText.length()) {
