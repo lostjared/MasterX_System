@@ -24,13 +24,26 @@
 #include <emscripten/emscripten.h>
 #endif
 
+#if defined(_MSC_VER)
+    #if _MSC_VER >= 1930
+    #define SAFE_FUNC
+    #endif
+#endif
 
 std::string curTime() {
     auto now = std::chrono::system_clock::now();
     std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-    std::tm* localTime = std::localtime(&currentTime);
     std::ostringstream oss;
+    #ifdef SAFE_FUNC
+    struct tm localTime;
+    time(&currentTime);
+    localtime_s(&localTime, &currentTime);
+    oss << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S");
+    #else
+    std::tm* localTime = std::localtime(&currentTime);
     oss << std::put_time(localTime, "%Y-%m-%d %H:%M:%S");
+    #endif
+    
     return oss.str();
 }
 

@@ -4,14 +4,28 @@
 #include <cstdio>
 #include <cstdlib>
 
+#if defined(_MSC_VER)
+    #if _MSC_VER >= 1930
+    #define SAFE_FUNC
+    #endif
+#endif
+
 namespace mx {
     SDL_Surface* LoadPNG(const char* file) {
+        #ifdef SAFE_FUNC
+        FILE* fp = NULL;
+        errno_t err = fopen_s(&fp, file, "rb");
+        if (!(err == 0 && file != NULL)) {
+            printf("Failed to open png file: %s\n", file);
+            return nullptr;
+        }
+        #else
         FILE* fp = fopen(file, "rb");
         if (!fp) {
             printf("Failed to open file: %s\n", file);
             return nullptr;
         }
-
+        #endif
         png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
         if (!png) {
             fclose(fp);
@@ -84,6 +98,10 @@ namespace mx {
         }
 
         png_bytep* row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * height);
+        if(row_pointers == NULL) {
+            fprintf(stderr, "Error memory allocation error.\n");
+            return NULL;
+        }
         Uint8* pixels = (Uint8*) surface->pixels;
 
         for (int y = 0; y < height; ++y) {
