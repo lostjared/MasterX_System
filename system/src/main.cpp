@@ -15,7 +15,7 @@
 #include<memory>
 #include"argz.hpp"
 #include<limits.h>
-
+#include"loadpng.hpp"
 #ifdef _WIN32
 #include<windows.h>
 #endif
@@ -114,7 +114,12 @@ SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name) {
 }
 
 extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w, int &h) {
-    SDL_Surface *surf = SDL_LoadBMP(getPath(name).c_str());
+    SDL_Surface *surf = nullptr;
+    if(name.rfind(".bmp") != std::string::npos) {
+        surf = SDL_LoadBMP(getPath(name).c_str());
+    } else if(name.rfind(".png") != std::string::npos) {
+        surf = mx::LoadPNG(getPath(name).c_str());
+    }
     if(!surf) {
         mx::system_err << "Error loading surface; " << getPath(name) << "\n";
         mx::system_err.flush();

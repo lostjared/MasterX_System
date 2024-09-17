@@ -135,13 +135,13 @@ namespace mx {
     }
 
     Dimension::Dimension(mxApp &app) {
-        wallpaper = loadTexture(app, "images/desktop.bmp");
+        wallpaper = loadTexture(app, "images/desktop.png");
         objects.push_back(std::make_unique<SystemBar>(app));
         system_bar = dynamic_cast<SystemBar *>(objects[0].get());
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         dash = dynamic_cast<DimensionContainer *>(getDimension());
-        dash->init(system_bar, "Dashboard", loadTexture(app, "images/desktop.bmp"));
+        dash->init(system_bar, "Dashboard", loadTexture(app, "images/desktop.png"));
         dash->setActive(true);
         dash->setVisible(false);
         settings_window = dash->createWindow(app);
@@ -161,7 +161,7 @@ namespace mx {
         });
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         welcome = dynamic_cast<DimensionContainer *>(getDimension());
-        welcome->init(system_bar, "Welcome", loadTexture(app, "images/wallpaper.bmp"));
+        welcome->init(system_bar, "Welcome", loadTexture(app, "images/wallpaper.png"));
         welcome->setActive(false);
         welcome->setVisible(false);
         welcome_window = welcome->createWindow(app);
@@ -172,7 +172,7 @@ namespace mx {
         welcome_window->removeAtClose(true);
         welcome_window->children.push_back(std::make_unique<Image>(app));
         welcome_image = dynamic_cast<Image *>(welcome_window->getControl());
-        welcome_image->create(app, welcome_window, "images/welcome_logo.bmp", 45, 45);
+        welcome_image->create(app, welcome_window, "images/welcome_logo.png", 45, 45);
         welcome_image->setGeometry(5, 8, 640-10, 480-38);
         welcome_window->children.push_back(std::make_unique<Button>(app));
         welcome_ok = dynamic_cast<Button *>(welcome_window->getControl());
@@ -210,7 +210,7 @@ namespace mx {
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         about = dynamic_cast<DimensionContainer *>(getDimension());
-        about->init(system_bar, "About", loadTexture(app, "images/about.bmp"));
+        about->init(system_bar, "About", loadTexture(app, "images/about.png"));
         about->setActive(false);
         about->setVisible(false);
         about_window = about->createWindow(app);
@@ -222,7 +222,7 @@ namespace mx {
         about_window->removeAtClose(true);
         about_window->children.push_back(std::make_unique<Image>(app));
         Image *image = dynamic_cast<Image *>(about_window->getControl());
-        image->create(app, about_window, "images/logo.bmp", 0, 0);
+        image->create(app, about_window, "images/logo.png", 0, 0);
         image->setGeometry(5, 8, 800-10, 600-38);
 
         about_window->children.push_back(std::make_unique<Button>(app));
@@ -243,7 +243,7 @@ namespace mx {
         about_window->setCanResize(false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         term = dynamic_cast<DimensionContainer *>(getDimension());
-        SDL_Texture *term_tex = loadTexture(app, "images/terminal.bmp");
+        SDL_Texture *term_tex = loadTexture(app, "images/terminal.png");
         term->init(system_bar, "Terminal", term_tex);
         term->setActive(false);
         term->setVisible(false);

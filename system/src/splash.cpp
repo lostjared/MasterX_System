@@ -1,11 +1,12 @@
 #include"splash.hpp"
+#include"loadpng.hpp"
 
 namespace mx {
 
     Splash::Splash(mxApp &app) {
-        SDL_Surface *temp = SDL_LoadBMP(getPath("images/startup.bmp").c_str());
+        SDL_Surface *temp = mx::LoadPNG(getPath("images/startup.png").c_str());
         if(!temp) {
-            mx::system_err << "Error loading bitmap: " << getPath("images/startup.bmp") << "\n";
+            mx::system_err << "Error loading bitmap: " << getPath("images/startup.png") << "\n";
             mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
