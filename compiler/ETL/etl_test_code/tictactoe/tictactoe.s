@@ -1,8 +1,10 @@
 .section .data
-t337: .asciz "It's a Draw!"
-t329: .asciz "Player 2 Wins!"
-t321: .asciz "Player 1 Wins!"
+t389: .asciz "Game Over: Was a draw.\n"
 t296: .asciz "Tic-Tac-Toe"
+t321: .asciz "Player 1 Wins!"
+t387: .asciz "Game Over: Winner was Player: %d\n"
+t329: .asciz "Player 2 Wins!"
+t337: .asciz "It's a Draw!"
 .section .text
 .globl main
 main:
@@ -1107,7 +1109,7 @@ sublabel_end_292:
 init:
     pushq %rbp
     movq %rsp, %rbp
-    subq $784, %rsp
+    subq $864, %rsp
     movq $0, %rcx
     movq $3, %rax
     movq %rax, -8(%rbp)
@@ -1471,18 +1473,63 @@ sublabel_else_343:
 sublabel_end_343: 
     jmp while_start_302
 while_end_302: 
+    movq $1, %rax
+    movq %rax, -696(%rbp)
+    movq -96(%rbp), %rsi # game_index # game_index
+    movq -696(%rbp), %rdi # t381 # t381
+    cmpq %rdi, %rsi
+    sete %cl
+    movzbq %cl, %rdx
+    movq %rdx, -704(%rbp)
+    movq $2, %rax
+    movq %rax, -712(%rbp)
+    movq -96(%rbp), %rsi # game_index # game_index
+    movq -712(%rbp), %rdi # t383 # t383
+    cmpq %rdi, %rsi
+    sete %cl
+    movzbq %cl, %rdx
+    movq %rdx, -720(%rbp)
+    movq -704(%rbp), %rdi # t382 # t382
+    cmpq $0, %rdi
+    setne %al
+    movq -720(%rbp), %rdx # t384 # t384
+    cmpq $0, %rdx
+    setne %cl
+    orb %al, %cl
+    movzbq %cl, %rdx
+    movq %rdx, -728(%rbp)
+    movq -728(%rbp), %rax # t385 # t385
+    cmpq $0, %rax
+    je sublabel_else_386
+sublabel_if_386: 
+    leaq t387(%rip), %rax
+    movq %rax, -736(%rbp)
+    movq -736(%rbp), %rdi # t387 # t387
+    movq -96(%rbp), %rsi # game_index # game_index
+    movq $0, %rax
+    call printf
+    movq %rax, -744(%rbp)
+    jmp sublabel_end_386
+sublabel_else_386: 
+    leaq t389(%rip), %rax
+    movq %rax, -752(%rbp)
+    movq -752(%rbp), %rdi # t389 # t389
+    movq $0, %rax
+    call printf
+    movq %rax, -760(%rbp)
+sublabel_end_386: 
     movq -72(%rbp), %rdi # grid # grid
     movq $0, %rax
     call free
-    movq %rax, -696(%rbp)
+    movq %rax, -768(%rbp)
     movq $0, %rax
     call sdl_release
-    movq %rax, -704(%rbp)
+    movq %rax, -776(%rbp)
     movq $0, %rax
     call sdl_quit
-    movq %rax, -712(%rbp)
+    movq %rax, -784(%rbp)
     movq $0, %rax
-    movq %rax, -720(%rbp)
+    movq %rax, -792(%rbp)
     leave
     ret
 .section .note.GNU-stack,"",@progbits

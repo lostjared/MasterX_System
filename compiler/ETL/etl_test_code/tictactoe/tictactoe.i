@@ -227,6 +227,13 @@ proc init() {
             }
         }
     }
+
+    if(game_index == 1 || game_index == 2) {
+        printf("Game Over: Winner was Player: %d\n", game_index);
+    } else {
+        printf("Game Over: Was a draw.\n");
+    }
+
     free(grid);
     sdl_release();
     sdl_quit();
