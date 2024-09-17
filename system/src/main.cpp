@@ -62,13 +62,23 @@ void setScreen(int scr) {
 void draw(mx::mxApp &app) {
     SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
     SDL_RenderClear(app.ren);
-
     SDL_SetRenderTarget(app.ren, app.tex);
     SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
     SDL_RenderClear(app.ren);
-
     (*screens)[cur_screen]->draw(app);
+    SDL_RenderCopy(app.ren, app.tex, nullptr, nullptr);
+    SDL_RenderPresent(app.ren);
+}
 
+void draw_loading(mx::mxApp &app) {
+    SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
+    SDL_RenderClear(app.ren);
+    SDL_SetRenderTarget(app.ren, app.tex);
+    SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
+    SDL_RenderClear(app.ren);
+    SDL_Color col = {255,255,255,255};
+    app.printText(25, 25, "Loading...", col);
+    SDL_SetRenderTarget(app.ren, nullptr);
     SDL_RenderCopy(app.ren, app.tex, nullptr, nullptr);
     SDL_RenderPresent(app.ren);
 }
@@ -88,7 +98,7 @@ void draw(mx::mxApp &app) {
 void init(mx::mxApp &app) {
     if(screens != nullptr) {
         screens->push_back(std::make_unique<mx::Splash>(app));
-        screens->push_back(std::make_unique<mx::Dimension>(app));
+        screens->push_back(std::make_unique<mx::Dimension>(*p_app));
     }
 }
 
@@ -228,12 +238,11 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
         return 1;
     }
-    init(app);
-
     if(full) {
         app.set_fullscreen(app.win, true);
     }
-
+    draw_loading(app);
+    init(app);
     app.active = true;
     mx::system_out << "MasterX System: Up and running @ " << curTime() << "\n";
 
