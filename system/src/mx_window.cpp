@@ -9,9 +9,8 @@ namespace mx {
 
     Window::Window(mxApp &app) : x{0}, y{0}, w{320}, h{240}, shown{false}, minimizeHovered(SDL_FALSE), closeHovered(SDL_FALSE), maximizeHovered(SDL_FALSE), title{"windwow"} {
         dim_w = app.width;
-        dim_h = app.height;
-        setCanResize(false);     
-        minimize(false);   
+        dim_h = app.height; 
+        setCanResize(false);
     }
 
     Window::~Window() {
@@ -234,10 +233,8 @@ namespace mx {
     }
 
     void Window::show(bool b) {
-
         shown = b;
         stateChanged(false, false, shown);
-        if(b) minimize(false);
     }
 
     void Window::getRect(SDL_Rect &rc) {

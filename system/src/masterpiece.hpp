@@ -23,24 +23,34 @@ namespace mx {
         void draw_start(mxApp &);
         void draw_game(mxApp &);
         int cur_screen = 0;
-        SDL_Texture *logo, *start, *cursor, *gamebg;
+        SDL_Texture *draw_tex, *logo, *start, *cursor, *gamebg, *blocks[11];
         Uint32 startTime = 0; 
         Uint32 waitTime = 3000;
         int cursor_pos = 0;
-
+        Uint32 startTime2 = 0;
+        Uint32 waitTime2 = 1000;
     
         class TileMatrix {
         public:
-            void gameover() {
 
-            }
-
+            
             struct GameData {
                 unsigned long score;
                 int lines;
                 int speed;
                 int lineamt;
                 int linenum = 0;
+
+                bool game_is_over = false;
+
+                void gameover() {
+                     game_is_over = true;
+                }
+
+                bool isGameOver() const {
+                    return game_is_over;
+                }
+
 
                 GameData() {
                     newgame();
@@ -49,7 +59,7 @@ namespace mx {
                 void newgame() {
                     score = 0;
                     lines = 0;
-                    speed = 20;
+                    speed = 1500;
                     lineamt = 0;
                 }
 
@@ -60,9 +70,9 @@ namespace mx {
 
                     if (lineamt >= linenum) {
                         lineamt = 0;
-                        speed -= 4;
-                        if (speed < 4) {
-                            speed = 5;
+                        speed -= 101;
+                        if (speed < 100) {
+                            speed = 100;
                         }
                     }
                 }
@@ -125,7 +135,7 @@ namespace mx {
                 }
 
                 void MoveDown() {
-                    if (y < 16) {
+                    if (y+2 < 16) {
                         y++;
                     }
                 }
@@ -163,7 +173,7 @@ namespace mx {
 
             void setblock() {
                 if (block.y <= 0) {
-                    gameover();
+                    Game.gameover();
                 }
 
                 if (block.y < 15) {  // Ensuring block.y + 2 stays within bounds
@@ -188,9 +198,20 @@ namespace mx {
                     }
                 }
             }
+
+            void clearBlocks() {
+                for (int z = 0; z < 8; z++) {
+                    for (int i = 0; i < 16; i++) {
+                        if (Tiles[i][z] == -1) {
+                            Tiles[i][z] = 0;
+                        }
+                    }
+                }
+            }
         };
 
         TileMatrix matrix;
+        void blockProc();
 
     };
 

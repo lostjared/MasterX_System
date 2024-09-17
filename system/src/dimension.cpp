@@ -284,7 +284,7 @@ namespace mx {
         piece_cont->objects.push_back(std::make_unique<MasterPiece>(app));
         piece = dynamic_cast<MasterPiece *>(piece_cont->objects[0].get());
         piece_cont->events.addWindow(piece);
-        piece->create(piece_cont, "MasterPiece", 100, 100, 640, 480);
+        piece->create(piece_cont, "MasterPiece", 100, 50, 640, 480);
         piece->show(true);
         piece->setReload(true);
         piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));
