@@ -707,7 +707,7 @@ namespace mx {
             }
                 break;
             case 4:
-                mx::system_out << "Find clicked\n";
+                loadDimension(4);
                 break;
             case 5: {
                 loadDimension(2);
@@ -793,7 +793,7 @@ namespace mx {
         SDL_Color black = {0, 0, 0, 255};
         SDL_Color white = {255, 255, 255, 255};
 
-        const char* items[] = {"Welcome", "Terminal", "Settings", "Find", "About", "Run", "Shutdown"};
+        const char* items[] = {"Welcome", "Terminal", "Settings", "MasterPiece", "About", "Run", "Shutdown"};
         int numItems = sizeof(items) / sizeof(items[0]);
         int itemHeight = 30;
         SDL_Rect itemRect;

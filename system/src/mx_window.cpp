@@ -10,9 +10,13 @@ namespace mx {
     Window::Window(mxApp &app) : x{0}, y{0}, w{320}, h{240}, shown{false}, minimizeHovered(SDL_FALSE), closeHovered(SDL_FALSE), maximizeHovered(SDL_FALSE), title{"windwow"} {
         dim_w = app.width;
         dim_h = app.height;
+        setCanResize(false);     
+        minimize(false);   
     }
 
     Window::~Window() {
+        if(icon != nullptr)
+            SDL_DestroyTexture(icon);
         mx::system_out << "MasterX: Releasing Window: " << title << "\n";
     }
 
@@ -28,6 +32,18 @@ namespace mx {
         this->dim = dim;
     }
 
+    void Window::getDrawRect(SDL_Rect &rc) {
+        getRect(rc);
+        rc.x += 5;
+        rc.w -= 10;
+        rc.y += 28;
+        rc.h -= 29;
+    }
+
+    void Window::setIcon(SDL_Texture *icon) {
+        this->icon = icon;
+    }
+
     void Window::destroyWindow() {
         dim->destroyWindow(this);
     }
@@ -38,7 +54,7 @@ namespace mx {
     }
 
     void Window::draw(mxApp &app) {
-      
+
         if(shown == false || (minimized == true && isMinimizing == false)) return;
         
         if (isMinimizing) {
@@ -53,7 +69,7 @@ namespace mx {
                 minimized = true;
                 minimizeHovered = SDL_FALSE;
                 maximizeHovered = SDL_FALSE;
-                closeHovered = SDL_FALSE;                                       
+                closeHovered = SDL_FALSE; 
             }
         }
 
@@ -214,12 +230,14 @@ namespace mx {
         int iconX = x + 5;  
         int iconY = y + (titleBarHeight - iconHeight) / 2;  
         SDL_Rect iconRect = { iconX, iconY, iconWidth, iconHeight };
-        SDL_RenderCopy(app.ren, app.icon, nullptr, &iconRect);
+        SDL_RenderCopy(app.ren, icon == nullptr ? app.icon : icon, nullptr, &iconRect);
     }
 
     void Window::show(bool b) {
+
         shown = b;
         stateChanged(false, false, shown);
+        if(b) minimize(false);
     }
 
     void Window::getRect(SDL_Rect &rc) {

@@ -9,7 +9,6 @@
 #include<functional>
 #include"mx_event.hpp"
 #include<random>
-
 namespace mx {
 
     extern bool cursor_shown;
@@ -17,7 +16,8 @@ namespace mx {
      class Window;
      class SystemBar;
      class MenuBar;
-    
+     class MasterPiece;
+
     class DimensionContainer : public Screen {
     public:
         std::string name = "Default";
@@ -83,6 +83,8 @@ namespace mx {
         SDL_Texture *hand_cursor, *reg_cursor;
         int cursor_x = 0, cursor_y = 0;
         Terminal *termx;
+        DimensionContainer *piece_cont;
+        MasterPiece *piece;
     };
 
 }

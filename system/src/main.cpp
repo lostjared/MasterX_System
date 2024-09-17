@@ -126,7 +126,12 @@ SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name) {
     return loadTexture(app, name, w, h);
 }
 
-extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w, int &h) {
+
+SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w, int &h) {
+    return loadTexture(app, name, w, h, false, {});
+}
+
+SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w, int &h, bool key, SDL_Color color) {
     SDL_Surface *surf = nullptr;
     if(name.rfind(".bmp") != std::string::npos) {
         surf = SDL_LoadBMP(getPath(name).c_str());
@@ -138,6 +143,8 @@ extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w,
         mx::system_err.flush();
         exit(EXIT_FAILURE);
     }
+    if(key)
+        SDL_SetColorKey(surf, SDL_TRUE, SDL_MapRGB(surf->format, color.r,color.g,color.b));
     w = surf->w;
     h = surf->h;
     SDL_Texture *tex = SDL_CreateTextureFromSurface(app.ren, surf);

@@ -19,6 +19,7 @@ namespace mx {
         virtual void draw(mxApp &app) override;
         virtual bool event(mxApp &app, SDL_Event &e) override;
         virtual void stateChanged(bool min, bool max, bool close) {}
+        virtual void activate() {}
         void create(DimensionContainer *dim, const std::string &name, const int x, const int y, const int w, const int h);
         void destroyWindow();
         void removeAtClose(bool b);
@@ -26,6 +27,7 @@ namespace mx {
         void minimize(bool m);
         void maximize(bool m);
         void getRect(SDL_Rect &rc);
+        void getDrawRect(SDL_Rect &rc);
         void setRect(const SDL_Rect &rc);
         Control *getControl();
         Control *getControl(int index);
@@ -38,11 +40,13 @@ namespace mx {
         void setSystemBar(SystemBar *s);
         void drawMenubar(mxApp &app);
         bool isPointInside(int x, int y);
+        void setIcon(SDL_Texture *icon);
         SystemBar *systemBar = nullptr;
         DimensionContainer *dim = nullptr;
         bool minimized = false;
         bool dragging = false;
     private:
+        SDL_Texture *icon = nullptr;
         int x,y,w,h;
         int dim_w = 0, dim_h = 0;
         bool shown = false;

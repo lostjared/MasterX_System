@@ -34,7 +34,7 @@ namespace mx {
         void set_fullscreen(SDL_Window* window, bool fullscreen);
         void shutdown();
         bool full = false;
-        
+
     };
 
     class Screen {
@@ -48,5 +48,6 @@ namespace mx {
 
 extern void setScreen(int screen);
 extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name);
+extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w, int &h, bool key, SDL_Color color);
 extern SDL_Texture *loadTexture(mx::mxApp &app, const std::string &name, int &w, int &h);
 #endif

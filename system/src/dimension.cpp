@@ -6,6 +6,7 @@
 #include"mx_window.hpp"
 #include"mx_system_bar.hpp"
 #include"mx_abstract_control.hpp"
+#include"masterpiece.hpp"
 #include<algorithm>
 #include<unordered_set>
 #include<random>
@@ -67,6 +68,9 @@ namespace mx {
             for (auto &i : objects) {
                 if(auto win = dynamic_cast<Window *>(i.get())) {
                     if(win->reload()) {
+                        if(win->isVisible() == false) {
+                            win->activate();
+                        }
                         win->show(true);
                     }
                 }
@@ -271,8 +275,20 @@ namespace mx {
         termx->create(term, "mXTerm", (1280 - 800) / 2, (720 - 600) / 2, 800, 505);
         termx->show(true);
         termx->setReload(true);
-      
-
+        dimensions.push_back(std::make_unique<DimensionContainer>(app));
+        piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
+        SDL_Texture *rtex = loadTexture(app, selectRandomImage(logos, gen));
+        piece_cont->init(system_bar, "MastePiece", rtex);
+        piece_cont->setActive(false);
+        piece_cont->setVisible(false);
+        piece_cont->objects.push_back(std::make_unique<MasterPiece>(app));
+        piece = dynamic_cast<MasterPiece *>(piece_cont->objects[0].get());
+        piece_cont->events.addWindow(piece);
+        piece->create(piece_cont, "MasterPiece", 100, 100, 640, 480);
+        piece->show(true);
+        piece->setReload(true);
+        piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));
+        piece->setSystemBar(system_bar);
         termx->setWallpaper(term_tex);
         system_bar->setDimensions(&dimensions);
         welcome_window->setSystemBar(system_bar);
