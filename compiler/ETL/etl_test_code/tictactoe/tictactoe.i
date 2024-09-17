@@ -130,6 +130,7 @@ proc check_winner(@grid) {
 
     for(let i3 = 0; i3 < GRID_SIZE; i3 = i3 + 1) {
 
+        let type = mematb(grid, i3 * GRID_SIZE +0);
         if(mematb(grid, i3 * GRID_SIZE + 0) != 0 &&
            mematb(grid, i3 * GRID_SIZE + 0) == mematb(grid, i3 * GRID_SIZE + 1) &&
            mematb(grid, i3 * GRID_SIZE + 1) == mematb(grid, i3 * GRID_SIZE + 2)) {
@@ -166,7 +167,6 @@ proc check_winner(@grid) {
     if(is_draw == 1) {
         return 3;
     }
-
     return 0;
 }
 
@@ -210,10 +210,9 @@ proc init() {
                     if(mematb(grid, index) == 0) {
                         memstoreb(grid, index, current_player);
 
-                        let result = check_winner(grid);
-                        if(result != 0) {
+                        game_index = check_winner(grid);
+                        if(game_index != 0) {
                             game_over = 1;
-                            game_index = result;
                         } else {
 
                             if(current_player == 1) {
