@@ -77,6 +77,14 @@ namespace mx {
                         break;
                     }
                 break;
+                case SDLK_SPACE:
+                    switch(cur_screen) {
+                        case 4:
+                        case 3:
+                        cur_screen = 1;
+                        break;
+                    }
+                break;
                 case SDLK_RETURN:
                     switch(cur_screen) {
                         case 1:
@@ -85,8 +93,10 @@ namespace mx {
                             newGame();
                             break;
                             case 1:
+                            cur_screen = 3;
                             break;
                             case 2:
+                            cur_screen = 4;
                             break;
                             case 3:
                             show(false);
@@ -126,6 +136,12 @@ namespace mx {
             case 2:
             draw_game(app);
             break;
+            case 4:
+            draw_credits(app);
+            break;
+            case 3:
+            draw_options(app);
+            break;
         }
 
         SDL_SetRenderTarget(app.ren, app.tex);
@@ -160,7 +176,7 @@ namespace mx {
         for(int i = 0; grid_block_paths[i] != nullptr; ++i) {
             blocks[i] = loadTexture(app, grid_block_paths[i]);
         }
-
+        alien = loadTexture(app, "images/mp_dat/mp.alien.png");
     }
 
     void MasterPiece::release_gfx() {
@@ -176,6 +192,9 @@ namespace mx {
         for(int i = 0; i < 11; ++i) {
             if(blocks[i] != nullptr) 
                 SDL_DestroyTexture(blocks[i]);
+        }
+        if(alien != nullptr) {
+            SDL_DestroyTexture(alien);
         }
     }
 
@@ -204,6 +223,33 @@ namespace mx {
             cur_screen = 1;
             startTime = 0;
         }
+    }
+
+    void MasterPiece::draw_credits(mxApp &app) {
+        SDL_Rect rc = {0, 0, 640, 480};
+        SDL_RenderCopy(app.ren, start, nullptr, &rc);
+        SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
+        SDL_Rect rc2 = { 35, 92,621-35,480-130 };
+        SDL_RenderFillRect(app.ren, &rc2);
+        SDL_Color color = { 255, 255, 255, 255 };
+        SDL_Color color2 = { 255, 0, 0, 255 };
+        SDL_Color color3 = {0,0,255, 255};
+
+        app.printText( 60, 110, "MasterPiece MX Edition", color);
+        app.printText( 60, 150, "written by Jared Bruni", color2);
+        app.printText( ( 640 /2 ) - (200/2) + 20, 200, "[ Press Space to Return ]", color3);
+
+        SDL_Rect rc3 = { (640/2)-(150/2), 225, 150, 150 };
+        SDL_RenderCopy(app.ren, alien, nullptr, &rc3);
+    }
+    void MasterPiece::draw_options(mxApp &app) {
+        SDL_Rect rc = {0, 0, 640, 480};
+        SDL_RenderCopy(app.ren, start, nullptr, &rc);
+        SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
+        SDL_Rect rc2 = { 35, 92,621-35,480-130 };
+        SDL_RenderFillRect(app.ren, &rc2);
+        SDL_Color color = { 255, 255, 255, 255 };
+        app.printText( 60, 110, "[ Options Menu - Space to Return ]", color);
     }
 
     void MasterPiece::draw_start(mxApp &app) {
