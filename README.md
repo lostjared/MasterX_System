@@ -27,6 +27,10 @@ SDL2
 
 SDL2_ttf
 
+libpng
+
+zlib
+
 To install, you must compile the compiler from the source code by first compiling the library cxx_scan for the lexical analyzer then  ETL, and installing both in /usr/local on your WSL2 or Linux System.
 
 
