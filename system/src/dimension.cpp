@@ -8,6 +8,7 @@
 #include"mx_abstract_control.hpp"
 #include<algorithm>
 #include<unordered_set>
+#include<random>
 
 namespace mx {
 
@@ -134,10 +135,25 @@ namespace mx {
         visible = v;
     }
 
+    std::string Dimension::selectRandomImage(std::vector<std::string>& logos, std::mt19937& gen) {
+        if (logos.empty()) {
+            return "";  
+        }
+        std::uniform_int_distribution<> dis(0, logos.size() - 1);
+        int random_index = dis(gen);
+        std::string selected_image = logos[random_index];
+        logos.erase(logos.begin() + random_index);
+        return selected_image;
+    }
+
     Dimension::Dimension(mxApp &app) {
         wallpaper = loadTexture(app, "images/desktop.png");
         objects.push_back(std::make_unique<SystemBar>(app));
         system_bar = dynamic_cast<SystemBar *>(objects[0].get());
+        std::vector<std::string> logos {"images/terminal.png", "images/startup.png", "images/cat.png", "images/flower.png", "images/alienchip.png", "images/codespiral.png" };
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         dash = dynamic_cast<DimensionContainer *>(getDimension());
@@ -161,7 +177,7 @@ namespace mx {
         });
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         welcome = dynamic_cast<DimensionContainer *>(getDimension());
-        welcome->init(system_bar, "Welcome", loadTexture(app, "images/wallpaper.png"));
+        welcome->init(system_bar, "Welcome", loadTexture(app, selectRandomImage(logos, gen)));
         welcome->setActive(false);
         welcome->setVisible(false);
         welcome_window = welcome->createWindow(app);
@@ -210,7 +226,7 @@ namespace mx {
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         about = dynamic_cast<DimensionContainer *>(getDimension());
-        about->init(system_bar, "About", loadTexture(app, "images/about.png"));
+        about->init(system_bar, "About", loadTexture(app, selectRandomImage(logos, gen)));
         about->setActive(false);
         about->setVisible(false);
         about_window = about->createWindow(app);
@@ -243,7 +259,7 @@ namespace mx {
         about_window->setCanResize(false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         term = dynamic_cast<DimensionContainer *>(getDimension());
-        SDL_Texture *term_tex = loadTexture(app, "images/terminal.png");
+        SDL_Texture *term_tex = loadTexture(app, selectRandomImage(logos, gen));
         term->init(system_bar, "Terminal", term_tex);
         term->setActive(false);
         term->setVisible(false);
@@ -255,6 +271,8 @@ namespace mx {
         termx->create(term, "mXTerm", (1280 - 800) / 2, (720 - 600) / 2, 800, 505);
         termx->show(true);
         termx->setReload(true);
+      
+
         termx->setWallpaper(term_tex);
         system_bar->setDimensions(&dimensions);
         welcome_window->setSystemBar(system_bar);

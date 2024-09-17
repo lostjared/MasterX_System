@@ -8,6 +8,7 @@
 #include<iostream>
 #include<functional>
 #include"mx_event.hpp"
+#include<random>
 
 namespace mx {
 
@@ -38,6 +39,7 @@ namespace mx {
         bool hoveringX = false;
         SDL_Texture *wallpaper, *nextWallpaper;
         EventHandler events;
+        
     private:
         SystemBar *system_bar;
         bool active = false;
@@ -64,6 +66,7 @@ namespace mx {
         void drawDash(mxApp &app);
         Screen *getDimension();
         Screen *getDimension(int index);
+        std::string selectRandomImage(std::vector<std::string>& logos, std::mt19937& gen);
     private:
         SDL_Texture *wallpaper;
         std::vector<std::unique_ptr<Screen>> objects;
