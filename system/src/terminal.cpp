@@ -220,7 +220,7 @@ namespace mx {
             } else {
                 parseTerminalData(temp);
             }
-#else
+#elif !defined(FOR_WASM)
                 parseTerminalData(temp);
 #endif
             newData = false;
@@ -233,20 +233,21 @@ namespace mx {
         if (!outputLines.empty()) {
             prompt = outputLines.back();
         }
-    #elif defined(_WIN32)
+    #elif defined(_WIN32) || defined(FOR_WASM)
         prompt = "$ ";
     #endif
 
         SDL_Rect rc;
         Window::getRect(rc);
-        rc.y += 28;
-
+               
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
         SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
         SDL_RenderFillRect(app.ren, &rc);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
+        rc.y += 28;
         Window::drawMenubar(app);
+ 
 
         int lineHeight = TTF_FontHeight(font);
         int maxWidth = rc.w - 10;
