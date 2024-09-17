@@ -1,10 +1,24 @@
 #include"splash.hpp"
 #include"loadpng.hpp"
+#include<random>
 
 namespace mx {
 
     Splash::Splash(mxApp &app) {
-        SDL_Surface *temp = mx::LoadPNG(getPath("images/startup.png").c_str());
+
+        logos.push_back("images/startup.png");
+        logos.push_back("images/cat.png");
+        logos.push_back("images/flower.png");
+        logos.push_back("images/alienchip.png");
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, logos.size() - 1);
+
+        int random_index = dis(gen);
+
+
+        SDL_Surface *temp = mx::LoadPNG(getPath(logos[random_index]).c_str());
         if(!temp) {
             mx::system_err << "Error loading bitmap: " << getPath("images/startup.png") << "\n";
             mx::system_err.flush();
