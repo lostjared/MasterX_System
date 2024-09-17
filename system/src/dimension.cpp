@@ -22,6 +22,9 @@ namespace mx {
         if(wallpaper) {
             SDL_DestroyTexture(wallpaper);
         }
+        if(icon) {
+            SDL_DestroyTexture(icon);
+        }
     }
 
     void DimensionContainer::destroyWindow(Window *win) {
@@ -124,6 +127,10 @@ namespace mx {
             transitionAlpha = 255;
             transitioning = false;
         }
+    }
+    
+    void DimensionContainer::setIcon(SDL_Texture *icon) {
+        this->icon = icon;
     }
 
     bool DimensionContainer::event(mxApp &app, SDL_Event &e) {
@@ -272,9 +279,11 @@ namespace mx {
         term->objects.push_back(std::make_unique<Terminal>(app)); 
         termx = dynamic_cast<Terminal*>(term->objects[0].get());
         term->events.addWindow(termx);
+        term->setIcon(loadTexture(app, "images/term.png"));
         termx->create(term, "mXTerm", (1280 - 800) / 2, (720 - 600) / 2, 800, 505);
         termx->show(true);
         termx->setReload(true);
+        termx->setIcon(loadTexture(app, "images/term.png"));
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
         SDL_Texture *rtex = loadTexture(app, "images/mp_dat/mp_wall.png");
@@ -284,10 +293,12 @@ namespace mx {
         piece_cont->objects.push_back(std::make_unique<MasterPiece>(app));
         piece = dynamic_cast<MasterPiece *>(piece_cont->objects[0].get());
         piece_cont->events.addWindow(piece);
+        piece_cont->setIcon(loadTexture(app, "images/mp_dat/block_red.png"));
         piece->create(piece_cont, "MasterPiece", 100, 50, 640, 480);
         piece->show(true);
         piece->setReload(true);
         piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));
+
         piece->setSystemBar(system_bar);
         termx->setWallpaper(term_tex);
         system_bar->setDimensions(&dimensions);

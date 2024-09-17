@@ -22,6 +22,8 @@ namespace mx {
         void draw_intro(mxApp &);
         void draw_start(mxApp &);
         void draw_game(mxApp &);
+        void draw_credits(mxApp &);
+        void draw_options(mxApp  &);
         int cur_screen = 0;
         SDL_Texture *draw_tex, *logo, *start, *cursor, *gamebg, *blocks[11];
         Uint32 startTime = 0; 
@@ -201,7 +203,7 @@ namespace mx {
 
             void clearBlocks() {
                 for (int z = 0; z < 8; z++) {
-                    for (int i = 0; i < 16; i++) {
+                    for (int i = 0; i < 17; i++) {
                         if (Tiles[i][z] == -1) {
                             Tiles[i][z] = 0;
                         }

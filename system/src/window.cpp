@@ -84,6 +84,26 @@ namespace mx {
         full = fullscreen;
     }
 
+    void mxApp::printText(int x, int y, const std::string &text, const SDL_Color col) {
+        SDL_Surface *surf = TTF_RenderText_Blended(font, text.c_str(), col);
+        if(!surf) {
+            mx::system_err << "MasterX: System Font Render failed...\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
+        SDL_Texture *tex_ = SDL_CreateTextureFromSurface(ren, surf);
+        if(!tex_) {
+            mx::system_err << "MastesrX System: Could not create texture..\n";
+            mx::system_err.flush();
+            SDL_FreeSurface(surf);
+            exit(EXIT_FAILURE);
+        }
+        SDL_Rect rc = {x, y, surf->w, surf->h};
+        SDL_RenderCopy(ren, tex_, nullptr,  &rc);
+        SDL_FreeSurface(surf);
+        SDL_DestroyTexture(tex_);
+    }
+
     mxApp::~mxApp() {
         release();
         TTF_CloseFont(font);

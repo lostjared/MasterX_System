@@ -10,6 +10,7 @@ namespace mx {
             mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
+        setCanResize(true);
     }
 
     MasterPiece::~MasterPiece() {
@@ -278,6 +279,10 @@ namespace mx {
         getcords(matrix.block.y + 2, matrix.block.x, bx, by);
         SDL_Rect blockRect3 = { bx, by, blockWidth, blockHeight };
         SDL_RenderCopy(app.ren, blocks[matrix.block.color.c3], nullptr, &blockRect3);
+
+        SDL_Color white {255,255,255,255};
+        app.printText(200, 60, "Score: " + std::to_string(matrix.Game.score), white);
+        app.printText(310, 60, "Lines: " + std::to_string(matrix.Game.lines), white);
         blockProc();
          if (startTime2 == 0) {    
             startTime2 = SDL_GetTicks();
@@ -296,7 +301,7 @@ namespace mx {
         }
 
         if(matrix.Game.isGameOver()) 
-            cur_screen = 3;
+            cur_screen = 0;
     }
 
     void MasterPiece::blockProc() {
@@ -313,7 +318,7 @@ namespace mx {
         for (int i = 0; i < 17; i++) {
             for (int j = 0; j < 8 - 2; j++) {
                 int cur_color = matrix.Tiles[i][j];
-                if (cur_color != BLOCK_BLACK) {
+                if (cur_color != BLOCK_BLACK && cur_color != BLOCK_FADE) {
                     if (matrix.Tiles[i][j + 1] == cur_color && matrix.Tiles[i][j + 2] == cur_color) {
                         matrix.Game.addline();
                         matrix.Tiles[i][j] = BLOCK_FADE;
@@ -328,7 +333,7 @@ namespace mx {
         for (int z = 0; z < 8; z++) {
             for (int q = 0; q < 17 - 2; q++) {
                 int cur_color = matrix.Tiles[q][z];
-                if (cur_color != BLOCK_BLACK) {
+                if (cur_color != BLOCK_BLACK && cur_color != BLOCK_FADE) {
                     if (matrix.Tiles[q + 1][z] == cur_color && matrix.Tiles[q + 2][z] == cur_color) {
                         matrix.Tiles[q][z] = BLOCK_FADE;
                         matrix.Tiles[q + 1][z] = BLOCK_FADE;

@@ -36,8 +36,9 @@ namespace mx {
         void updateTransition();
         void destroyWindow(Window *win);
         Window *createWindow(mxApp &app);
+        void setIcon(SDL_Texture *icon);
         bool hoveringX = false;
-        SDL_Texture *wallpaper, *nextWallpaper;
+        SDL_Texture *wallpaper, *nextWallpaper, *icon = nullptr;
         EventHandler events;
         
     private:
@@ -64,6 +65,7 @@ namespace mx {
         virtual void draw(mxApp &app) override;
         virtual bool event(mxApp &app, SDL_Event &e) override;
         void drawDash(mxApp &app);
+       
         Screen *getDimension();
         Screen *getDimension(int index);
         std::string selectRandomImage(std::vector<std::string>& logos, std::mt19937& gen);

@@ -34,6 +34,7 @@ namespace mx {
         void set_fullscreen(SDL_Window* window, bool fullscreen);
         void shutdown();
         bool full = false;
+        void printText(int x, int y, const std::string &text,  const SDL_Color col);
 
     };
 

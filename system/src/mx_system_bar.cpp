@@ -109,12 +109,15 @@ namespace mx {
             int text_width = textSurface->w;
             int text_height = textSurface->h;
             SDL_FreeSurface(textSurface);
-            SDL_Rect textRect = {menu_x + 10, menu_y + yOffset, text_width, text_height};
+            SDL_Rect textRect = {menu_x + 30, menu_y + yOffset, text_width, text_height};
+            SDL_Rect icoRect = {menu_x + 5, menu_y +yOffset, 16 ,16 }; 
             SDL_RenderCopy(app.ren, textTexture, nullptr, &textRect);
+            SDL_RenderCopy(app.ren, win->icon == nullptr ? app.icon : win->icon, nullptr, &icoRect);
             SDL_DestroyTexture(textTexture);
             yOffset += 30;
         }
     }
+
 
 
     void SystemBar::setDimensions(std::vector<std::unique_ptr<Screen>> *dim) {
@@ -196,10 +199,14 @@ namespace mx {
                 SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
                 SDL_RenderDrawRect(app.ren, &buttonRect);
 
-                SDL_Rect textRect = {button_x + 10, button_y + (button_height - text_height) / 2, text_width, text_height};
+                SDL_Rect textRect = {button_x + 30, button_y + (button_height - text_height) / 2, text_width, text_height};
                 SDL_RenderCopy(app.ren, textTexture, nullptr, &textRect);
                 SDL_DestroyTexture(textTexture);
-
+                textRect.x -= 24;
+                textRect.y -= 2;
+                textRect.w = 20;
+                textRect.h = 20;
+                SDL_RenderCopy(app.ren, dim->icon == nullptr ? app.icon : dim->icon, nullptr, &textRect);
                 if (i == cur_dim && dim->mini_win.size() > 0 && showMinimizedMenu) {
                     drawMinimizedMenu(app, button_x, button_y, button_width);
                 }
