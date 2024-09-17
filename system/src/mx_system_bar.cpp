@@ -652,6 +652,7 @@ namespace mx {
                 menu->menuOpen = false;
                 menu->animating = true;
                 menu->targetY = app.height;
+                return true;
             } else if (menu->menuOpen) {
                 int menuX = app.width - (app.width / 6) - 20;
                 int menuY = menu->currentY;

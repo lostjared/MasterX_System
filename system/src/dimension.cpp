@@ -277,7 +277,7 @@ namespace mx {
         termx->setReload(true);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
-        SDL_Texture *rtex = loadTexture(app, selectRandomImage(logos, gen));
+        SDL_Texture *rtex = loadTexture(app, "images/mp_dat/mp_wall.png");
         piece_cont->init(system_bar, "MastePiece", rtex);
         piece_cont->setActive(false);
         piece_cont->setVisible(false);
