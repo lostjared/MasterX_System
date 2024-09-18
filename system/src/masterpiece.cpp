@@ -158,7 +158,7 @@ namespace mx {
         cursor = loadTexture(app, "images/mp_dat/cursor.png", w, h, true, color);
         gamebg = loadTexture(app, "images/mp_dat/gamebg.png");
 
-        static const char* grid_block_paths[] = {
+        static const char* grid_block_paths[12] = {
             "images/mp_dat/block_black.png",
             "images/mp_dat/block_yellow.png",
             "images/mp_dat/block_orange.png",
@@ -185,7 +185,7 @@ namespace mx {
         if(start != nullptr)
             SDL_DestroyTexture(start);
         if(cursor != nullptr) 
-            SDL_DestroyTexture(start);
+            SDL_DestroyTexture(cursor);
         if(gamebg != nullptr) 
             SDL_DestroyTexture(gamebg);
 
