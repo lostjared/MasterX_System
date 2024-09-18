@@ -4,7 +4,7 @@
 
 ### Step 1: Compile and Install `libcxx_scan` and `ETL` (Optional)
 
-If you wish to use `ETL` (Extended Template Library), follow these instructions to compile and install the necessary dependencies:
+If you wish to use `ETL` (Easy Toy Langauge), follow these instructions to compile and install the necessary dependencies:
 
 1. **Enter the compiler directory:**
 
