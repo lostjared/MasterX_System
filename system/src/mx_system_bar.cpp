@@ -273,15 +273,21 @@ namespace mx {
         int windowHeight = app.height;
         int targetYPos = windowHeight - barHeight;
         int startButtonSize = 100;
-        if (!animationComplete) {
-            yPos += 5;
-            if (yPos >= targetYPos) {
-                yPos = targetYPos;
-                animationComplete = true;
-                DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](cur_dim).get());
-                con->setVisible(true);
-            }
+       static Uint32 lastTime = SDL_GetTicks();
+
+    if (!animationComplete) {
+        Uint32 currentTime = SDL_GetTicks();
+        Uint32 deltaTime = currentTime - lastTime;   
+        float speed = 0.8f;
+        yPos += speed * deltaTime;
+        if (yPos >= targetYPos) {
+            yPos = targetYPos;
+            animationComplete = true;
+            DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](cur_dim).get());
+            con->setVisible(true);
         }
+        lastTime = currentTime;
+    }
 
         SDL_Color gradBarStart = {240, 240, 240, 255}; 
         SDL_Color gradBarEnd = {200, 200, 200, 255};   
