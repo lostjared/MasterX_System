@@ -14,6 +14,7 @@ If you wish to use `ETL` (Extended Template Library), follow these instructions 
     cmake ..
     make -j4
     sudo make install
+    cd ..
     ```
 
 2. **Install ETL:**
@@ -21,11 +22,12 @@ If you wish to use `ETL` (Extended Template Library), follow these instructions 
     Navigate to the ETL directory and repeat the process:
 
     ```bash
-    cd ../ETL
+    cd ETL
     mkdir build && cd build
     cmake ..
     make -j4
     sudo make install
+    cd ..
     ```
 
 ### Step 2: Compile the MasterX System
