@@ -236,8 +236,8 @@ namespace mx {
         SDL_Color color3 = {0,0,255, 255};
 
         app.printText( 60, 110, "MasterPiece MX Edition", color);
-        app.printText( 60, 150, "written by Jared Bruni", color2);
-        app.printText( ( 640 /2 ) - (200/2) + 20, 200, "[ Press Space to Return ]", color3);
+        app.printText( 60, 135, "written by Jared Bruni", color2);
+        app.printText( ( 640 /2 ) - (200/2) + 15, 200, "[ Press Space to Return ]", color3);
 
         SDL_Rect rc3 = { (640/2)-(150/2), 225, 150, 150 };
         SDL_RenderCopy(app.ren, alien, nullptr, &rc3);
