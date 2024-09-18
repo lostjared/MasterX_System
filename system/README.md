@@ -1,5 +1,7 @@
 # MasterX System
 
+![image](https://github.com/user-attachments/assets/f12969a1-a434-4e5d-acf8-5d2c32d50b7c)
+
 ## How to Compile
 
 ### Step 1: Compile and Install `libcxx_scan` and `ETL` (Optional)
