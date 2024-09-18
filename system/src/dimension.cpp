@@ -294,7 +294,7 @@ namespace mx {
         piece = dynamic_cast<MasterPiece *>(piece_cont->objects[0].get());
         piece_cont->events.addWindow(piece);
         piece_cont->setIcon(loadTexture(app, "images/mp_dat/block_red.png"));
-        piece->create(piece_cont, "MasterPiece", 100, 50, 640, 480);
+        piece->create(piece_cont, "MasterPiece", (1280/2) -(640/2), (720/2) - (480/2) - 35, 640, 480);
         piece->show(true);
         piece->setReload(true);
         piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));
