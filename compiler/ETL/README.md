@@ -1,5 +1,5 @@
-Small hand written scanner (lexical anaylzer) for a C style language.
+# ETL (Easy Toy Language) Compiler
 
-Screenshot:
+This compiler translates a simple language to GNU Assembly Language (AT&T Syntax) and then uses your existing compiler toolchain
+to compile the assembly language to machine language.
 
-![image](https://github.com/user-attachments/assets/4781f17f-4609-42c8-a040-a44982804616)
