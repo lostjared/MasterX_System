@@ -18,11 +18,12 @@ namespace mx {
         std::unordered_map<std::string, std::unordered_map<std::string, Item>> values;
         std::string filename;
     public:
-        explicit ConfigFile(const std::string &filex);
+        ConfigFile() = default;
+        ConfigFile(const std::string &filex);
        ~ConfigFile();
         Item itemAtKey(const std::string &section, const std::string &key);
         void setItem(const std::string &section, const std::string &key, const std::string value);
-        void loadFIle(const std::string  &f);
+        void loadFile(const std::string  &f);
         void saveFile(const std::string &f2);
         std::vector<std::string> splitByComma(const std::string &str);
     };

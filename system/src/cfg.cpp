@@ -3,7 +3,7 @@
 #include"tee_stream.hpp"
 
 namespace mx {
-    void ConfigFile::loadFIle(const std::string &f) {
+    void ConfigFile::loadFile(const std::string &f) {
         std::ifstream in(f);
         if (!in.is_open()) {
             mx::system_err << "MasterX System: Could not open configuration file: " <<  f << "\n";
@@ -97,7 +97,7 @@ namespace mx {
     }
 
     ConfigFile::ConfigFile(const std::string &filex) {
-        loadFIle(filex);
+        loadFile(filex);
     }
 
     ConfigFile::~ConfigFile() {

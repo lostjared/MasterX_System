@@ -3,6 +3,9 @@
 namespace mx {
     
     bool mxApp::init(const std::string &name, int w, int h) {
+
+        config.loadFile(getPath("mx.cfg"));
+
         win = SDL_CreateWindow(name.c_str(), 
                                         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
                                         w, h, SDL_WINDOW_SHOWN);

@@ -157,16 +157,16 @@ namespace mx {
         return selected_image;
     }
 
-    Dimension::Dimension(mxApp &app) : config(getPath("mx.cfg")) {
-        wallpaper = loadTexture(app, config.itemAtKey("desktop", "wallpaper").value);
+    Dimension::Dimension(mxApp &app) {
+        wallpaper = loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value);
         objects.push_back(std::make_unique<SystemBar>(app));
         system_bar = dynamic_cast<SystemBar *>(objects[0].get());
-        std::vector<std::string> logos = config.splitByComma(config.itemAtKey("desktop", "backgrounds").value);
+        std::vector<std::string> logos = app.config.splitByComma(app.config.itemAtKey("desktop", "backgrounds").value);
         std::random_device rd;
         std::mt19937 gen(rd());
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         dash = dynamic_cast<DimensionContainer *>(getDimension());
-        dash->init(system_bar, "Dashboard", loadTexture(app, "images/desktop.png"));
+        dash->init(system_bar, "Dashboard", loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value));
         dash->setActive(true);
         dash->setVisible(false);
         settings_window = dash->createWindow(app);

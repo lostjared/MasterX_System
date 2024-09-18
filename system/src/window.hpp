@@ -10,6 +10,8 @@
 #include<vector>
 #include<optional>
 #include"tee_stream.hpp"
+#include"cfg.hpp"
+
 
 extern std::string getPath(const std::string &name);
 extern std::optional<std::string> get_current_directory();
@@ -35,7 +37,7 @@ namespace mx {
         void shutdown();
         bool full = false;
         void printText(int x, int y, const std::string &text,  const SDL_Color col);
-
+        ConfigFile config;
     };
 
     class Screen {
