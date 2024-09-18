@@ -9,6 +9,9 @@
 #include<functional>
 #include"mx_event.hpp"
 #include<random>
+#include"cfg.hpp"
+
+
 namespace mx {
 
     extern bool cursor_shown;
@@ -69,6 +72,7 @@ namespace mx {
         Screen *getDimension();
         Screen *getDimension(int index);
         std::string selectRandomImage(std::vector<std::string>& logos, std::mt19937& gen);
+        ConfigFile config;
     private:
         SDL_Texture *wallpaper;
         std::vector<std::unique_ptr<Screen>> objects;

@@ -1,10 +1,14 @@
 #include"cfg.hpp"
 #include <algorithm>
+#include"tee_stream.hpp"
 
 namespace mx {
     void ConfigFile::loadFIle(const std::string &f) {
         std::ifstream in(f);
         if (!in.is_open()) {
+            mx::system_err << "MasterX System: Could not open configuration file: " <<  f << "\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
             return;
         }
 
@@ -66,6 +70,11 @@ namespace mx {
     }
 
     Item ConfigFile::itemAtKey(const std::string &section, const std::string &key) {
+        if(values[section].find(key) == values[section].end()) {
+            mx::system_err << "MasterX System Error: Could not find Key: " << key << " in config file.\n";;
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         return values[section][key];
     }
         
@@ -73,6 +82,19 @@ namespace mx {
         values[section][key] = {key, value};
     }
 
+    std::vector<std::string> ConfigFile::splitByComma(const std::string &str) {
+        std::vector<std::string> result;
+        size_t start = 0, end = 0;
+        
+        while ((end = str.find(',', start)) != std::string::npos) {
+            result.push_back(str.substr(start, end - start));
+            start = end + 1;
+        }
+        
+        result.push_back(str.substr(start));
+        
+        return result;
+    }
 
     ConfigFile::ConfigFile(const std::string &filex) {
         loadFIle(filex);
