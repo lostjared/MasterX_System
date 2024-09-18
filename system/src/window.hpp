@@ -38,6 +38,7 @@ namespace mx {
         bool full = false;
         void printText(int x, int y, const std::string &text,  const SDL_Color col);
         ConfigFile config;
+        std::string version;
     };
 
     class Screen {

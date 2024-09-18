@@ -5,7 +5,11 @@ namespace mx {
     bool mxApp::init(const std::string &name, int w, int h) {
 
         config.loadFile(getPath("mx.cfg"));
+        version = config.itemAtKey("app", "version").value;
 
+        std::cout << "MasterX System v" << version << " Loading .... \n";
+        std::cout << "written by Jared Bruni\n";
+        
         win = SDL_CreateWindow(name.c_str(), 
                                         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
                                         w, h, SDL_WINDOW_SHOWN);
