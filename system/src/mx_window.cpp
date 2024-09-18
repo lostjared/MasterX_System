@@ -34,9 +34,9 @@ namespace mx {
     void Window::getDrawRect(SDL_Rect &rc) {
         getRect(rc);
         rc.x += 5;
-        rc.w -= 10;
-        rc.y += 28;
-        rc.h -= 29;
+        rc.w -= 8;
+        rc.y += 36;
+        rc.h -= 40;
     }
 
     void Window::setIcon(SDL_Texture *icon) {
