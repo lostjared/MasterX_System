@@ -232,7 +232,7 @@ int main(int argc, char **argv) {
 
     std::vector<std::unique_ptr<mx::Screen>> screen_obj;
     screens = &screen_obj;
-    if(!app.init("MasterX", 1280, 720)) {
+    if(!app.init("MasterX System", 1280, 720)) {
         mx::system_err.flush();
         mx::system_out.flush();
         exit(EXIT_FAILURE);
