@@ -307,7 +307,7 @@ namespace mx {
         SDL_Rect nextBlockRect3 = { bx, by + 2 * blockHeight, blockWidth, blockHeight };
         SDL_RenderCopy(app.ren, blocks[matrix.block.nextcolor.c3], nullptr, &nextBlockRect3);
 
-        auto getcords = [rc](int r, int c, int& rx, int& ry) {
+        auto getcords = [](int r, int c, int& rx, int& ry) {
             const int STARTPOSX = STARTX;
             const int STARTPOSY = STARTY;
             rx = STARTPOSX + c * 32;
