@@ -2,6 +2,19 @@
 
 ![image](https://github.com/user-attachments/assets/f12969a1-a434-4e5d-acf8-5d2c32d50b7c)
 
+## Notes ##
+There are two options for compiling this on Windows
+If you are going to compile this and run it within WSL2 export this variable
+
+```bash
+export LIBGL_ALWAYS_SOFTWARE=1
+```
+
+before running. Otherwise if Using a native Windows EXE with a pipe WSL2 this step is unnecessary
+ 
+
+it wil  use the default software-based render driver on Ubutnu 24.04 LTS
+
 ## How to Compile
 
 ### Step 1: Compile and Install `libcxx_scan` and `ETL` (Optional)
