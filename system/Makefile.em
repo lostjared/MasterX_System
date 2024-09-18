@@ -10,7 +10,7 @@ PNG_LIB=$(LIBS_PATH)/libpng/lib/libpng.a
 
 
 OUTPUT = MasterX.html
-SOURCES = src/dimension.cpp src/main.cpp src/splash.cpp src/window.cpp src/terminal.cpp src/mx_controls.cpp src/mx_window.cpp src/mx_system_bar.cpp src/mx_event.cpp src/loadpng.cpp src/masterpiece.cpp
+SOURCES = src/dimension.cpp src/main.cpp src/splash.cpp src/window.cpp src/terminal.cpp src/mx_controls.cpp src/mx_window.cpp src/mx_system_bar.cpp src/mx_event.cpp src/loadpng.cpp src/masterpiece.cpp src/cfg.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 PRELOAD = --preload-file assets
 
