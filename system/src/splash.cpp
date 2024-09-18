@@ -5,12 +5,7 @@
 namespace mx {
 
     Splash::Splash(mxApp &app) {
-
-        logos.push_back("images/startup.png");
-        logos.push_back("images/cat.png");
-        logos.push_back("images/flower.png");
-        logos.push_back("images/alienchip.png");
-
+        std::vector<std::string> logos = app.config.splitByComma(app.config.itemAtKey("desktop", "backgrounds").value);
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<> dis(0, logos.size() - 1);

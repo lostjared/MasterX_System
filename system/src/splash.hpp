@@ -15,7 +15,6 @@ namespace mx {
     private:
         SDL_Texture *bg;
         TTF_Font *font;
-        std::vector<std::string> logos;
     };
 
 
