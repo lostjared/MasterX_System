@@ -23,7 +23,12 @@ namespace mx {
 
     Terminal::Terminal(mxApp  &app) : Window(app) {
         active = true;
-        text_color = { 255, 255, 255 };
+        std::vector<std::string> col = app.config.splitByComma(app.config.itemAtKey("terminal", "color").value);
+        text_color.r = static_cast<unsigned char>(atoi(col[0].c_str()));
+        text_color.g = static_cast<unsigned char>(atoi(col[1].c_str()));
+        text_color.b = static_cast<unsigned char>(atoi(col[2].c_str()));
+        text_color.a = 255;
+
         font = TTF_OpenFont(getPath("fonts/consolas.ttf").c_str(), 18);
         if(!font) {
             mx::system_err << "MasterX System Error: could not load system font.\n";
