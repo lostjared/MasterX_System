@@ -7,9 +7,9 @@ namespace mx {
 
     SystemBar::SystemBar(mxApp &app) {
         dimensions = nullptr;
-        font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 14);
+        font = TTF_OpenFont(getPath(app.system_font).c_str(), 14);
         if (!font) {
-            mx::system_err << "Error opening font: " << getPath("fonts/arial.ttf") << "\n";
+            mx::system_err << "Error opening font: " << getPath(app.system_font) << "\n";
             mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
@@ -744,9 +744,9 @@ namespace mx {
         menuOpen = false;
         currentY = app.height;  
         targetY = app.height / 2;  
-        font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 14);
+        font = TTF_OpenFont(getPath(app.system_font).c_str(), 14);
         if (!font) {
-            mx::system_err << "Error opening font: " << getPath("fonts/arial.ttf") << "\n";
+            mx::system_err << "Error opening font: " << getPath(app.system_font) << "\n";
             exit(EXIT_FAILURE);
         }
         white = { 255,255,255,255 };

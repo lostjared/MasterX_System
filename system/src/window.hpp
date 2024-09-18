@@ -39,6 +39,8 @@ namespace mx {
         void printText(int x, int y, const std::string &text,  const SDL_Color col);
         ConfigFile config;
         std::string version;
+        std::string system_font;
+        std::string term_font;
     };
 
     class Screen {

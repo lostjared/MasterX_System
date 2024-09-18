@@ -6,9 +6,11 @@ namespace mx {
 
         config.loadFile(getPath("mx.cfg"));
         version = config.itemAtKey("app", "version").value;
+        system_font = config.itemAtKey("fonts", "system").value;
+        term_font = config.itemAtKey("fonts", "term").value;
 
-        std::cout << "MasterX System v" << version << " Loading .... \n";
-        std::cout << "written by Jared Bruni\n";
+        mx::system_out << "MasterX System v" << version << " Loading .... \n";
+        mx::system_out << "written by Jared Bruni\n";
         
         win = SDL_CreateWindow(name.c_str(), 
                                         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
@@ -38,9 +40,9 @@ namespace mx {
         init_ = true;
         width = w;
         height = h;
-        font = TTF_OpenFont(getPath("fonts/arial.ttf").c_str(), 14);
+        font = TTF_OpenFont(getPath(system_font).c_str(), 14);
         if(!font) {
-            mx::system_err << "MasterX System: font: " << getPath("fonts/arial.ttf") << " Could not be loaded.\n";
+            mx::system_err << "MasterX System: font: " << getPath(system_font) << " Could not be loaded.\n";
             mx::system_err.flush();
             exit(EXIT_FAILURE);
         }

@@ -229,7 +229,7 @@ namespace mx {
         welcome_help_info = dynamic_cast<Label *>(welcome_help->getControl());
         std::vector<std::string> info_help {"MasterX System", "Created by Jared Bruni", "Virtual Environment", "written in C++20", "https://lostsidedead.biz"};
         welcome_help_info->create_multi(welcome_help, info_help, { 0, 0, 0, 255}, 25, 25);
-        welcome_help_info->loadFont("fonts/arial.ttf", 16);
+        welcome_help_info->loadFont(app.system_font, 16);
         welcome_help_info->linkMode(false);
         
 
@@ -263,7 +263,7 @@ namespace mx {
         about_window_info = dynamic_cast<Label *>(about_window->getControl());
         std::vector<std::string> info_text {"MasterX System", "written by Jared Bruni", "(C) 2024 LostSideDead Software", "https://lostsidedead.biz", "\"Open Source, Open Mind\""};
         about_window_info->create_multi(about_window, info_text, { 255,255,255,255}, 25, 25 );
-        about_window_info->loadFont("fonts/arial.ttf", 36);
+        about_window_info->loadFont(app.system_font, 36);
         about_window_info->linkMode(false);
         about_window->setCanResize(false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));

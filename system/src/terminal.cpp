@@ -29,7 +29,7 @@ namespace mx {
         text_color.b = static_cast<unsigned char>(atoi(col[2].c_str()));
         text_color.a = 255;
 
-        font = TTF_OpenFont(getPath("fonts/consolas.ttf").c_str(), 18);
+        font = TTF_OpenFont(getPath(app.term_font).c_str(), 18);
         if(!font) {
             mx::system_err << "MasterX System Error: could not load system font.\n";
             mx::system_err.flush();
