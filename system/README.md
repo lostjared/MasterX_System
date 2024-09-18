@@ -4,16 +4,16 @@
 
 ## Notes ##
 There are two options for compiling this on Windows
-If you are going to compile this and run it within WSL2 export this variable
+If you are going to compile this and run it within WSL2 export this variable before running.
 
 ```bash
 export LIBGL_ALWAYS_SOFTWARE=1
 ```
 
-before running. Otherwise if Using a native Windows EXE with a pipe WSL2 this step is unnecessary
+ Otherwise if Using a native Windows EXE with a pipe to WSL2 this step is unnecessary
  
 
-it wil  use the default software-based render driver on Ubutnu 24.04 LTS
+it will then  use the default software-based render driver for WSL2 on Ubutnu 24.04 LTS, amd Arch. On Arch you have to install and configure an X server. 
 
 ## How to Compile
 
