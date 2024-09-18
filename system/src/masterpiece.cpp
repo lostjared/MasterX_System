@@ -39,8 +39,108 @@ namespace mx {
     }
         
     bool MasterPiece::event(mxApp &app, SDL_Event &e) {
+        SDL_Rect ir;
+        Window::getRect(ir);
+        static int x1 = 0, y1x = 0, x2 = 0, y2 = 0;
+        static const int drag_threshold = 15;
+        if (cur_screen == 2 && e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+            x1 = e.button.x - ir.x;
+            y1x = e.button.y - ir.y;
+        }
+        else if (cur_screen == 2 && e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) {
+            SDL_Point p = { e.button.x, e.button.y };
+            if(!SDL_PointInRect(&p, & ir)) {
+                return false;
+            }
+            x2 = e.button.x - ir.x;
+            y2 = e.button.y - ir.y;
+            if (abs(y1x - y2) > abs(x1 - x2)) {
+                if (y1x < y2 && abs(y1x - y2) > drag_threshold) {
+                    x1 = x2;
+                    y1x = y2;
+                    matrix.block.MoveDown();
+                }
+                else if (y1x > y2 && abs(y2 - y1x) > drag_threshold) {
+                    matrix.block.color.shiftcolor(true);
+                    x1 = x2;
+                    y1x = y2;
+                }
+            } else {
+                if (x1 < x2 && abs(x1 - x2) > drag_threshold) {
+                    x1 = x2;
+                    y1x = y2;
+                    matrix.block.MoveRight();
+                }
+                else if (x1 > x2 && abs(x2 - x1) > drag_threshold) {
+                    matrix.block.MoveLeft();
+                    x1 = x2;
+                    y1x = y2;
+                }
+            }
+        }
 
         switch(e.type) {
+            case SDL_MOUSEMOTION: {
+
+                switch(cur_screen) {
+                    case 1: {
+
+                        int mx = e.motion.x;
+                        int my = e.motion.y;
+
+                        SDL_Rect rc;
+                        Window::getRect(rc);
+
+                        int x = mx - rc.x;
+                        int y = my - rc.y;
+
+                        if(x > 250 && x < 500 && y > 170 && y < 235) {
+                            cursor_pos = 0;
+                        }
+
+                        if(x > 250 && x < 618 && y > 265 && y < 320) {
+                            cursor_pos = 1;
+                        }
+
+                        if(x > 250 && x < 580 && y > 326 && y < 380){
+                            cursor_pos = 2;
+                        }
+
+                        if(x > 250 && x < 580 && y > 394 && y < 440){
+                            cursor_pos = 3;
+                        }
+                    }
+                    break;
+                }
+            }
+                break;
+            case SDL_MOUSEBUTTONDOWN: {
+                if(e.button.button == SDL_BUTTON_LEFT) {
+                    switch(cur_screen) {
+                        case 1:
+                        switch(cur_screen) {
+                            case 1:
+                            switch(cursor_pos) {
+                                case 0:
+                                newGame();
+                                break;
+                                case 1:
+                                cur_screen = 3;
+                                break;
+                                case 2:
+                                cur_screen = 4;
+                                break;
+                                case 3:
+                                show(false);
+                                break;
+                            }
+                            break;
+                        }
+                        break;
+                    }
+                }
+            }
+                break;
             case SDL_KEYDOWN:
             switch(e.key.keysym.sym) {
                 case SDLK_UP:
