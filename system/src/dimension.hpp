@@ -43,7 +43,7 @@ namespace mx {
         bool hoveringX = false;
         SDL_Texture *wallpaper, *nextWallpaper, *icon = nullptr;
         EventHandler events;
-        void setMatrix(bool m);
+        void setMatrix(SDL_Texture *t, bool m);
         bool getMatrix() const;
     private:
         SystemBar *system_bar;
@@ -53,6 +53,7 @@ namespace mx {
         int transitionAlpha = 255;
         int transitionSpeed = 3;
         bool matrix_on = false;
+        SDL_Texture *matrix_tex = nullptr;
         
     };
     
@@ -76,7 +77,7 @@ namespace mx {
         std::string selectRandomImage(std::vector<std::string>& logos, std::mt19937& gen);
         
     private:
-        SDL_Texture *wallpaper;
+        SDL_Texture *wallpaper, *matrix_texture = nullptr;
         std::vector<std::unique_ptr<Screen>> objects;
         std::vector<std::unique_ptr<Screen>> dimensions;
         DimensionContainer *welcome, *dash;

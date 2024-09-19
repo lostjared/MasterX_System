@@ -18,6 +18,11 @@
     }
 
     void createMatrixRainTexture(SDL_Renderer* renderer, SDL_Texture* texture, TTF_Font* font, int screen_width, int screen_height) {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 50);  
+        SDL_Rect screenRect = {0, 0, screen_width, screen_height};
+        SDL_RenderFillRect(renderer, &screenRect);
+
         const char *s = "a";
         int char_width = 0;
         int char_height = 0;
@@ -65,7 +70,9 @@
                 SDL_RenderCopy(renderer, char_texture, nullptr, &dst_rect);
             }
         }
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
     }
+     
 }
  
  

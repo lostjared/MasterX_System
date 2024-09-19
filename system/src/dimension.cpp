@@ -26,7 +26,7 @@ namespace mx {
         }
         if(icon) {
             SDL_DestroyTexture(icon);
-        }
+        } 
     }
 
     void DimensionContainer::destroyWindow(Window *win) {
@@ -83,8 +83,9 @@ namespace mx {
         }
     }
     
-    void DimensionContainer::setMatrix(bool m) {
+    void DimensionContainer::setMatrix(SDL_Texture *t, bool m) {
         matrix_on = m;
+        matrix_tex = t;
     }
     
     bool DimensionContainer::getMatrix() const {
@@ -114,8 +115,11 @@ namespace mx {
                 }
             } else {
                 SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_NONE);
-                if(matrix_on == true) {
-                    mx::createMatrixRainTexture(app.ren, app.tex, app.font, app.width, app.height);
+                if(matrix_on == true && matrix_tex != nullptr) {
+                    SDL_SetRenderTarget(app.ren, matrix_tex);
+                    mx::createMatrixRainTexture(app.ren, matrix_tex, app.font, app.width, app.height);
+                    SDL_SetRenderTarget(app.ren, app.tex);
+                    SDL_RenderCopy(app.ren, matrix_tex, nullptr, nullptr);
                 }
                 else {
                    SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
@@ -183,7 +187,13 @@ namespace mx {
         dash->init(system_bar, "Dashboard", loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value));
         dash->setActive(true);
         dash->setVisible(false);
-        dash->setMatrix(false);
+        matrix_texture = SDL_CreateTexture(app.ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, app.width, app.height);
+        if(!matrix_texture) {
+            mx::system_err << "MasterX System: Error could not create texture.\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
+        dash->setMatrix(matrix_texture, false);
         settings_window = dash->createWindow(app);
         settings_window->create(dash, "Settings", 25, 25, 320, 240);   
         settings_window->show(true);
@@ -204,7 +214,7 @@ namespace mx {
         toggle_matrix->create(settings_window, "Toggle Matrix Mode", 25, 80, 150, 20);
         toggle_matrix->setShow(true);
         toggle_matrix->setCallback([&](mxApp &app, Window *parent, SDL_Event &e) -> bool {
-            dash->setMatrix(!dash->getMatrix());
+            dash->setMatrix(matrix_texture, !dash->getMatrix());
             return true;
         });
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
@@ -376,6 +386,9 @@ namespace mx {
         }
         if(reg_cursor != nullptr) {
             SDL_DestroyTexture(reg_cursor);
+        }
+        if(matrix_texture != nullptr) {
+            SDL_DestroyTexture(matrix_texture);
         }
         mx::system_out << "MasterX: Releasing Dimensions\n";
     }
