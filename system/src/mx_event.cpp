@@ -14,8 +14,13 @@ namespace mx {
          }
 
         Window *win = currentWindow();
+
         if(win != nullptr && win->event(app_, e)) {
             return true;
+        }
+
+        if(chk != nullptr && win != nullptr && chk != win) {
+            chk->event(app_, e);
         }
 
         if(chk) {
