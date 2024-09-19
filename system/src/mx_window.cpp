@@ -8,7 +8,7 @@ namespace mx {
 
     extern bool cursor_shown;
 
-    Window::Window(mxApp &app) : x{0}, y{0}, w{320}, h{240}, shown{false}, minimizeHovered(SDL_FALSE), closeHovered(SDL_FALSE), maximizeHovered(SDL_FALSE), title{"windwow"}, menu{app, this} {
+    Window::Window(mxApp &app) : x{0}, y{0}, w{320}, h{240}, shown{false}, minimizeHovered(SDL_FALSE), closeHovered(SDL_FALSE), maximizeHovered(SDL_FALSE), title{"window"}, menu{app, this} {
         dim_w = app.width;
         dim_h = app.height; 
         setCanResize(false);

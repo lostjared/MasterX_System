@@ -17,10 +17,8 @@ namespace mx {
         bool visible;
         bool enabled;
         bool underline = false;
-        SDL_Texture *icon;
-        
+        SDL_Texture *icon = nullptr;
         Menu_Item() : text{}, callback{nullptr}, visible{false}, enabled{true}, icon{nullptr} {}
-        
         ~Menu_Item() {
             if(icon != nullptr) {
                 SDL_DestroyTexture(icon);
@@ -33,8 +31,10 @@ namespace mx {
     struct Menu_Header {
         std::string text;
         SDL_Rect header_rect;
+        SDL_Rect text_rect;
         bool enabled = true;
         bool visible = false;
+        bool window_menu = false;
         Menu_Header();
         ~Menu_Header();
         std::vector<Menu_Item<menuCallback>> items;

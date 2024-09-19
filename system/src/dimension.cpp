@@ -326,7 +326,7 @@ namespace mx {
         Menu_Item<menuCallback> file_item;
         file_item.enabled = true;
         file_item.visible = false;
-        file_item.text = "Toggle Matrix Mode";
+        file_item.text = "Toggle Matrix";
         file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             win->dim->setMatrix(win->dim->matrix_tex, !win->dim->getMatrix());
             return true;
