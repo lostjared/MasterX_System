@@ -1,5 +1,7 @@
 # MasterX System
 
+![masterx](https://github.com/user-attachments/assets/1ac2a9d6-2ebc-46c5-8189-0dfcf9f0433b)
+
 ![image](https://github.com/user-attachments/assets/c0f745cc-cd90-40d4-b467-0531131ed902)
 
 ![image](https://github.com/user-attachments/assets/bd83c864-e15e-478f-bd5b-9f2c58d96852)
