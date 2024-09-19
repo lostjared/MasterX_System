@@ -8,17 +8,27 @@ namespace mx {
 
     using menuCallback = std::function<bool(mxApp &, Window *, SDL_Event &)>;
 
+    
+    template<typename F>
     struct Menu_Item {
         std::string text;
         SDL_Rect item_rect;
-        menuCallback callback;
+        F callback;
         bool visible;
         bool enabled;
         bool underline = false;
         SDL_Texture *icon;
-        Menu_Item();
-        ~Menu_Item();
+        
+        Menu_Item() : text{}, callback{nullptr}, visible{false}, enabled{true}, icon{nullptr} {}
+        
+        ~Menu_Item() {
+            if(icon != nullptr) {
+                SDL_DestroyTexture(icon);
+            }
+        }
     };
+
+
 
     struct Menu_Header {
         std::string text;
@@ -27,7 +37,7 @@ namespace mx {
         bool visible = false;
         Menu_Header();
         ~Menu_Header();
-        std::vector<Menu_Item> items;
+        std::vector<Menu_Item<menuCallback>> items;
     };
     
     using Menu_ID = int;
@@ -41,7 +51,7 @@ namespace mx {
         virtual bool event(mxApp &, SDL_Event &) override;
         virtual void setWindowPos(int w, int h) override;
         Menu_ID addHeader(const Menu_Header &h);
-        Menu_ID addItem(Menu_ID header, const Menu_Item  &i);
+        Menu_ID addItem(Menu_ID header, const Menu_Item<menuCallback>  &i);
         Window *win;
         bool win_visible = false, underline = false;
         void hide();

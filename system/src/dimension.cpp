@@ -229,12 +229,6 @@ namespace mx {
         welcome_window->setReload(false);
         welcome_window->setCanResize(true);
         welcome_window->removeAtClose(true);
-        Menu_Header file_header;
-        file_header.enabled = true;
-        file_header.text = "File";
-        file_header.visible = true;
-        Menu_ID welcome_file = welcome_window->menu.addHeader(file_header);
-        
         welcome_window->children.push_back(std::make_unique<Image>(app));
         welcome_image = dynamic_cast<Image *>(welcome_window->getControl());
         welcome_image->create(app, welcome_window, "images/welcome_logo.png", 45, 45);
@@ -322,6 +316,36 @@ namespace mx {
         termx->show(true);
         termx->setReload(true);
         termx->setIcon(loadTexture(app, "images/term.png"));
+        Menu_Header file_header;
+        file_header.enabled = true;
+        file_header.text = "File";
+        file_header.visible = true;
+        Menu_ID term_file = termx->menu.addHeader(file_header);
+        file_header.text = "Edit";
+        Menu_ID term_edit = termx->menu.addHeader(file_header);
+        Menu_Item<menuCallback> file_item;
+        file_item.enabled = true;
+        file_item.visible = false;
+        file_item.text = "Toggle Matrix Mode";
+        file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            win->dim->setMatrix(win->dim->matrix_tex, !win->dim->getMatrix());
+            return true;
+        };
+        termx->menu.addItem(term_file, file_item);
+        file_item.text = "Copy";
+        file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+
+
+            return true;
+        };
+        termx->menu.addItem(term_edit, file_item);
+        file_item.text = "Paste";
+        file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+
+            return true;
+        };
+        termx->menu.addItem(term_edit,file_item);
+
         term->setMatrix(matrix_texture, false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
