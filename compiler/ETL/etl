@@ -57,7 +57,7 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-cc -O3 "${temp_o_files[@]}" -o "$output_executable" -letl -lc "${linker_flags[@]}"
+cc -O3 "${temp_o_files[@]}" -o "$output_executable" -letl "${linker_flags[@]}"
 if [ $? -ne 0 ]; then
   echo "Linking failed"
   exit 1
