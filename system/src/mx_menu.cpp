@@ -1,4 +1,4 @@
-            #include "mx_menu.hpp"
+#include "mx_menu.hpp"
 #include "mx_window.hpp"
 
 namespace mx {
@@ -27,7 +27,15 @@ namespace mx {
 
         }
 
-
+        void Menu::hide() {
+            win_visible = false;
+            for(auto &i : menu) {
+                i.visible = false;
+                for(auto &z : i.items) {
+                    z.visible = false;
+                }
+            }
+        }
 
         void Menu::draw(mxApp &app) {
 
@@ -40,8 +48,8 @@ namespace mx {
             TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
             app.printText(5, 5, win->title, col);
             TTF_SetFontStyle(app.font, TTF_STYLE_NORMAL);
-            int win_w;
-            TTF_SizeText(app.font, win->title.c_str(), &win_w, nullptr);
+            int win_w, win_h;
+            TTF_SizeText(app.font, win->title.c_str(), &win_w, &win_h);
 
 
             int padding = 10;
@@ -49,10 +57,21 @@ namespace mx {
             int y = 5;  
             
             if(win_visible) {
-                SDL_Rect rcw = {5, 25, 100, 25};
-                SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 255);
+                SDL_Rect rcw = {0, 25, 100, 25};
+                SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+                SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 185);
                 SDL_RenderFillRect(app.ren, &rcw);
-                app.printText(rcw.x + 5, 5, "Quit", col);
+                if(underline) {
+                    TTF_SetFontStyle(app.font, TTF_STYLE_UNDERLINE);
+                    SDL_Color col = {0,0,255,255};
+                    cursor_shown = true;
+                    app.printText(rcw.x + 5, 25+5, "Quit", col);
+                } else {
+                    app.printText(rcw.x + 5, 25+5, "Quit", col);
+                }
+                TTF_SetFontStyle(app.font, TTF_STYLE_NORMAL);
+                SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
+            
             }
 
             for (auto &header : menu) {
@@ -95,14 +114,15 @@ namespace mx {
         }
 
         bool Menu::event(mxApp &app, SDL_Event &e) {
+            SDL_Point p = {e.button.x, e.button.y};
+            int fw = 0, fh = 0;
+            TTF_SizeText(app.font, win->title.c_str(), &fw, &fh);
+            SDL_Rect rc = { 0, 0, 5+fw, 5+fh };
+                
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
-                SDL_Point p = {e.button.x, e.button.y};
-                int fw = 0, fh = 0;
-                TTF_SizeText(app.font, win->title.c_str(), &fw, &fh);
-                SDL_Rect rc = { 5, 5, fw, fh };
                 if(SDL_PointInRect(&p,  &rc)) {
                     win_visible = !win_visible;
-                    return false;
+                    return true;
                 }
 
                 for (auto &header : menu) {
@@ -126,6 +146,23 @@ namespace mx {
                     }
                 }
             }
+            else if(e.type == SDL_MOUSEBUTTONUP  && e.button.button == SDL_BUTTON_LEFT) {
+                SDL_Rect rc = {0, 25, 100, 25};
+                if(SDL_PointInRect(&p, &rc)) {
+                    win->show(false);
+                    hide();
+                }
+            }
+            else if(e.type == SDL_MOUSEMOTION) {
+                SDL_Rect rc = {0, 25, 100, 25};
+                SDL_Point p = {e.motion.x, e.motion.y};
+                if(SDL_PointInRect(&p, &rc)) {
+                    underline = true;
+                } else {
+                    underline = false;
+                }
+            }
+
             return false;
         }
 

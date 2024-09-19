@@ -236,6 +236,9 @@ namespace mx {
     void Window::show(bool b) {
         shown = b;
         stateChanged(false, false, shown);
+        if(shown == false) {
+            dim->events.setNextVisible();
+        }
     }
 
     void Window::getRect(SDL_Rect &rc) {

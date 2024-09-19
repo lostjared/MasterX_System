@@ -20,6 +20,8 @@ namespace mx {
         void removeWindow(Window *window);
         std::vector<Window *> window_stack;
         Window *checkWindowClick(int x, int y);
+        bool allHidden() const;
+        void setNextVisible();
     private:
         mxApp &app_;
         int cur_focus = 0;

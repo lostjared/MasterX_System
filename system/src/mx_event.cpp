@@ -15,8 +15,14 @@ namespace mx {
 
         Window *win = currentWindow();
 
-        if(win != nullptr && win->event(app_, e)) {
-            return true;
+        if(win != nullptr) {
+            if(win->menu.event(app_, e))
+                return true;
+            else if(e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
+                win->menu.hide();
+
+            if(win->event(app_, e)) 
+                return true;
         }
 
         if(chk != nullptr && win != nullptr && chk != win) {
@@ -44,12 +50,29 @@ namespace mx {
             }
         }
     }
+    void EventHandler::setNextVisible() {
+        for(auto it = window_stack.rbegin(); it != window_stack.rend(); ++it) {
+            Window *win = *it;
+            if(win->isVisible()) {
+                setFocus(win);
+                return;
+            }
+        }
+    }
+
+    bool EventHandler::allHidden() const {
+        for(auto &i : window_stack) {
+            if(i->isVisible() == true)
+                return false;
+        }
+        return true;
+    }
 
     void EventHandler::sendDrawMessage() {
         for (auto &window : window_stack) {
             window->draw(app_);
         }
-        if(!window_stack.empty())
+        if(!window_stack.empty() && !allHidden())
             window_stack[cur_focus]->menu.draw(app_);
     }
 

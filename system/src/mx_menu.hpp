@@ -14,6 +14,7 @@ namespace mx {
         menuCallback callback;
         bool visible;
         bool enabled;
+        bool underline = false;
         SDL_Texture *icon;
         Menu_Item();
         ~Menu_Item();
@@ -42,7 +43,8 @@ namespace mx {
         Menu_ID addHeader(const Menu_Header &h);
         Menu_ID addItem(Menu_ID header, const Menu_Item  &i);
         Window *win;
-        bool win_visible = false;
+        bool win_visible = false, underline = false;
+        void hide();
     };
 
 }

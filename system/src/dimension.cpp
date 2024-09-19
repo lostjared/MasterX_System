@@ -154,6 +154,7 @@ namespace mx {
     bool DimensionContainer::event(mxApp &app, SDL_Event &e) {
 
         if(active == false || visible == false) return false;
+
         if(events.pumpEvent(e))
             return true;
 
@@ -228,6 +229,7 @@ namespace mx {
         welcome_window->setReload(false);
         welcome_window->setCanResize(true);
         welcome_window->removeAtClose(true);
+        
         welcome_window->children.push_back(std::make_unique<Image>(app));
         welcome_image = dynamic_cast<Image *>(welcome_window->getControl());
         welcome_image->create(app, welcome_window, "images/welcome_logo.png", 45, 45);
@@ -264,7 +266,7 @@ namespace mx {
         welcome_help_info->create_multi(welcome_help, info_help, { 0, 0, 0, 255}, 25, 25);
         welcome_help_info->loadFont(app.system_font, 16);
         welcome_help_info->linkMode(false);
-        
+        welcome->events.setFocus(welcome_window);
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         about = dynamic_cast<DimensionContainer *>(getDimension());
