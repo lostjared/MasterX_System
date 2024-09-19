@@ -1,6 +1,7 @@
 #include"mx_event.hpp"
 #include<vector>
 #include"mx_window.hpp"
+#include"mx_menu.hpp"
 
 namespace mx {
 
@@ -41,6 +42,7 @@ namespace mx {
         for (auto &window : window_stack) {
             window->draw(app_);
         }
+        window_stack[cur_focus]->menu.draw(app_);
     }
 
     bool EventHandler::checkWindowClick(int x, int y) {

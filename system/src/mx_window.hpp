@@ -4,13 +4,13 @@
 #include "window.hpp"
 #include<vector>
 #include<string>
-
+#include"mx_menu.hpp"
 namespace mx {
 
   class Control;
   class SystemBar;
   class DimensionContainer;
-
+  
   class Window : public Screen {
     public:
         friend class SystemBar;
@@ -78,6 +78,7 @@ namespace mx {
         SDL_Rect minimizeButton, closeButton, maximizeButton;
         SDL_bool minimizeHovered, closeHovered, maximizeHovered;
         std::string title = "Window";
+        Menu menu;
     };
 
 }

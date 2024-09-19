@@ -24,17 +24,25 @@ namespace mx {
         std::string text;
         SDL_Rect header_rect;
         bool enabled = true;
+        bool visible = false;
         Menu_Header();
         ~Menu_Header();
         std::vector<Menu_Item> items;
     };
+    
+    using Menu_ID = int;
 
     class Menu : public Control {
     public:
         std::vector<Menu_Header> menu;
-        virtual ~Menu() = default;
+        Menu(mxApp &app);
+        virtual ~Menu() {}
         virtual void draw(mxApp &) override;
         virtual bool event(mxApp &, SDL_Event &) override;
+        virtual void setWindowPos(int w, int h) override;
+        Menu_ID addHeader(const Menu_Header &h);
+        Menu_ID addItem(Menu_ID header, const Menu_Item  &i);
+        
     };
 
 }
