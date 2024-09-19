@@ -50,19 +50,14 @@ namespace mx {
             TTF_SetFontStyle(app.font, TTF_STYLE_NORMAL);
             int win_w, win_h;
             TTF_SizeText(app.font, win->title.c_str(), &win_w, &win_h);
-
-
             int padding = 10;
-            int x = 5 + win_w + padding; 
+            int x = 105; 
             int y = 5;  
-            
             if(win_visible) {
                 SDL_Rect rcw = {0, 25, 100, 25};
                 SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
                 SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 185);
-                SDL_RenderFillRect(app.ren, &rcw);
-
-                           
+                SDL_RenderFillRect(app.ren, &rcw);   
                 if(underline) {
                     TTF_SetFontStyle(app.font, TTF_STYLE_UNDERLINE);
                     SDL_Color col = {0,0,255,255};
@@ -73,13 +68,12 @@ namespace mx {
                 }
                 TTF_SetFontStyle(app.font, TTF_STYLE_NORMAL);
                 SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
-            
             }
 
             for (auto &header : menu) {
                 if (header.enabled) {
                     
-                    SDL_Surface* headerSurface = TTF_RenderText_Blended(app.font, header.text.c_str(), {255, 255, 255, 255});
+                    SDL_Surface* headerSurface = TTF_RenderText_Blended(app.font, header.text.c_str(), {0, 0, 0, 255});
                     SDL_Texture* headerTexture = SDL_CreateTextureFromSurface(app.ren, headerSurface);
                     SDL_QueryTexture(headerTexture, NULL, NULL, &header.header_rect.w, &header.header_rect.h);
                     header.header_rect.x = x;

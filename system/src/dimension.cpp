@@ -229,6 +229,11 @@ namespace mx {
         welcome_window->setReload(false);
         welcome_window->setCanResize(true);
         welcome_window->removeAtClose(true);
+        Menu_Header file_header;
+        file_header.enabled = true;
+        file_header.text = "File";
+        file_header.visible = true;
+        Menu_ID welcome_file = welcome_window->menu.addHeader(file_header);
         
         welcome_window->children.push_back(std::make_unique<Image>(app));
         welcome_image = dynamic_cast<Image *>(welcome_window->getControl());
