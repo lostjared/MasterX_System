@@ -315,6 +315,7 @@ namespace mx {
         termx->show(true);
         termx->setReload(true);
         termx->setIcon(loadTexture(app, "images/term.png"));
+        term->setMatrix(matrix_texture, false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
         SDL_Texture *rtex = loadTexture(app, "images/mp_dat/mp_wall.png");

@@ -23,6 +23,7 @@ namespace mx {
 
     class DimensionContainer : public Screen {
     public:
+        friend class Window;
         std::string name = "Default";
         DimensionContainer(mxApp &app);
         virtual ~DimensionContainer();
@@ -45,6 +46,7 @@ namespace mx {
         EventHandler events;
         void setMatrix(SDL_Texture *t, bool m);
         bool getMatrix() const;
+        SDL_Texture *matrix_tex = nullptr;
     private:
         SystemBar *system_bar;
         bool active = false;
@@ -53,8 +55,7 @@ namespace mx {
         int transitionAlpha = 255;
         int transitionSpeed = 3;
         bool matrix_on = false;
-        SDL_Texture *matrix_tex = nullptr;
-        
+             
     };
     
     class Terminal;

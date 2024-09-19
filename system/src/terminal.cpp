@@ -5,6 +5,7 @@
 #include<thread>
 #include<mutex>
 #include"mx_window.hpp"
+#include"dimension.hpp"
 #include"mx_system_bar.hpp"
 #ifdef FOR_WASM
 #include "apps/ats/ats.h"
@@ -241,13 +242,11 @@ namespace mx {
     #elif defined(_WIN32) || defined(FOR_WASM)
         prompt = "$ ";
     #endif
-
         SDL_Rect rc;
         Window::getRect(rc);
-               
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
-        SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
+        SDL_RenderCopy(app.ren, dim->getMatrix() ? dim->matrix_tex : wallpaper, nullptr, nullptr);
         SDL_RenderFillRect(app.ren, &rc);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         rc.y += 28;
@@ -655,26 +654,30 @@ namespace mx {
 
         if(words.size()==0)
             return;
-
-        if(command == "exit") {
+        
+        if(command == "matrix") {
+            dim->setMatrix(dim->matrix_tex, !dim->getMatrix());
+            print(command + "\nNeo..\n");
+            command.clear();
+        } else if(command == "exit") {
             app.shutdown();
         } else if (words.size()==2 && words[0] == "setfull" && words[1] == "true") {
             app.set_fullscreen(app.win, true);
-            print("MasterX System: full screen is true\n");
+            print(command + "\nMasterX System: full screen is true\n");
             command.clear();
         } else if (words.size()==2 && words[0] == "setfull" && words[1] == "false") {
            app.set_fullscreen(app.win, false);
-           print("MasterX System: full screen is false\n");
+           print(command + "\nMasterX System: full screen is false\n");
            command.clear();
         } else if(words.size()==4 && words[0] == "setcolor") {
             text_color.r = atoi(words[1].c_str());
             text_color.g = atoi(words[2].c_str());
             text_color.b = atoi(words[3].c_str());
             text_color.a = 255;
-            print("MasterX System: - set text color\n");
+            print(command + "\nMasterX System: - set text color\n");
             command.clear();
         } else if(words.size() == 1 && words[0] == "about") {
-            print("MasterX System written by Jared Bruni\n(C) 2024 LostSideDead Software.\nhttps://lostsidedead.biz\n");
+            print(command + "\nMasterX System written by Jared Bruni\n(C) 2024 LostSideDead Software.\nhttps://lostsidedead.biz\n");
             command.clear();
         } else if(words.size() == 1  && words[0] == "clear") {
             orig_text = "";   

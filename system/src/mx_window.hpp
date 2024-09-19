@@ -14,6 +14,7 @@ namespace mx {
   class Window : public Screen {
     public:
         friend class SystemBar;
+        friend class DimensionContainer;
         Window(mxApp &app);
         virtual ~Window();
         virtual void draw(mxApp &app) override;
