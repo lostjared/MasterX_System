@@ -61,6 +61,8 @@ namespace mx {
                 SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
                 SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 185);
                 SDL_RenderFillRect(app.ren, &rcw);
+
+                           
                 if(underline) {
                     TTF_SetFontStyle(app.font, TTF_STYLE_UNDERLINE);
                     SDL_Color col = {0,0,255,255};
