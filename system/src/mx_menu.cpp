@@ -32,9 +32,10 @@ namespace mx {
         void Menu::draw(mxApp &app) {
 
             SDL_Rect rc = {0, 0, app.width, 25};
-            SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 255);
+            SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 185);
             SDL_RenderFillRect(app.ren, &rc);
-            
+            SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
             SDL_Color col = {0,0,0,255};
             TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
             app.printText(5, 5, win->title, col);

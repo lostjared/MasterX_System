@@ -24,7 +24,7 @@ namespace mx {
     void Window::create(DimensionContainer *dim, const std::string &n, const int xx, const int yy, const int ww, const int hh) {
         title = n;
         x = xx;
-        y = yy;
+        y = yy+25;
         w = ww;
         h = hh;
         orig_x = x;
@@ -439,9 +439,9 @@ namespace mx {
             oldW = w;
             oldH = h;
             x = 0;
-            y = 0;
+            y = 26;
             w = dim_w;
-            h = dim_h-50;
+            h = dim_h-76;
         } else if (!m && maximized) {
             x = oldX;
             y = oldY;
