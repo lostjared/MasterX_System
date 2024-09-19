@@ -19,7 +19,7 @@ namespace mx {
         void addWindow(Window *window);
         void removeWindow(Window *window);
         std::vector<Window *> window_stack;
-        bool checkWindowClick(int x, int y);
+        Window *checkWindowClick(int x, int y);
     private:
         mxApp &app_;
         int cur_focus = 0;

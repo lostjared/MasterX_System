@@ -1,4 +1,5 @@
-#include "mx_menu.hpp"
+            #include "mx_menu.hpp"
+#include "mx_window.hpp"
 
 namespace mx {
 
@@ -22,16 +23,36 @@ namespace mx {
 
         }
 
-        Menu::Menu(mxApp &app) {
+        Menu::Menu(mxApp &app, Window *w) : win{w} {
 
         }
 
 
 
         void Menu::draw(mxApp &app) {
-            int x = 10; 
-            int y = 0;  
+
+            SDL_Rect rc = {0, 0, app.width, 25};
+            SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 255);
+            SDL_RenderFillRect(app.ren, &rc);
+            
+            SDL_Color col = {0,0,0,255};
+            TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
+            app.printText(5, 5, win->title, col);
+            TTF_SetFontStyle(app.font, TTF_STYLE_NORMAL);
+            int win_w;
+            TTF_SizeText(app.font, win->title.c_str(), &win_w, nullptr);
+
+
             int padding = 10;
+            int x = 5 + win_w + padding; 
+            int y = 5;  
+            
+            if(win_visible) {
+                SDL_Rect rcw = {5, 25, 100, 25};
+                SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 255);
+                SDL_RenderFillRect(app.ren, &rcw);
+                app.printText(rcw.x + 5, 5, "Quit", col);
+            }
 
             for (auto &header : menu) {
                 if (header.enabled) {
@@ -73,8 +94,16 @@ namespace mx {
         }
 
         bool Menu::event(mxApp &app, SDL_Event &e) {
-            if (e.type == SDL_MOUSEBUTTONDOWN) {
-                
+            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                SDL_Point p = {e.button.x, e.button.y};
+                int fw = 0, fh = 0;
+                TTF_SizeText(app.font, win->title.c_str(), &fw, &fh);
+                SDL_Rect rc = { 5, 5, fw, fh };
+                if(SDL_PointInRect(&p,  &rc)) {
+                    win_visible = !win_visible;
+                    return false;
+                }
+
                 for (auto &header : menu) {
                     SDL_Point p = {e.button.x, e.button.y};
                     if (SDL_PointInRect(&p, &header.header_rect)) {

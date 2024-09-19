@@ -6,18 +6,20 @@
 namespace mx {
 
     bool EventHandler::pumpEvent(SDL_Event &e) {
-
+        Window *chk = nullptr;
          if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
             int x = e.button.x;
             int y = e.button.y;
-            checkWindowClick(x, y);
+            chk = checkWindowClick(x, y);
+         }
+
+        Window *win = currentWindow();
+        if(win != nullptr && win->event(app_, e)) {
+            return true;
         }
 
-        for (auto it = window_stack.rbegin(); it != window_stack.rend(); ++it) {
-            Window *window = *it;
-            if (window->event(app_, e)) {
-                return true;
-            }
+        if(chk) {
+            setFocus(chk);
         }
         return false;
     }
@@ -42,39 +44,34 @@ namespace mx {
         for (auto &window : window_stack) {
             window->draw(app_);
         }
-        window_stack[cur_focus]->menu.draw(app_);
+        if(!window_stack.empty())
+            window_stack[cur_focus]->menu.draw(app_);
     }
 
-    bool EventHandler::checkWindowClick(int x, int y) {
+    Window *EventHandler::checkWindowClick(int x, int y) {
         for (auto it = window_stack.rbegin(); it != window_stack.rend(); ++it) {
             Window *window = *it;
             if (window->isPointInside(x, y)) {
-                int index = static_cast<int>(std::distance(it, window_stack.rend())) - 1;
-                setFocus(index);
-                return true;
+               return window;
             }
         }
-        return false;
+        return nullptr;
     }
 
     void EventHandler::setFocus(int index) {
         if (index >= 0 && index < static_cast<int>(window_stack.size())) {
+            if(cur_focus == index)
+                return;
             cur_focus = index;
-            Window *focused_window = window_stack[index];
-            window_stack.erase(window_stack.begin() + index);
-            window_stack.push_back(focused_window);
         }
     }
 
     void EventHandler::setFocus(Window *window) {
-        int index = 0;
-        for(auto it = window_stack.begin(); it != window_stack.end(); ++it) {
-            Window *win = *it;
-            if(win == window) {
-                window_stack.erase(window_stack.begin() + index);
-                window_stack.push_back(window);
-            }
-            index ++;
+        auto it = std::find(window_stack.begin(), window_stack.end(), window);
+        if(it != window_stack.end()) {
+            window_stack.erase(it);
+            window_stack.push_back(window);
+            cur_focus = window_stack.size()-1;
         }
     }
 
