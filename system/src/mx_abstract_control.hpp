@@ -8,7 +8,7 @@ namespace mx {
 
     class Window;
 
-    using EventCallback = bool (*)(mxApp &app, Window *window, SDL_Event &e);
+    using EventCallback = std::function<bool(mxApp &app, Window *window, SDL_Event &e)>;
     using ResizeCallback = std::function<void(Window*, int, int)>;
 
     class Control : public Screen {

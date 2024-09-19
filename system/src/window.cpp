@@ -1,4 +1,5 @@
 #include"window.hpp"
+#include"matrix.hpp"
 
 namespace mx {
     
@@ -71,6 +72,7 @@ namespace mx {
 
     void mxApp::release() {
         if(init_ == true) {
+            releaseMatrix();
             mx::system_out << "MasterX: Releasing System Objects\n";
             SDL_DestroyTexture(icon);
             SDL_DestroyTexture(tex);

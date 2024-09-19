@@ -10,6 +10,8 @@
 #include<algorithm>
 #include<unordered_set>
 #include<random>
+#include"matrix.hpp"
+
 
 namespace mx {
 
@@ -80,7 +82,14 @@ namespace mx {
             }
         }
     }
-
+    
+    void DimensionContainer::setMatrix(bool m) {
+        matrix_on = m;
+    }
+    
+    bool DimensionContainer::getMatrix() const {
+        return matrix_on;
+    }
     bool DimensionContainer::isActive() const {
         return active;
     }
@@ -105,7 +114,12 @@ namespace mx {
                 }
             } else {
                 SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_NONE);
-                SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
+                if(matrix_on == true) {
+                    mx::createMatrixRainTexture(app.ren, app.tex, app.font, app.width, app.height);
+                }
+                else {
+                   SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
+                }
             }
         }
 
@@ -169,6 +183,7 @@ namespace mx {
         dash->init(system_bar, "Dashboard", loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value));
         dash->setActive(true);
         dash->setVisible(false);
+        dash->setMatrix(false);
         settings_window = dash->createWindow(app);
         settings_window->create(dash, "Settings", 25, 25, 320, 240);   
         settings_window->show(true);
@@ -183,6 +198,14 @@ namespace mx {
         toggle_fullscreen->setCallback([](mxApp &app, Window *parent, SDL_Event &e) -> bool {
                 app.set_fullscreen(app.win, !app.full);
                 return true;
+        });
+        settings_window->children.push_back(std::make_unique<Button>(app));
+        toggle_matrix = dynamic_cast<Button *>(settings_window->getControl());
+        toggle_matrix->create(settings_window, "Toggle Matrix Mode", 25, 80, 150, 20);
+        toggle_matrix->setShow(true);
+        toggle_matrix->setCallback([&](mxApp &app, Window *parent, SDL_Event &e) -> bool {
+            dash->setMatrix(!dash->getMatrix());
+            return true;
         });
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         welcome = dynamic_cast<DimensionContainer *>(getDimension());
