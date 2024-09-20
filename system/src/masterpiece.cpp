@@ -89,10 +89,12 @@ namespace mx {
                 switch(cur_screen) {
                     case 1: {
                         SDL_Rect startMeRect;
-                        startMeRect.x = (640 / 2) - (200 / 2);
-                        startMeRect.y = (480 / 2) - (50 / 2);
-                        startMeRect.w = 200;
-                        startMeRect.h = 50;
+                        int rectWidth = static_cast<int>(ir.w * 0.2); 
+                        int rectHeight = static_cast<int>(ir.h * 0.1);
+                        startMeRect.x = (ir.w / 2) - (rectWidth / 2);
+                        startMeRect.y = (ir.h / 2) - (rectHeight / 2);
+                        startMeRect.w = rectWidth;
+                        startMeRect.h = rectHeight;
                         SDL_Point p = {e.motion.x - ir.x, e.motion.y - ir.y};
                         if(SDL_PointInRect(&p, &startMeRect)) {
                                 show_cursor = true;
@@ -124,10 +126,13 @@ namespace mx {
                         switch(cur_screen) {
                             case 1: {
                                 SDL_Rect startMeRect;
-                                startMeRect.x = (640 / 2) - (200 / 2);
-                                startMeRect.y = (480 / 2) - (50 / 2);
-                                startMeRect.w = 200;
-                                startMeRect.h = 50;
+                                int rectWidth = static_cast<int>(ir.w * 0.2); 
+                                int rectHeight = static_cast<int>(ir.h * 0.1);
+                                startMeRect.x = (ir.w / 2) - (rectWidth / 2);
+                                startMeRect.y = (ir.h / 2) - (rectHeight / 2);
+                                startMeRect.w = rectWidth;
+                                startMeRect.h = rectHeight;
+
                                 SDL_Point p = {e.button.x - ir.x, e.button.y - ir.y};
                                 if(SDL_PointInRect(&p, &startMeRect)) {
                                     newGame();
