@@ -1,6 +1,6 @@
 # MasterX System
 
-![masterx](https://github.com/user-attachments/assets/1ac2a9d6-2ebc-46c5-8189-0dfcf9f0433b)
+![mxosx](https://github.com/user-attachments/assets/e63a4c4b-b6d6-4a90-b99b-fd45049798bd)
 
 ![image](https://github.com/user-attachments/assets/c0f745cc-cd90-40d4-b467-0531131ed902)
 
