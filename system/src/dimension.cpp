@@ -177,6 +177,8 @@ namespace mx {
     }
 
     Dimension::Dimension(mxApp &app) {
+        cursor_x = (1280/2) - (32/2);
+        cursor_y = (720/2) - (32/2);
         wallpaper = loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value);
         objects.push_back(std::make_unique<SystemBar>(app));
         system_bar = dynamic_cast<SystemBar *>(objects[0].get());
