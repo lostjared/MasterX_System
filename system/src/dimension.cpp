@@ -316,33 +316,20 @@ namespace mx {
         termx->show(true);
         termx->setReload(true);
         termx->setIcon(loadTexture(app, "images/term.png"));
-        Menu_Header file_header;
-        file_header.enabled = true;
-        file_header.text = "File";
-        Menu_ID term_file = termx->menu.addHeader(file_header);
-        file_header.text = "Edit";
-        Menu_ID term_edit = termx->menu.addHeader(file_header);
-        Menu_Item<menuCallback> file_item;
-        file_item.enabled = true;
-        file_item.text = "Toggle Matrix";
-        file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        Menu_ID term_file = termx->menu.addHeader(create_header("File"));
+        Menu_ID term_edit = termx->menu.addHeader(create_header("Edit"));
+        termx->menu.addItem(term_file, create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             win->dim->setMatrix(win->dim->matrix_tex, !win->dim->getMatrix());
             return true;
-        };
-        termx->menu.addItem(term_file, file_item);
-        file_item.text = "Copy";
-        file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        }));
+        termx->menu.addItem(term_edit, create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             mx::system_out << "Copy not implemented yet.\n";
             return true;
-        };
-        termx->menu.addItem(term_edit, file_item);
-        file_item.text = "Paste";
-        file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        }));
+        termx->menu.addItem(term_edit,create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             mx::system_out << "Paste not implemented yet.\n";
             return true;
-        };
-        termx->menu.addItem(term_edit,file_item);
-
+        }));
         term->setMatrix(matrix_texture, false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
@@ -355,34 +342,23 @@ namespace mx {
         piece_cont->events.addWindow(piece);
         piece_cont->setIcon(loadTexture(app, "images/mp_dat/block_red.png"));
         piece->create(piece_cont, "MasterPiece", (1280/2) -(640/2), (720/2) - (480/2) - 35, 640, 480);
-        Menu_Header pmenu_header;
-        pmenu_header.enabled = true;
-        pmenu_header.text = "Game";
-        Menu_ID pm_gmenu = piece->menu.addHeader(pmenu_header);
-        Menu_Item<menuCallback> pm_menu;
-        pm_menu.text = "New Game";
-        pm_menu.enabled = true;
-        pm_menu.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        
+        Menu_ID pm_gmenu = piece->menu.addHeader(create_header("Game"));
+        piece->menu.addItem(pm_gmenu, create_menu_item("New Game",  [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->newGame();
             return true;
-        };
-        piece->menu.addItem(pm_gmenu, pm_menu);
-        pm_menu.text = "Options";
-        pm_menu.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        }));
+        piece->menu.addItem(pm_gmenu, create_menu_item("Options", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->setScreen(3);
             return true;
-        };
-        piece->menu.addItem(pm_gmenu, pm_menu);
-        pm_menu.text = "Credits";
-        pm_menu.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        }));
+        piece->menu.addItem(pm_gmenu, create_menu_item("Credits", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->setScreen(4);
             return true;
-        };
-        piece->menu.addItem(pm_gmenu, pm_menu);
-        
+        }));
         piece->show(true);
         piece->setReload(true);
         piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));

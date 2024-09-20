@@ -3,6 +3,21 @@
 
 namespace mx {
 
+        Menu_Header create_header(const std::string &text) {
+            Menu_Header header;
+            header.enabled = true;
+            header.text = text;
+            return header;
+        }
+        Menu_Item<menuCallback>   create_menu_item(const std::string &text, menuCallback callback) {
+            Menu_Item<menuCallback> item;
+            item.callback = callback;
+            item.text = text;
+            item.enabled = true;
+            item.icon = nullptr;
+            return item;
+        }
+
         Menu_Header::Menu_Header() {
             visible = false;
          }
@@ -22,6 +37,7 @@ namespace mx {
             header.window_menu =true;
             Menu_ID id = addHeader(header);
             Menu_Item<menuCallback> item_;
+            item_.item_rect = {0};
             item_.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
                 win->show(false);
                 return true;
@@ -96,6 +112,11 @@ namespace mx {
                         SDL_RenderCopy(app.ren, itemTexture, NULL, &item.item_rect);
                         SDL_FreeSurface(itemSurface);
                         SDL_DestroyTexture(itemTexture);
+                        if(item.icon != nullptr) {
+                            SDL_Rect ico_rect = {header.header_rect.x + 25, itemY + 5, 30, 30};  
+                            SDL_RenderCopy(app.ren, item.icon, nullptr, &ico_rect);
+                        }
+
                         itemY += 30; 
                     }
                 }

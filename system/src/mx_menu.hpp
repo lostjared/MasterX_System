@@ -21,7 +21,8 @@ namespace mx {
         Menu_Item() : text{}, callback{nullptr}, visible{false}, enabled{true}, icon{nullptr} {}
         ~Menu_Item() {
             if(icon != nullptr) {
-                SDL_DestroyTexture(icon);
+                    SDL_DestroyTexture(icon);
+                    icon = nullptr;
             }
         }
     };
@@ -39,6 +40,9 @@ namespace mx {
         ~Menu_Header();
         std::vector<Menu_Item<menuCallback>> items;
     };
+
+    Menu_Header create_header(const std::string &text);
+    Menu_Item<menuCallback>   create_menu_item(const std::string &text, menuCallback callback);
     
     using Menu_ID = int;
 
