@@ -48,6 +48,8 @@ namespace mx {
             SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 200);
             SDL_RenderFillRect(app.ren, &rc);
             SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
+            SDL_Rect rci = {10,7,20,20};
+            SDL_RenderCopy(app.ren, win->icon != nullptr ? win->icon : app.icon,nullptr,&rci);
             int padding = 25;
             int x = 15 + padding; 
             int y = 7;  

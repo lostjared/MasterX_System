@@ -47,7 +47,6 @@ namespace mx {
         bool minimized = false;
         bool dragging = false;
     private:
-        SDL_Texture *icon = nullptr;
         int x,y,w,h;
         int dim_w = 0, dim_h = 0;
         bool shown = false;
@@ -74,6 +73,7 @@ namespace mx {
         int restoreTargetH;
         int orig_x = 0, orig_y = 0;
     public:
+        SDL_Texture *icon = nullptr;
         std::vector<std::unique_ptr<Control>> children;
         SDL_Rect minimizeButton, closeButton, maximizeButton;
         SDL_bool minimizeHovered, closeHovered, maximizeHovered;
