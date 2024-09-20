@@ -41,7 +41,7 @@ namespace mx {
     void MasterPiece::setScreen(int scr) {
         cur_screen = scr;
     }   
-    
+
     bool MasterPiece::event(mxApp &app, SDL_Event &e) {
         SDL_Rect ir;
         Window::getRect(ir);
@@ -119,7 +119,7 @@ namespace mx {
             }
                 break;
             case SDL_MOUSEBUTTONDOWN: {
-                if(e.button.button == SDL_BUTTON_LEFT) {
+                if(e.button.button == SDL_BUTTON_LEFT && isPointInside(e.button.x, e.button.y)) {
                     switch(cur_screen) {
                         case 1:
                         switch(cur_screen) {
