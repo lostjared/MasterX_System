@@ -16,6 +16,7 @@ namespace mx {
         virtual void activate() override;
         void newGame();
         void resetGame();
+        void setScreen(int scr);
     private:
         void load_gfx(mxApp &);
         void release_gfx();

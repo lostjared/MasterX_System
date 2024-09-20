@@ -37,7 +37,11 @@ namespace mx {
         cur_screen = 0;
         cursor_pos = 0;
     }
-        
+
+    void MasterPiece::setScreen(int scr) {
+        cur_screen = scr;
+    }   
+    
     bool MasterPiece::event(mxApp &app, SDL_Event &e) {
         SDL_Rect ir;
         Window::getRect(ir);

@@ -29,15 +29,15 @@ namespace mx {
             item_.text = "Quit";
             addItem(id, item_);
             hide();
-            for(auto &h : menu) {
-                h.visible = false;
-            }
         }
 
         void Menu::hide() {
             menu_active = false;
             for(auto &i : menu) {
                 i.visible = false;
+                for (auto &mi: i.items) {
+                    mi.underline = false;
+                }
             }
         }
 
