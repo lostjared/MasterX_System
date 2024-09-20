@@ -63,7 +63,7 @@ namespace mx {
         }
 
         void Menu::draw(mxApp &app) {
-
+            TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
             SDL_Rect rc = {0, 0, app.width, 30};
             SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 200);
@@ -74,7 +74,6 @@ namespace mx {
             int padding = 25;
             int x = 15 + padding; 
             int y = 7;  
-            TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
             for (auto &header : menu) {
                 
                 SDL_Surface* headerSurface = TTF_RenderText_Blended(app.font, header.window_menu ? win->title.c_str() : header.text.c_str(), {0, 0, 0, 255});
@@ -96,15 +95,14 @@ namespace mx {
                     for (auto &item : header.items) {
                         SDL_Color col;
                         if(item.underline) {
-                            TTF_SetFontStyle(app.font,TTF_STYLE_BOLD | TTF_STYLE_UNDERLINE);
+                            TTF_SetFontStyle(app.font,TTF_STYLE_UNDERLINE | TTF_STYLE_BOLD);
                             cursor_shown = true;
                             col = {0,0,255,255};
                         } else {
-                            TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
                             col = {0,0,0,255};
+                            TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
                         }
                         SDL_Surface* itemSurface = TTF_RenderText_Blended(app.font, item.text.c_str(), col);
-                        TTF_SetFontStyle(app.font, TTF_STYLE_NORMAL);
                         SDL_Texture* itemTexture = SDL_CreateTextureFromSurface(app.ren, itemSurface);
                         SDL_QueryTexture(itemTexture, NULL, NULL, &item.item_rect.w, &item.item_rect.h);
                         item.item_rect.x = header.header_rect.x+30;
