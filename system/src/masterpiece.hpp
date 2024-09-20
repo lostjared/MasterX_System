@@ -65,6 +65,7 @@ namespace mx {
                     lines = 0;
                     speed = 1500;
                     lineamt = 0;
+                    game_is_over = false;
                 }
 
                 void addline() {
