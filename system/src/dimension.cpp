@@ -332,14 +332,13 @@ namespace mx {
         termx->menu.addItem(term_file, file_item);
         file_item.text = "Copy";
         file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-
-
+            mx::system_out << "Copy not implemented yet.\n";
             return true;
         };
         termx->menu.addItem(term_edit, file_item);
         file_item.text = "Paste";
         file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-
+            mx::system_out << "Paste not implemented yet.\n";
             return true;
         };
         termx->menu.addItem(term_edit,file_item);

@@ -90,7 +90,7 @@ namespace mx {
                         item.item_rect.y = itemY+5;
                         SDL_Rect rcx = {header.header_rect.x, itemY, 175, 30};
                         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
-                        SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 185);
+                        SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 200);
                         SDL_RenderFillRect(app.ren, &rcx); 
                         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
                         SDL_RenderCopy(app.ren, itemTexture, NULL, &item.item_rect);
