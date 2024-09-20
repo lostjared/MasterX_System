@@ -102,6 +102,7 @@ namespace mx {
                             col = {0,0,0,255};
                             TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
                         }
+                        
                         SDL_Surface* itemSurface = TTF_RenderText_Blended(app.font, item.text.c_str(), col);
                         SDL_Texture* itemTexture = SDL_CreateTextureFromSurface(app.ren, itemSurface);
                         SDL_QueryTexture(itemTexture, NULL, NULL, &item.item_rect.w, &item.item_rect.h);
@@ -113,6 +114,7 @@ namespace mx {
                         SDL_RenderFillRect(app.ren, &rcx); 
                         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
                         SDL_RenderCopy(app.ren, itemTexture, NULL, &item.item_rect);
+                        TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
                         SDL_FreeSurface(itemSurface);
                         SDL_DestroyTexture(itemTexture);
                         if(item.icon != -1) {
