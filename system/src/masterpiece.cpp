@@ -89,30 +89,6 @@ namespace mx {
                 switch(cur_screen) {
                     case 1: {
 
-                        int mx = e.motion.x;
-                        int my = e.motion.y;
-
-                        SDL_Rect rc;
-                        Window::getRect(rc);
-
-                        int x = mx - rc.x;
-                        int y = my - rc.y;
-
-                        if(x > 250 && x < 500 && y > 170 && y < 235) {
-                            cursor_pos = 0;
-                        }
-
-                        if(x > 250 && x < 618 && y > 265 && y < 320) {
-                            cursor_pos = 1;
-                        }
-
-                        if(x > 250 && x < 580 && y > 326 && y < 380){
-                            cursor_pos = 2;
-                        }
-
-                        if(x > 250 && x < 580 && y > 394 && y < 440){
-                            cursor_pos = 3;
-                        }
                     }
                     break;
                 }
@@ -124,20 +100,7 @@ namespace mx {
                         case 1:
                         switch(cur_screen) {
                             case 1:
-                            switch(cursor_pos) {
-                                case 0:
                                 newGame();
-                                break;
-                                case 1:
-                                cur_screen = 3;
-                                break;
-                                case 2:
-                                cur_screen = 4;
-                                break;
-                                case 3:
-                                show(false);
-                                break;
-                            }
                             break;
                         }
                         break;
@@ -149,9 +112,6 @@ namespace mx {
             switch(e.key.keysym.sym) {
                 case SDLK_UP:
                     switch(cur_screen) {
-                        case 1:
-                        if(cursor_pos > 0) cursor_pos --;
-                        break;
                         case 2:
                             matrix.block.color.shiftcolor(true);
                         break;
@@ -159,9 +119,6 @@ namespace mx {
                 break;
                 case SDLK_DOWN:
                     switch(cur_screen) {
-                        case 1:
-                        if(cursor_pos < 3) cursor_pos++;
-                        break;
                         case 2:
                             matrix.block.MoveDown();
                         break;
@@ -195,15 +152,6 @@ namespace mx {
                         switch(cursor_pos) {
                             case 0:
                             newGame();
-                            break;
-                            case 1:
-                            cur_screen = 3;
-                            break;
-                            case 2:
-                            cur_screen = 4;
-                            break;
-                            case 3:
-                            show(false);
                             break;
                         }
                         break;
@@ -325,7 +273,7 @@ namespace mx {
 
         if (elapsedTime >= waitTime) {
             cur_screen = 1;
-            startTime = 0;
+            startTime        = 0;
         }
     }
 
@@ -359,11 +307,6 @@ namespace mx {
     void MasterPiece::draw_start(mxApp &app) {
         SDL_Rect drc = {0, 0, 640, 480};
         SDL_RenderCopy(app.ren, start,  nullptr, &drc);
-        int cx = 0, cy = 0;
-        cx = 250;
-        cy = 170 + (cursor_pos * 70);
-        SDL_Rect c_rct = { drc.x + cx, drc.y + cy, 64, 64 };
-        SDL_RenderCopy(app.ren, cursor, nullptr, &c_rct);
     }
 
     const int BLOCK_FADE = -1;
