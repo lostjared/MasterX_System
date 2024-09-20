@@ -318,18 +318,19 @@ namespace mx {
         termx->setIcon(loadTexture(app, "images/term.png"));
         Menu_ID term_file = termx->menu.addHeader(create_header("File"));
         Menu_ID term_edit = termx->menu.addHeader(create_header("Edit"));
-        termx->menu.addItem(term_file, create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        termx->menu.addItem(term_file, -1, create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             win->dim->setMatrix(win->dim->matrix_tex, !win->dim->getMatrix());
             return true;
         }));
-        termx->menu.addItem(term_edit, create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        termx->menu.addItem(term_edit, -1, create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             mx::system_out << "Copy not implemented yet.\n";
             return true;
         }));
-        termx->menu.addItem(term_edit,create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        termx->menu.addItem(term_edit, -1, create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             mx::system_out << "Paste not implemented yet.\n";
             return true;
         }));
+
         term->setMatrix(matrix_texture, false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
@@ -344,17 +345,17 @@ namespace mx {
         piece->create(piece_cont, "MasterPiece", (1280/2) -(640/2), (720/2) - (480/2) - 35, 640, 480);
         
         Menu_ID pm_gmenu = piece->menu.addHeader(create_header("Game"));
-        piece->menu.addItem(pm_gmenu, create_menu_item("New Game",  [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_red.png")), create_menu_item("New Game",  [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->newGame();
             return true;
         }));
-        piece->menu.addItem(pm_gmenu, create_menu_item("Options", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_yellow.png")), create_menu_item("Options", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->setScreen(3);
             return true;
         }));
-        piece->menu.addItem(pm_gmenu, create_menu_item("Credits", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_green.png")), create_menu_item("Credits", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->setScreen(4);
             return true;

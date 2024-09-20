@@ -8,7 +8,39 @@ namespace mx {
 
     extern bool cursor_shown;
 
-    Window::Window(mxApp &app) : x{0}, y{0}, w{320}, h{240}, shown{false}, minimizeHovered(SDL_FALSE), closeHovered(SDL_FALSE), maximizeHovered(SDL_FALSE), title{"window"}, menu{app, this} {
+    Window::Window(mxApp &app) 
+    : dim(nullptr),
+      minimized(false),
+      dragging(false),
+      x(0), y(0), w(0), h(0),
+      dim_w(0), dim_h(0),
+      shown(false),
+      remove_on(false),
+      maximized(false),
+      dragOffsetX(0), dragOffsetY(0),
+      oldX(0), oldY(0), oldW(0), oldH(0),
+      is_visible(true),
+      reload_window(false),
+      can_resize(false),
+      isMinimizing(false),
+      minTargetX(0), minTargetY(0),
+      minTargetW(0), minTargetH(0),
+      minAnimationStep(1),
+      restoreAnimationStep(5),
+      originalX(0), originalY(0),
+      originalWidth(0), originalHeight(0),
+      isRestoring(false),
+      restoreTargetX(0), restoreTargetY(0),
+      restoreTargetW(0), restoreTargetH(0),
+      orig_x(0), orig_y(0),
+      icon(nullptr),
+      minimizeHovered(SDL_FALSE),
+      closeHovered(SDL_FALSE),
+      maximizeHovered(SDL_FALSE),
+      menu(app, this) {
+        minimizeButton = {0, 0, 0, 0}; 
+        closeButton = {0, 0, 0, 0};    
+        maximizeButton = {0, 0, 0, 0}; 
         dim_w = app.width;
         dim_h = app.height; 
         setCanResize(false);

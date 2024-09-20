@@ -14,9 +14,10 @@ namespace mx {
             item.callback = callback;
             item.text = text;
             item.enabled = true;
-            item.icon = nullptr;
+            item.icon = -1;
             return item;
         }
+
 
         Menu_Header::Menu_Header() {
             visible = false;
@@ -43,8 +44,12 @@ namespace mx {
                 return true;
             };
             item_.text = "Quit";
-            addItem(id, item_);
+            addItem(id, -1, item_);
             hide();
+        }
+        int Menu::addIcon(SDL_Texture *tex) {
+            icons.push_back(tex);
+            return icons.size()-1;
         }
 
         void Menu::hide() {
@@ -102,7 +107,7 @@ namespace mx {
                         TTF_SetFontStyle(app.font, TTF_STYLE_NORMAL);
                         SDL_Texture* itemTexture = SDL_CreateTextureFromSurface(app.ren, itemSurface);
                         SDL_QueryTexture(itemTexture, NULL, NULL, &item.item_rect.w, &item.item_rect.h);
-                        item.item_rect.x = header.header_rect.x+25;
+                        item.item_rect.x = header.header_rect.x+30;
                         item.item_rect.y = itemY+5;
                         SDL_Rect rcx = {header.header_rect.x, itemY, 175, 30};
                         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
@@ -112,9 +117,9 @@ namespace mx {
                         SDL_RenderCopy(app.ren, itemTexture, NULL, &item.item_rect);
                         SDL_FreeSurface(itemSurface);
                         SDL_DestroyTexture(itemTexture);
-                        if(item.icon != nullptr) {
-                            SDL_Rect ico_rect = {header.header_rect.x + 25, itemY + 5, 30, 30};  
-                            SDL_RenderCopy(app.ren, item.icon, nullptr, &ico_rect);
+                        if(item.icon != -1) {
+                            SDL_Rect ico_rect = {header.header_rect.x + 5, itemY + 5, 20, 20};  
+                            SDL_RenderCopy(app.ren, icons[item.icon], nullptr, &ico_rect);
                         }
 
                         itemY += 30; 
@@ -201,8 +206,9 @@ namespace mx {
         return menu.size()-1;
     }
     
-    int Menu::addItem(int header, const Menu_Item<menuCallback> &i) {
+    int Menu::addItem(int header, int id, const Menu_Item<menuCallback> &i) {
         menu[header].items.push_back(i);
+        menu[header].items.back().icon = id;
         return menu[header].items.size()-1;
     }
     
