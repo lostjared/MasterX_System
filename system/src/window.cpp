@@ -26,7 +26,6 @@ namespace mx {
         if (ren == nullptr) {
             mx::system_err << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
             SDL_DestroyWindow(win);
-            SDL_Quit();
             return false;
         }
 
@@ -47,8 +46,8 @@ namespace mx {
             mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
-        icon = loadTexture(*this, "images/icon.bmp");
-        SDL_Surface *ico = SDL_LoadBMP(getPath("images/icon.bmp").c_str());
+        icon = loadTexture(*this, "images/xicon.bmp");
+        SDL_Surface *ico = SDL_LoadBMP(getPath("images/xicon.bmp").c_str());
         SDL_SetWindowIcon(win, ico);
         SDL_FreeSurface(ico);
         mx::system_out << "MasterX: Initalized System Objects\n";

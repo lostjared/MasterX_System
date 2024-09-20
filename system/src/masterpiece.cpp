@@ -99,8 +99,17 @@ namespace mx {
                     switch(cur_screen) {
                         case 1:
                         switch(cur_screen) {
-                            case 1:
-                                newGame();
+                            case 1: {
+                                SDL_Rect startMeRect;
+                                startMeRect.x = (640 / 2) - (200 / 2);
+                                startMeRect.y = (480 / 2) - (50 / 2);
+                                startMeRect.w = 200;
+                                startMeRect.h = 50;
+                                SDL_Point p = {e.button.x - ir.x, e.button.y - ir.y};
+                                if(SDL_PointInRect(&p, &startMeRect)) {
+                                    newGame();
+                                }
+                            }
                             break;
                         }
                         break;
