@@ -319,13 +319,11 @@ namespace mx {
         Menu_Header file_header;
         file_header.enabled = true;
         file_header.text = "File";
-        file_header.visible = true;
         Menu_ID term_file = termx->menu.addHeader(file_header);
         file_header.text = "Edit";
         Menu_ID term_edit = termx->menu.addHeader(file_header);
         Menu_Item<menuCallback> file_item;
         file_item.enabled = true;
-        file_item.visible = false;
         file_item.text = "Toggle Matrix";
         file_item.callback = [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             win->dim->setMatrix(win->dim->matrix_tex, !win->dim->getMatrix());

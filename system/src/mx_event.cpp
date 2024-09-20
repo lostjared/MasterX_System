@@ -18,9 +18,7 @@ namespace mx {
         if(win != nullptr) {
             if(win->menu.event(app_, e))
                 return true;
-            else if(e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
-                win->menu.hide();
-
+                
             if(win->event(app_, e)) 
                 return true;
         }

@@ -53,7 +53,7 @@ namespace mx {
         Menu_ID addHeader(const Menu_Header &h);
         Menu_ID addItem(Menu_ID header, const Menu_Item<menuCallback>  &i);
         Window *win;
-        bool win_visible = false, underline = false;
+        bool underline = false, menu_active = false;
         void hide();
     };
 

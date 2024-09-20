@@ -4,7 +4,7 @@
 namespace mx {
 
         Menu_Header::Menu_Header() {
-
+            visible = false;
          }
         
         Menu_Header::~Menu_Header() {
@@ -29,10 +29,13 @@ namespace mx {
             item_.text = "Quit";
             addItem(id, item_);
             hide();
+            for(auto &h : menu) {
+                h.visible = false;
+            }
         }
 
         void Menu::hide() {
-            win_visible = false;
+            menu_active = false;
             for(auto &i : menu) {
                 i.visible = false;
             }
@@ -99,59 +102,76 @@ namespace mx {
         }
 
         bool Menu::event(mxApp &app, SDL_Event &e) {
+            SDL_Point p = {e.button.x, e.button.y};
+
+            if (menu_active) {
+                if (e.type == SDL_MOUSEMOTION) {
+                    SDL_Point p = {e.motion.x, e.motion.y};
+                    for (auto &header : menu) {
+                        if (SDL_PointInRect(&p, &header.text_rect)) {
+                            for (auto &h : menu) { h.visible = false; }
+                            header.visible = true;
+                            return true;
+                        }
+                    }
+                }
+
+                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                    bool clicked_outside = true;
+                    for (auto &header : menu) {
+                        if (header.visible) {
+                            for (auto &item : header.items) {
+                                if (SDL_PointInRect(&p, &item.item_rect)) {
+                                    if (item.callback) {
+                                        if (item.callback(app, win, e)) {
+                                            menu_active = false;
+                                            hide();
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (SDL_PointInRect(&p, &header.text_rect)) {
+                            clicked_outside = false;
+                        }
+                    }
+                    if (clicked_outside) {
+                        menu_active = false;
+                        hide();
+                    }
+                }
+            }
+
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
                 for (auto &header : menu) {
-                    SDL_Point p = {e.button.x, e.button.y};
                     if (SDL_PointInRect(&p, &header.text_rect)) {
+                        menu_active = true;
+                        for (auto &h : menu) { h.visible = false; }
                         header.visible = true;
                         return true;
                     }
                 }
             }
-            else if(e.type == SDL_MOUSEBUTTONUP  && e.button.button == SDL_BUTTON_LEFT) {
-                SDL_Point p = {e.button.x, e.button.y};
+
+            if (e.type == SDL_MOUSEMOTION) {
+                SDL_Point p = {e.motion.x, e.motion.y};
                 for (auto &header : menu) {
-                    if(header.visible) {
+                    if (header.visible) {
                         for (auto &item : header.items) {
                             if (SDL_PointInRect(&p, &item.item_rect)) {
-                                if (item.callback) {
-                                    if(item.callback(app, win, e)) {
-                                        header.visible = false;
-                                        return true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                hide();
-            }
-            else if(e.type == SDL_MOUSEMOTION) {
-                SDL_Point p = {e.motion.x, e.motion.y};
-                for(auto &h : menu) {
-                    for(auto &i : h.items) {
-                        if(h.visible) {
-                            if(SDL_PointInRect(&p, &i.item_rect)) {
-                                i.underline = true;
+                                item.underline = true;
                             } else {
-                                i.underline = false;
+                                item.underline = false;
                             }
                         }
                     }
                 }
-                if((e.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT))) {
-                    for (auto &header : menu) {
-                        SDL_Point p = {e.motion.x, e.motion.y};
-                        if (SDL_PointInRect(&p, &header.text_rect)) {
-                            for(auto &h : menu) { h.visible = false; }
-                            header.visible = true;
-                            return true;
-                        }
-                    } 
-                }
             }
+
             return false;
         }
+
 
     int Menu::addHeader(const Menu_Header &h) {
         menu.push_back(h);
