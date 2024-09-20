@@ -30,7 +30,7 @@ namespace mx {
             return false;
         }
 
-        tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+        tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 1280, 720);
         if (tex == nullptr) {
             mx::system_err << "SDL_CreateTexture Error: " << SDL_GetError() << std::endl;
             SDL_DestroyRenderer(ren);
@@ -39,8 +39,8 @@ namespace mx {
             return false;
         }
         init_ = true;
-        width = w;
-        height = h;
+        width = 1280;
+        height = 720;
         font = TTF_OpenFont(getPath(system_font).c_str(), 14);
         if(!font) {
             mx::system_err << "MasterX System: font: " << getPath(system_font) << " Could not be loaded.\n";

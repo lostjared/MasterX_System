@@ -175,10 +175,19 @@ void quit() {
 
 int main(int argc, char **argv) {
     Argz<std::string> argz(argc, argv);
-    argz.addOptionSingleValue('p', "path to assets").addOptionDoubleValue('P', "path", "path to assets").addOptionSingleValue('v', "info").addOptionSingle('h', "info").addOptionSingle('f', "set fullscreen").addOptionDouble('F',"fullscreen", "set fullscreen");
+    argz.addOptionSingleValue('p', "path to assets")
+    .addOptionDoubleValue('P', "path", "path to assets")
+    .addOptionSingleValue('v', "info")
+    .addOptionSingle('h', "info")
+    .addOptionSingle('f', "set fullscreen")
+    .addOptionDouble('F',"fullscreen", "set fullscreen")
+    .addOptionSingleValue('r', "resolution ex 1280x720")
+    .addOptionDoubleValue('R', "resolution", "resolution ex: 1280x720");
+    
     std::string path;
     bool full = false;
     int value = 0;
+    int window_width = 1280, window_height = 720;
     Argument<std::string> arg;
     try {
         while((value = argz.proc(arg)) != -1) {
@@ -195,6 +204,21 @@ int main(int argc, char **argv) {
                 case 'f':
                 case 'F':
                     full = true;
+                    break;
+                case 'R':
+                case 'r': {
+                    auto pos = arg.arg_value.find("x");
+                    if(pos == std::string::npos)  {
+                        mx::system_err << "MasterX argument error: use format WitthxHeight\n";
+                        mx::system_err.flush();
+                        exit(EXIT_FAILURE);
+                    }
+                    std::string left = arg.arg_value.substr(0, pos);
+                    std::string right = arg.arg_value.substr(pos + 1);
+                    window_width = atoi(left.c_str());
+                    window_height = atoi(right.c_str());
+                    mx::system_out << "MasterX System: setting resolution: " << arg.arg_value << "\n";
+                }
                     break;
             }
         }
@@ -232,7 +256,7 @@ int main(int argc, char **argv) {
 
     std::vector<std::unique_ptr<mx::Screen>> screen_obj;
     screens = &screen_obj;
-    if(!app.init("MasterX System", 1280, 720)) {
+    if(!app.init("MasterX System", window_width, window_height)) {
         mx::system_err.flush();
         mx::system_out.flush();
         exit(EXIT_FAILURE);
