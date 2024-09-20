@@ -318,15 +318,15 @@ namespace mx {
         termx->setIcon(loadTexture(app, "images/term.png"));
         Menu_ID term_file = termx->menu.addHeader(create_header("File"));
         Menu_ID term_edit = termx->menu.addHeader(create_header("Edit"));
-        termx->menu.addItem(term_file, -1, create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        termx->menu.addItem(term_file, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")), create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             win->dim->setMatrix(win->dim->matrix_tex, !win->dim->getMatrix());
             return true;
         }));
-        termx->menu.addItem(term_edit, -1, create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/clipboard.png")), create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             mx::system_out << "Copy not implemented yet.\n";
             return true;
         }));
-        termx->menu.addItem(term_edit, -1, create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/glueicon.png")), create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             mx::system_out << "Paste not implemented yet.\n";
             return true;
         }));

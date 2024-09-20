@@ -44,7 +44,7 @@ namespace mx {
                 return true;
             };
             item_.text = "Quit";
-            addItem(id, -1, item_);
+            addItem(id, addIcon(loadTexture(app, "images/xicon.png")), item_);
             hide();
         }
         int Menu::addIcon(SDL_Texture *tex) {
