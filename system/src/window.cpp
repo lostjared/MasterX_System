@@ -26,6 +26,7 @@ namespace mx {
         if (ren == nullptr) {
             mx::system_err << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
             SDL_DestroyWindow(win);
+            SDL_Quit();
             return false;
         }
 
