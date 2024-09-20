@@ -194,6 +194,10 @@ namespace mx {
             mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
+        SDL_SetRenderTarget(app.ren, matrix_texture);
+        SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
+        SDL_RenderClear(app.ren);
+        SDL_SetRenderTarget(app.ren, app.tex);
         dash->setMatrix(matrix_texture, false);
         settings_window = dash->createWindow(app);
         settings_window->create(dash, "Settings", 25, 25, 320, 240);   
