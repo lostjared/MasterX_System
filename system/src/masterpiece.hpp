@@ -32,6 +32,7 @@ namespace mx {
         int cursor_pos = 0;
         Uint32 startTime2 = 0;
         Uint32 waitTime2 = 1000;
+        bool show_cursor = false;
 
         class TileMatrix {
         public:

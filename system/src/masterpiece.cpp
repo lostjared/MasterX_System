@@ -88,12 +88,35 @@ namespace mx {
 
                 switch(cur_screen) {
                     case 1: {
-
+                        SDL_Rect startMeRect;
+                        startMeRect.x = (640 / 2) - (200 / 2);
+                        startMeRect.y = (480 / 2) - (50 / 2);
+                        startMeRect.w = 200;
+                        startMeRect.h = 50;
+                        SDL_Point p = {e.motion.x - ir.x, e.motion.y - ir.y};
+                        if(SDL_PointInRect(&p, &startMeRect)) {
+                                show_cursor = true;
+                        } else {
+                            show_cursor = false;
+                        }
                     }
+                    default:
+
+
                     break;
                 }
             }
                 break;
+            case SDL_MOUSEBUTTONUP:
+
+                    if(cur_screen != 1) {
+                        if(show_cursor){
+                            show_cursor = false;
+                        }
+                    }
+
+            break;
+
             case SDL_MOUSEBUTTONDOWN: {
                 if(e.button.button == SDL_BUTTON_LEFT && isPointInside(e.button.x, e.button.y)) {
                     switch(cur_screen) {
@@ -180,6 +203,10 @@ namespace mx {
 
         if(!Window::isDraw())
             return;
+
+        if(cur_screen == 1 && show_cursor) {
+            cursor_shown = true;
+        }
 
         Window::draw(app);  
         Window::drawMenubar(app);        
