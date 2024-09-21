@@ -1,5 +1,5 @@
-#ifndef __ASTEROIDS__H_
-#define __ASTEROIDS__H__
+#ifndef __ASTER__H_
+#define __ASTER__H__
 
 #include"mx_window.hpp"
 
