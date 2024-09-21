@@ -986,10 +986,14 @@ output << ".section .data\n";
                 ast::VarType actual = providedArgs[i];
                 ast::VarType expected = expectedArgs[i];
 
-                // a pointer is a number
-                if(actual == ast::VarType::NUMBER && expected == ast::VarType::POINTER) {
+                //a pointer is a number
+               
+               if(actual == ast::VarType::NUMBER && expected == ast::VarType::POINTER) 
                     continue;
-                } else if (actual != expected) {
+                if(actual == ast::VarType::POINTER && expected == ast::VarType::NUMBER)
+                    continue;
+                
+                if (actual != expected) {
                     std::cerr << "Error: Type mismatch for argument " << i << " in function '" << functionName
                             << "'. Expected type: " << ast::VarString[static_cast<int>(expected)]
                             << ", Actual type: " << ast::VarString[static_cast<int>(actual)] << ".\n";
