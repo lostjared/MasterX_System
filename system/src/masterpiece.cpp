@@ -97,28 +97,23 @@ namespace mx {
                         startMeRect.h = rectHeight;
                         SDL_Point p = {e.motion.x - ir.x, e.motion.y - ir.y};
                         if(SDL_PointInRect(&p, &startMeRect)) {
-                                show_cursor = true;
+                            show_cursor = true;
                         } else {
                             show_cursor = false;
                         }
                     }
                     default:
-
-
                     break;
                 }
             }
                 break;
             case SDL_MOUSEBUTTONUP:
-
                     if(cur_screen != 1) {
                         if(show_cursor){
                             show_cursor = false;
                         }
                     }
-
             break;
-
             case SDL_MOUSEBUTTONDOWN: {
                 if(e.button.button == SDL_BUTTON_LEFT && isPointInside(e.button.x, e.button.y)) {
                     switch(cur_screen) {

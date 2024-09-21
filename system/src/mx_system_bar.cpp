@@ -724,11 +724,11 @@ namespace mx {
                 loadDimension(4);
                 break;
             case 5: {
-                loadDimension(2);
+                loadDimension(5);
             }
                 break;
             case 6:
-                mx::system_out << "Run clicked\n";
+                loadDimension(2);
                 break;
             case 7:
                 mx::system_out << "MasterX System: Shutdown signal sent...\n";
@@ -807,7 +807,7 @@ namespace mx {
         SDL_Color black = {0, 0, 0, 255};
         SDL_Color white = {255, 255, 255, 255};
 
-        const char* items[] = {"Welcome", "Terminal", "Settings", "MasterPiece", "About", "Run", "Shutdown"};
+        const char* items[] = {"Welcome", "Terminal", "Settings", "MasterPiece", "Asteroids", "About", "Shutdown"};
         int numItems = sizeof(items) / sizeof(items[0]);
         int itemHeight = 30;
         SDL_Rect itemRect;

@@ -62,6 +62,7 @@ namespace mx {
     class Label;
     class Button;
     class Image;
+    class AsteroidsWindow;
 
     class Dimension : public Screen {
     public:
@@ -83,7 +84,7 @@ namespace mx {
         std::vector<std::unique_ptr<Screen>> dimensions;
         DimensionContainer *welcome, *dash;
         DimensionContainer *about;
-        DimensionContainer *term;
+        DimensionContainer *term, *asteroid;
         SystemBar *system_bar;
         Window *welcome_window, *welcome_help;
         Window *about_window, *settings_window;
@@ -95,6 +96,7 @@ namespace mx {
         Terminal *termx;
         DimensionContainer *piece_cont;
         MasterPiece *piece;
+        AsteroidsWindow *asteroid_window;
     };
 
 }

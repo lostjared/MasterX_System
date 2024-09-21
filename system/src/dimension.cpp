@@ -7,6 +7,7 @@
 #include"mx_system_bar.hpp"
 #include"mx_abstract_control.hpp"
 #include"masterpiece.hpp"
+#include"asteroid_window.hpp"
 #include<algorithm>
 #include<unordered_set>
 #include<random>
@@ -370,6 +371,26 @@ namespace mx {
         piece->setReload(true);
         piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));
 
+        dimensions.push_back(std::make_unique<DimensionContainer>(app));
+        asteroid = dynamic_cast<DimensionContainer *>(getDimension());
+        asteroid->init(system_bar, "Asteroids", loadTexture(app, "images/spacebg.png"));
+        asteroid->setActive(false);
+        asteroid->setVisible(false);
+        asteroid->setIcon(loadTexture(app, "images/ship.png"));
+        asteroid->objects.push_back(std::make_unique<AsteroidsWindow>(app));
+        asteroid_window = dynamic_cast<AsteroidsWindow *>(asteroid->objects[0].get());
+        asteroid_window->create(asteroid, "Asteroids", (app.width / 2) - (640/2), ((app.height / 2) - (480/2))-50, 640, 480);
+        asteroid->events.addWindow(asteroid_window);
+        asteroid_window->show(true);
+        asteroid_window->setReload(true);
+        asteroid_window->setIcon(loadTexture(app, "images/ship.png"));
+        Menu_ID m_aster = asteroid_window->menu.addHeader(create_header("Game"));
+        asteroid_window->menu.addItem(m_aster, asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            AsteroidsWindow *asteroid_win = dynamic_cast<AsteroidsWindow *>(win);
+            asteroid_win->newGame();
+            return true;
+        }));
+        asteroid_window->setSystemBar(system_bar);
         piece->setSystemBar(system_bar);
         termx->setWallpaper(term_tex);
         system_bar->setDimensions(&dimensions);
