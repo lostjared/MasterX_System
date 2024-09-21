@@ -151,8 +151,9 @@ namespace mx {
         SDL_Rect rc;
         Window::getDrawRect(rc);
 
-        rc.y += 25;
+        rc.y += 18;
         rc.x += 2;
+        
 
         if (isGameOver) {
             SDL_Surface* surface = TTF_RenderText_Blended(app.font, "Game Over", {255, 0, 0});
@@ -188,7 +189,7 @@ namespace mx {
                 fallTime = currentTime;
             }
 
-            app.printText(rc.x+3, rc.y-23, "Score: " + std::to_string(score), {0,0,0,255});
+            app.printText(rc.x+3, rc.y-20, "Score: " + std::to_string(score), {0,0,0,255});
          }
 
         
