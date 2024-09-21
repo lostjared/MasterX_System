@@ -497,12 +497,13 @@ namespace mx {
         SDL_Rect iconRect = {x, y, 64, 64};
         SDL_RenderCopy(renderer, icon, nullptr, &iconRect);
         SDL_Color white = {255, 255, 255};
+        SDL_Color blue =  {0,0,255};
         if(underline == true) {
             TTF_SetFontStyle(font, TTF_STYLE_UNDERLINE | TTF_STYLE_BOLD);
             cursor_shown = true;
         }
 
-        SDL_Surface* textSurface = TTF_RenderText_Blended(font, name.c_str(), white);
+        SDL_Surface* textSurface = TTF_RenderText_Blended(font, name.c_str(), underline == false ? white : blue);
         SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
         int textW = 0, textH = 0;
         SDL_QueryTexture(textTexture, nullptr, nullptr, &textW, &textH);
