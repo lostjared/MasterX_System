@@ -129,9 +129,18 @@ namespace mx {
             }
         }
 
+
+        if(dim != nullptr) {
+            dim->drawIcons(app.ren, app.font, app.icon, app.width, app.height);
+        }
+
         if (visible) {
             events.sendDrawMessage();
         }
+    }
+
+    void DimensionContainer::setDimension(Dimension *d) {
+        dim = d;
     }
     
     void DimensionContainer::startTransition(SDL_Texture* nextWp) {
@@ -192,6 +201,7 @@ namespace mx {
         dash->init(system_bar, "Dashboard", loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value));
         dash->setActive(true);
         dash->setVisible(false);
+        dash->setDimension(this);
         matrix_texture = SDL_CreateTexture(app.ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, app.width, app.height);
         if(!matrix_texture) {
             mx::system_err << "MasterX System: Error could not create texture.\n";
@@ -479,6 +489,54 @@ namespace mx {
     void Dimension::drawDash(mxApp &app) {
         SDL_SetRenderTarget(app.ren, app.tex);
         SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
+        drawIcons(app.ren, app.font, app.icon, app.width, app.height);
+    }    
+
+
+    void Dimension::drawIconWithText(bool underline, SDL_Renderer* renderer, TTF_Font* font, const std::string &name, SDL_Texture *icon, int x, int y) {
+        SDL_Rect iconRect = {x, y, 64, 64};
+        SDL_RenderCopy(renderer, icon, nullptr, &iconRect);
+        SDL_Color white = {255, 255, 255};
+        if(underline == true) {
+            TTF_SetFontStyle(font, TTF_STYLE_UNDERLINE | TTF_STYLE_BOLD);
+            cursor_shown = true;
+        }
+
+        SDL_Surface* textSurface = TTF_RenderText_Blended(font, name.c_str(), white);
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        int textW = 0, textH = 0;
+        SDL_QueryTexture(textTexture, nullptr, nullptr, &textW, &textH);
+        SDL_Rect textRect = {x + (64 - textW) / 2, y + 64, textW, textH};
+        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+        SDL_DestroyTexture(textTexture);
+        SDL_FreeSurface(textSurface);
+        TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
+    }
+
+    
+    void Dimension::drawIcons(SDL_Renderer* renderer, TTF_Font* font, SDL_Texture* dicon, int windowW, int windowH) {
+        int padding = 25;
+        int iconSize = 64;
+        int startX = windowW - iconSize - 10;
+        int startY = 60;
+
+        int currentX = startX;
+        int currentY = startY;
+
+        for (size_t i = 1; i < this->dimensions.size(); ++i) {
+            DimensionContainer* con = dynamic_cast<DimensionContainer*>(dimensions[i].get());
+            con->icon_rect.x = currentX;
+            con->icon_rect.y = currentY;
+            con->icon_rect.w = 64;
+            con->icon_rect.h = 75;
+            drawIconWithText(con->underline, renderer, font, con->name, con->icon ? con->icon : dicon, currentX, currentY);
+            currentX -= (iconSize + padding);
+
+            if (currentX < 0) {
+                currentX = startX;
+                currentY += (iconSize + padding + 20);
+            }
+        }
     }
 
     void Dimension::draw(mxApp &app) {
@@ -487,8 +545,9 @@ namespace mx {
         if(cur >= 0 && cur < static_cast<int>(dimensions.size())) {
             if(system_bar->empty()) 
                 drawDash(app);
-            else
+            else {
                 dimensions[cur]->draw(app);
+            }
         }
         for (auto &i : objects) {
             i->draw(app);
@@ -530,6 +589,28 @@ namespace mx {
         if(e.type == SDL_MOUSEMOTION) {
             cursor_x = e.motion.x;
             cursor_y = e.motion.y;
+
+            if(getCurrentDimension() == 0) {
+                for(size_t i = 1;  i < dimensions.size(); ++i) {
+                    DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions[i].get());
+                    SDL_Point p = {e.motion.x, e.motion.y};
+                    if(SDL_PointInRect(&p, &con->icon_rect)) {
+                        con->underline = true;
+                    } else {
+                        con->underline = false;
+                    }
+                }
+            }
+        } else if(e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+             if(getCurrentDimension() == 0) {
+                for(size_t i = 1;  i < dimensions.size(); ++i) {
+                    DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions[i].get());
+                    SDL_Point p = {e.button.x, e.button.y};
+                    if(SDL_PointInRect(&p, &con->icon_rect)) {
+                        system_bar->loadDimension(i);
+                    } 
+                }
+            }
         }
         return false;
     }
