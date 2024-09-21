@@ -152,6 +152,7 @@ namespace mx {
         Window::getDrawRect(rc);
 
         rc.y += 25;
+        rc.x += 2;
 
         if (isGameOver) {
             SDL_Surface* surface = TTF_RenderText_Blended(app.font, "Game Over", {255, 0, 0});
