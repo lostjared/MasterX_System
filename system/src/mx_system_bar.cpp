@@ -727,10 +727,13 @@ namespace mx {
                 loadDimension(5);
             }
                 break;
-            case 6:
+            case 7:
                 loadDimension(2);
                 break;
-            case 7:
+            case 6:
+                loadDimension(6);
+                break;
+            case 8:
                 mx::system_out << "MasterX System: Shutdown signal sent...\n";
                 app.shutdown();
                 break;    
@@ -807,7 +810,7 @@ namespace mx {
         SDL_Color black = {0, 0, 0, 255};
         SDL_Color white = {255, 255, 255, 255};
 
-        const char* items[] = {"Welcome", "Terminal", "Settings", "MasterPiece", "Asteroids", "About", "Shutdown"};
+        const char* items[] = {"Welcome", "Terminal", "Settings", "MasterPiece", "Asteroids", "Tetris", "About", "Shutdown"};
         int numItems = sizeof(items) / sizeof(items[0]);
         int itemHeight = 30;
         SDL_Rect itemRect;
@@ -865,7 +868,7 @@ namespace mx {
         SDL_Rect menuItem5 = {menuX, menuY + 10 + 4 * (itemHeight + 5), menuWidth, itemHeight};  
         SDL_Rect menuItem6 = {menuX, menuY + 10 + 5 * (itemHeight + 5), menuWidth, itemHeight};  
         SDL_Rect menuItem7 = {menuX, menuY + 10 + 6 * (itemHeight + 5), menuWidth, itemHeight};  
-
+        SDL_Rect menuItem8 = {menuX< menuY + 10 + 7 * (itemHeight + 5), menuWidth, itemHeight};
         SDL_Point cursor_pos = {x, y};
 
         if (SDL_PointInRect(&cursor_pos, &menuItem1)) {
@@ -882,6 +885,8 @@ namespace mx {
             return 6;  
         } else if(SDL_PointInRect(&cursor_pos, &menuItem7)) {
             return 7;
+        } else if(SDL_PointInRect(&cursor_pos,&menuItem8)) {
+            return 8;
         }
         return -1;  
     }

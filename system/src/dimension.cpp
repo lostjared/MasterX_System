@@ -8,6 +8,7 @@
 #include"mx_abstract_control.hpp"
 #include"masterpiece.hpp"
 #include"asteroid_window.hpp"
+#include"tetris_window.hpp"
 #include<algorithm>
 #include<unordered_set>
 #include<random>
@@ -390,6 +391,27 @@ namespace mx {
             asteroid_win->newGame();
             return true;
         }));
+
+        dimensions.push_back(std::make_unique<DimensionContainer>(app));
+        tetris = dynamic_cast<DimensionContainer *>(getDimension());
+        tetris->init(system_bar, "Tetris", loadTexture(app, "images/tetrisbg.png"));
+        tetris->setActive(false);
+        tetris->setVisible(false);
+        tetris->setIcon(loadTexture(app, "images/tetrisicon.png"));
+        tetris->objects.push_back(std::make_unique<TetrisWindow>(app));
+        tetris_window = dynamic_cast<TetrisWindow *>(tetris->objects[0].get());
+        tetris_window->create(tetris, "Tetris", (app.width /2) - (300/2), 0, 300, 630);
+        tetris->events.addWindow(tetris_window);
+        tetris_window->show(true);
+        tetris_window->setReload(true);
+        tetris_window->setIcon(loadTexture(app, "images/tetrisicon.png"));
+        Menu_ID t_ = tetris_window->menu.addHeader(create_header("Game"));
+        tetris_window->menu.addItem(t_, tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            TetrisWindow *t = dynamic_cast<TetrisWindow *>(win);
+            t->resetGame();
+            return true;
+        }));
+        tetris_window->setSystemBar(system_bar);
         asteroid_window->setSystemBar(system_bar);
         piece->setSystemBar(system_bar);
         termx->setWallpaper(term_tex);
