@@ -93,6 +93,21 @@ void memstoreb(void *buffer, long index, long value) {
     }
 }
 
+void *meminsert(void *buffer, long index, long value, size_t element_size, long *current_size) {
+    if (buffer == NULL || index < 0 || index > *current_size) {
+        fprintf(stderr, "Error: Invalid index or buffer is null in meminsert\n");
+        exit(EXIT_FAILURE);
+    }
+    void *new_buffer = realloc(buffer, (*current_size + 1) * element_size);
+    if (new_buffer == NULL) {
+        fprintf(stderr, "Error: Memory allocation failed in meminsert\n");
+        exit(EXIT_FAILURE);
+    }
+    memmove((char*)new_buffer + (index + 1) * element_size, (char*)new_buffer + index * element_size, (*current_size - index) * element_size);
+    memcpy((char*)new_buffer + index * element_size, &value, element_size);
+    (*current_size)++;
+    return new_buffer;
+}
 long scan_integer() {
     long value;
     if (scanf("%ld", &value) != 1) {

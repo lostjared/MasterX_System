@@ -19,4 +19,7 @@ define mematb(@memory, index);
 define memclr(@memory, size);
 define memstorel(@memory, index, value);
 define memstoreb(@memory, index, value);
+define @meminsert(@buffer, index, value, element, @current_size);
+define @memremove(@buffer,index, element, @current_size);
+define @memmove(@dest, @src, size);
 #endif
