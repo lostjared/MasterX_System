@@ -201,12 +201,12 @@ namespace mx {
         }
 
 
-    int Menu::addHeader(const Menu_Header &h) {
+    Menu_ID Menu::addHeader(const Menu_Header &h) {
         menu.push_back(h);
         return menu.size()-1;
     }
     
-    int Menu::addItem(int header, int id, const Menu_Item<menuCallback> &i) {
+    Menu_ID Menu::addItem(int header, int id, const Menu_Item<menuCallback> &i) {
         menu[header].items.push_back(i);
         menu[header].items.back().icon = id;
         return menu[header].items.size()-1;

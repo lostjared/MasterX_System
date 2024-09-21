@@ -410,7 +410,7 @@ namespace mx {
         tetris->setIcon(loadTexture(app, "images/tetrisicon.png"));
         tetris->objects.push_back(std::make_unique<TetrisWindow>(app));
         tetris_window = dynamic_cast<TetrisWindow *>(tetris->objects[0].get());
-        tetris_window->create(tetris, "Tetris", (app.width /2) - (300/2), 0, 300, 630);
+        tetris_window->create(tetris, "Tetris", (app.width /2) - (300/2), 10, 300, 630);
         tetris->events.addWindow(tetris_window);
         tetris_window->show(true);
         tetris_window->setReload(true);
