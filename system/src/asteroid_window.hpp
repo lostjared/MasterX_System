@@ -1,5 +1,5 @@
 #ifndef __ASTER__H_
-#define __ASTER__H__
+#define __ASTER__H_
 
 #include"mx_window.hpp"
 
