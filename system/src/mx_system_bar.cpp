@@ -868,7 +868,7 @@ namespace mx {
         SDL_Rect menuItem5 = {menuX, menuY + 10 + 4 * (itemHeight + 5), menuWidth, itemHeight};  
         SDL_Rect menuItem6 = {menuX, menuY + 10 + 5 * (itemHeight + 5), menuWidth, itemHeight};  
         SDL_Rect menuItem7 = {menuX, menuY + 10 + 6 * (itemHeight + 5), menuWidth, itemHeight};  
-        SDL_Rect menuItem8 = {menuX< menuY + 10 + 7 * (itemHeight + 5), menuWidth, itemHeight};
+        SDL_Rect menuItem8 = {menuX, menuY + 10 + 7 * (itemHeight + 5), menuWidth, itemHeight};
         SDL_Point cursor_pos = {x, y};
 
         if (SDL_PointInRect(&cursor_pos, &menuItem1)) {
