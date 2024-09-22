@@ -22,4 +22,5 @@ define memstoreb(@memory, index, value);
 define @meminsert(@buffer, index, value, element, @current_size);
 define @memremove(@buffer,index, element, @current_size);
 define @memmove(@dest, @src, size);
+define @memcpy(@dest, @src, size);
 #endif
