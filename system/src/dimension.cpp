@@ -129,7 +129,6 @@ namespace mx {
             }
         }
 
-
         if(dim != nullptr) {
             dim->drawIcons(app.ren, app.font, app.icon, app.width, app.height);
         }
@@ -188,8 +187,8 @@ namespace mx {
     }
 
     Dimension::Dimension(mxApp &app) {
-        cursor_x = (1280/2) - (32/2);
-        cursor_y = (720/2) - (32/2);
+        cursor_x = (app.width/2) - (32/2);
+        cursor_y = (app.height/2) - (32/2);
         wallpaper = loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value);
         objects.push_back(std::make_unique<SystemBar>(app));
         system_bar = dynamic_cast<SystemBar *>(objects[0].get());
@@ -271,7 +270,7 @@ namespace mx {
         });
 
         welcome_help = welcome->createWindow(app);
-        welcome_help->create(welcome, "Info", 1280-360, 25, 320, 240);
+        welcome_help->create(welcome, "Info", app.width-360, 25, 320, 240);
         welcome_help->show(true);
         welcome_help->setReload(false);
         welcome_help->setCanResize(false);
@@ -328,10 +327,19 @@ namespace mx {
         system_bar->activateDimension(0);
         term->objects.push_back(std::make_unique<Terminal>(app)); 
         termx = dynamic_cast<Terminal*>(term->objects[0].get());
+        const int baseWidth = 1280;
+        const int baseHeight = 720;
+        int screenWidth = app.width;
+        int screenHeight = app.height;
+        float scaleX = static_cast<float>(screenWidth) / baseWidth;
+        float scaleY = static_cast<float>(screenHeight) / baseHeight;
+        int windowWidth = static_cast<int>(800 * scaleX);
+        int windowHeight = static_cast<int>(505 * scaleY);
+        int windowPosX = (screenWidth - windowWidth) / 2;
+        int windowPosY = (screenHeight - windowHeight) / 2;
+        termx->create(term, "mXTerm", windowPosX, windowPosY, windowWidth, windowHeight);
         term->events.addWindow(termx);
         term->setIcon(loadTexture(app, "images/term.png"));
-        termx->create(term, "mXTerm", (1280 - 800) / 2, (720 - 600) / 2, 800, 505);
-        termx->show(true);
         termx->setReload(true);
         termx->setIcon(loadTexture(app, "images/term.png"));
         Menu_ID term_file = termx->menu.addHeader(create_header("File"));
@@ -360,7 +368,11 @@ namespace mx {
         piece = dynamic_cast<MasterPiece *>(piece_cont->objects[0].get());
         piece_cont->events.addWindow(piece);
         piece_cont->setIcon(loadTexture(app, "images/mp_dat/block_red.png"));
-        piece->create(piece_cont, "MasterPiece", (1280/2) -(640/2), (720/2) - (480/2) - 35, 640, 480);
+        windowWidth = static_cast<int>(640 * scaleX);
+        windowHeight = static_cast<int>(480 * scaleY);
+        windowPosX = (screenWidth - windowWidth) / 2;
+        windowPosY = (screenHeight - windowHeight) / 2;
+        piece->create(piece_cont, "MasterPiece", windowPosX, windowPosY, windowWidth, windowHeight);
         
         Menu_ID pm_gmenu = piece->menu.addHeader(create_header("Game"));
         piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_red.png")), create_menu_item("New Game",  [](mxApp &app, Window *win, SDL_Event &e) -> bool {
@@ -390,7 +402,8 @@ namespace mx {
         asteroid->setIcon(loadTexture(app, "images/ship.png"));
         asteroid->objects.push_back(std::make_unique<AsteroidsWindow>(app));
         asteroid_window = dynamic_cast<AsteroidsWindow *>(asteroid->objects[0].get());
-        asteroid_window->create(asteroid, "Asteroids", (app.width / 2) - (640/2), ((app.height / 2) - (480/2))-50, 640, 480);
+
+        asteroid_window->create(asteroid, "Asteroids", windowPosX, windowPosY, windowWidth, windowHeight);
         asteroid->events.addWindow(asteroid_window);
         asteroid_window->show(true);
         asteroid_window->setReload(true);
@@ -410,7 +423,11 @@ namespace mx {
         tetris->setIcon(loadTexture(app, "images/tetrisicon.png"));
         tetris->objects.push_back(std::make_unique<TetrisWindow>(app));
         tetris_window = dynamic_cast<TetrisWindow *>(tetris->objects[0].get());
-        tetris_window->create(tetris, "Tetris", (app.width /2) - (300/2), 10, 300, 630);
+        windowWidth = static_cast<int>(300 * scaleX);
+        windowHeight = static_cast<int>(630 * scaleY);
+        windowPosX = (screenWidth - windowWidth) / 2;
+        windowPosY = (screenHeight - windowHeight) / 2;
+        tetris_window->create(tetris, "Tetris", windowPosX, 10, windowWidth, windowHeight);
         tetris->events.addWindow(tetris_window);
         tetris_window->show(true);
         tetris_window->setReload(true);
