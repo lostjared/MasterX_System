@@ -143,7 +143,7 @@ namespace parse {
             } else {
                 std::ostringstream stream;
                 auto pos = scan->operator[](token_index).get_pos();
-                stream << "Unknown token: " << scan->operator[](token_index).getTokenValue() << ":" << static_cast<int>(scan->operator[](token_index).getTokenType()) << "in File: " << scan->operator[](token_index).get_filename() << " at Line: " << pos.first << " Col: " << pos.second << "\n";
+                stream << "Unknown token: " << scan->operator[](token_index).getTokenValue() << " in File: " << scan->operator[](token_index).get_filename() << " at Line: " << pos.first << " Col: " << pos.second << "\n";
                 throw ParseException(stream.str());
             }
         }
