@@ -46,3 +46,6 @@ To install, you must compile the compiler from the source code by first compilin
 
 ![image](https://github.com/user-attachments/assets/75feb52b-231a-4435-8f58-f4b68763a550)
 
+![image](https://github.com/user-attachments/assets/23975713-a5a7-4d96-bc16-a1769cd3db6a)
+
+
