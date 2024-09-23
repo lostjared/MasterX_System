@@ -77,6 +77,7 @@ void test_parse(const std::string &filename, const std::string &out_file, bool d
     }
     catch(parse::ParseException &e) {
         std::cerr << "ETL: Parse Exception: " << e.why() << "\n";
+        exit(EXIT_FAILURE);
     }
     catch(...) {
             std::cerr << "ETL: Unknown Exception\n";
