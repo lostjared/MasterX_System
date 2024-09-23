@@ -20,35 +20,12 @@ void test_parse(const std::string &filename, const std::string &out_file, bool d
     stream << file.rdbuf() << " \n";
     file.close();
     scan::TString p(stream.str());
-    std::ostringstream code;
     bool in_string = false;
     bool escaped = false;
-
-    while (1) {
-        auto c = p.getch();
-        if (c.has_value()) {
-            if (escaped) {
-                code << *c;
-                escaped = false;
-            } else if (*c == '\\') {
-                escaped = true;
-                code << *c;
-            } else if (*c == '"') {
-                in_string = !in_string;
-                code << *c;
-            } else if (*c == '#' && !in_string) {
-                do {
-                    c = p.getch();
-                } while (c.has_value() && *c != '\n');
-            } else {
-                code << *c;
-            }
-        } else break;
-    }
     try {
 
         if(stream.str().length()>0) {
-            parse::Parser parser(new scan::Scanner(scan::TString(code.str())));
+            parse::Parser parser(new scan::Scanner(p));
             if(parser.parse()) {
                 auto rootAST = parser.getAST();  
                 if (rootAST) {

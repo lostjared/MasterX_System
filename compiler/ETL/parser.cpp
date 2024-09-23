@@ -17,7 +17,7 @@ namespace parse {
                 types::print_type_TokenType(std::cerr, token.getTokenType());
                 std::cerr << " expected: ";
                 types::print_type_TokenType(std::cerr, type);
-                std::cerr << "\n";
+                std::cerr << " in File: " << token.get_filename() << " on Line: " << token.get_pos().first << " Col: " << token.get_pos().second << "\n";
                 exit(EXIT_FAILURE);
             } else {
                 token_index++;
@@ -31,7 +31,7 @@ namespace parse {
             const std::string &s = token.getTokenValue();
             if (s != t) {
                 std::cerr << "Error: Token value mismatch found: ";
-                std::cerr << token.getTokenValue() << " expected: " << t << "\n";
+                std::cerr << token.getTokenValue() << " expected: " << t << " in File: " << token.get_filename() << " On Line: " << token.get_pos().first << " Col: " << token.get_pos().second << "\n";
                 exit(EXIT_FAILURE);
             } else {
                 token_index++;
@@ -48,7 +48,7 @@ namespace parse {
                     token_index++;
                 } else {
                     auto pos = token.get_pos();
-                    std::cerr << "Error: Operator type mismatch found: " << token.getTokenValue() << " expected: " << types::opStrings[static_cast<int>(op)] << " Line: " << pos.first << " Col: " << pos.second << "\n";
+                    std::cerr << "Error: Operator type mismatch found: " << token.getTokenValue() << " expected: " << types::opStrings[static_cast<int>(op)] << " File: " << token.get_filename() << " Line: " << pos.first << " Col: " << pos.second << "\n";
                     exit(EXIT_FAILURE);
                 }
             }
@@ -63,7 +63,7 @@ namespace parse {
                 if (kw == *op_t) {
                     token_index++;
                 } else {
-                    std::cerr << "Error: Keyword type mismatch found: " << token.getTokenValue() << " expected: " << types::kwStr[static_cast<int>(kw)] << "\n";
+                    std::cerr << "Error: Keyword type mismatch found: " << token.getTokenValue() << " expected: " << types::kwStr[static_cast<int>(kw)] << " in File: " << token.get_filename() << " Line: " << token.get_pos().first << " Col: " << token.get_pos().second << "\n";
                     exit(EXIT_FAILURE);
                 }
             }
@@ -128,6 +128,7 @@ namespace parse {
         while (token_index < scan->size()) {
            if (test(types::KeywordType::KW_PROC)) {
                 inc();
+                std::cout << "Parse function..\n";
                 auto function = parseFunction();
                 program->body.push_back(std::move(function));
             } else if (test(types::KeywordType::KW_DEFINE)) {
@@ -137,12 +138,12 @@ namespace parse {
             } else if (test(types::KeywordType::KW_LET)) {
                 std::ostringstream stream;
                 auto pos = scan->operator[](token_index).get_pos();
-                stream << "Let statement must be in function body Line: " << pos.first << " Col: " << pos.second;
+                stream << "Let statement must be in function body File: " << scan->operator[](token_index).get_filename() << "  Line: " << pos.first << " Col: " << pos.second;
                 throw ParseException(stream.str());
             } else {
                 std::ostringstream stream;
                 auto pos = scan->operator[](token_index).get_pos();
-                stream << "Unknown token: " << scan->operator[](token_index).getTokenValue() << " at Line: " << pos.first << " Col: " << pos.second << "\n";
+                stream << "Unknown token: " << scan->operator[](token_index).getTokenValue() << ":" << static_cast<int>(scan->operator[](token_index).getTokenType()) << "in File: " << scan->operator[](token_index).get_filename() << " at Line: " << pos.first << " Col: " << pos.second << "\n";
                 throw ParseException(stream.str());
             }
         }
@@ -307,7 +308,7 @@ namespace parse {
         }
         std::ostringstream stream;
         auto pos = scan->operator[](token_index).get_pos();
-        stream << "Parse Error: Expected primary expression found: " << static_cast<int>(scan->operator[](token_index).getTokenType()) << ":" << scan->operator[](token_index).getTokenValue() << " at Line: " << pos.first << " Col: " << pos.second << "\n";
+        stream << "Parse Error: Expected primary expression found: " << static_cast<int>(scan->operator[](token_index).getTokenType()) << ":" << scan->operator[](token_index).getTokenValue() << " in File: " << scan->operator[](token_index).get_filename() << "  at Line: " << pos.first << " Col: " << pos.second << "\n";
         throw ParseException(stream.str());
         return nullptr;
     }
@@ -402,7 +403,7 @@ namespace parse {
                     if (!test(types::TokenType::TT_ID)) {
                         std::ostringstream stream;
                         auto pos = scan->operator[](token_index).get_pos();
-                        stream << "Parse Error: Expected identifier for parameter on Line: " << pos.first << " Col: " << pos.second << "\n";
+                        stream << "Parse Error: Expected identifier for parameter in File: " << scan->operator[](token_index).get_filename() << "  Line: " << pos.first << " Col: " << pos.second << "\n";
                         throw ParseException(stream.str());
                     }
                     std::string param = scan->operator[](token_index).getTokenValue();
@@ -452,7 +453,7 @@ namespace parse {
                     if (!test(types::TokenType::TT_ID)) {
                         std::ostringstream stream;
                         auto pos = scan->operator[](token_index).get_pos();
-                        stream << "Parse Error: Expected identifier for parameter on Line: " << pos.first << " Col: " << pos.second << "\n";
+                        stream << "Parse Error: Expected identifier for parameter on in File: " << scan->operator[](token_index).get_filename() << " Line: " << pos.first << " Col: " << pos.second << "\n";
                         throw ParseException(stream.str());
                     }
                     std::string param = scan->operator[](token_index).getTokenValue();
@@ -521,7 +522,7 @@ namespace parse {
         }
         std::ostringstream stream;
         auto pos = scan->operator[](token_index).get_pos();
-        stream << "Parse Error: Expected Function on Line: " << pos.first << " Col: " << pos.second << "\n";
+        stream << "Parse Error: Expected Function in File: " << scan->operator[](token_index).get_filename()<< " on Line: " << pos.first << " Col: " << pos.second << "\n";
         throw ParseException(stream.str());
         return nullptr;
     }
@@ -689,7 +690,7 @@ namespace parse {
             } else {
                 std::ostringstream stream;
                 auto pos = scan->operator[](token_index).get_pos();
-                stream << "Parse Error: Unexpected token inside while loop at Line: " << pos.first << " Col: " << pos.second << "\n";
+                stream << "Parse Error: Unexpected token inside while loop in File: " << scan->operator[](token_index).get_filename() << " at Line: " << pos.first << " Col: " << pos.second << "\n";
                 throw ParseException(stream.str());
             }
         }
@@ -758,7 +759,7 @@ namespace parse {
             } else {
                 std::ostringstream stream;
                 auto pos = scan->operator[](token_index).get_pos();
-                stream << "Parse Error: Unexpected token inside for loop at Line: " << pos.first << " Col: " << pos.second << "\n";
+                stream << "Parse Error: Unexpected token inside for loop in File: " << scan->operator[](token_index).get_filename() << "  Line: " << pos.first << " Col: " << pos.second << "\n";
                 throw ParseException(stream.str());
             }
         }
