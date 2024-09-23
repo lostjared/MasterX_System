@@ -3,21 +3,62 @@
 
 namespace scan {
 
-    Scanner::Scanner(const TString &b) : string_buffer{b} {
+    Scanner::Scanner(const TString &b) : string_buffer{b} {}
+
+    uint64_t Scanner::parseLineNumber() {
+        std::string lineNumberStr;
+        while (true) {
+                auto ch = string_buffer.getch();
+                if (!ch.has_value()) {
+                    return 1;  
+                }
+                if (isdigit(*ch)) {
+                    lineNumberStr += *ch;
+                    break;  
+                }
+        }
+        while (true) {
+            auto ch = string_buffer.getch();
+            if (!ch.has_value() || !isdigit(*ch)) {
+                break; 
+            }
+            lineNumberStr += *ch;
+        }
+        return !lineNumberStr.empty() ? std::stoull(lineNumberStr) : 1;
+    }
+
+    std::string Scanner::parseFileName() {
+        std::string fileName;
+        while (true) {
+            auto ch = string_buffer.getch();
+            if (!ch.has_value() || !isspace(*ch)) {
+                if (ch.has_value() && *ch == '\"') break; 
+            }
+        }
+        while (true) {
+            auto ch = string_buffer.getch();
+            if (!ch.has_value() || *ch == '\"') break; 
+            fileName += *ch;
+        }
+        return fileName.empty() ? "unknown" : fileName; 
     }
 
     uint64_t Scanner::scan() {
         tokens.clear();
         while(!string_buffer.eof(0)) {
             auto ch = string_buffer.getch();
-            if(ch.has_value() && *ch == '#') {
-                auto ch_in = string_buffer.curch();
-                do {
-                    ch_in = string_buffer.getch();
-                } while(ch_in.has_value() && *ch_in != '\n');
-                continue;
-            } else
-            if(ch.has_value() && *ch == '/') {
+            if(ch.has_value() && *ch == '#') { 
+                auto next_char = string_buffer.peekch(1);
+                if (next_char.has_value() && isdigit(*next_char)) {
+                    uint64_t lineNumber = parseLineNumber();
+                    std::string fileName = parseFileName();
+                    string_buffer.process_line_directive(lineNumber, fileName);
+                    do {
+                        ch = string_buffer.getch();
+                    } while(ch.has_value() && ch.value()!='\n');
+                    continue;           
+                } 
+            } else if(ch.has_value() && *ch == '/') {
                 auto ch2 = string_buffer.curch();
                 if(ch2.has_value() && *ch2 == '/') {
                     auto ch_ln = string_buffer.curch();
@@ -86,14 +127,15 @@ namespace scan {
                 }
             } else break;
         }
+
         return tokens.size();
     }
 
     std::optional<TToken> Scanner::grabId() {
         auto ch = string_buffer.backward_step(1);
         TToken token;
+        auto filename = string_buffer.cur_file();
         auto pos = string_buffer.cur_line();
-
         if(ch.has_value()) {
             auto ch_t = token_map.lookup_int8(*ch);
             decltype(token.getTokenValue()) tok_value;
@@ -106,11 +148,11 @@ namespace scan {
                 tok_value += *ch;    
             }
             token.set_pos(pos);
+            token.set_filename(filename);
             token.setToken(types::TokenType::TT_ID, tok_value);
             string_buffer.backward_step(1);
             return token;
         }
-
         return std::nullopt;
     }
 
@@ -118,11 +160,12 @@ namespace scan {
         auto ch = string_buffer.backward_step(1);
         TToken token;
         auto pos = string_buffer.cur_line();
-
+        auto filename = string_buffer.cur_file();
         if(ch.has_value()) {
             auto ch_t = token_map.lookup_int8(*ch);
             decltype(token.getTokenValue()) tok_value;
             int decimal = 0;
+            
             while(true) {
                 ch = string_buffer.getch();
                 if(!ch.has_value()) break;
@@ -133,7 +176,7 @@ namespace scan {
                     if(decimal > 1) {
                         std::ostringstream stream;
                         auto lp = string_buffer.cur_line();
-                        stream << "Line: " << lp.first << " Col: " << lp.second << " -> Too may precision points for floating point number only one is allowed.";
+                        stream << "File: " << string_buffer.cur_file() << " Line: " << lp.first << " Col: " << lp.second << " -> Too may precision points for floating point number only one is allowed.";
                         throw ScanExcept(stream.str());
                     }
                 }
@@ -142,6 +185,7 @@ namespace scan {
 
             string_buffer.backward_step(1);
             token.set_pos(pos);
+            token.set_filename(filename);
             token.setToken(types::TokenType::TT_NUM, tok_value);
             return token;
         }
@@ -162,7 +206,9 @@ namespace scan {
         TToken token;
         std::string tok_value;
         string_buffer.backward_step(1);
+        auto filename = string_buffer.cur_file();
         auto pos = string_buffer.cur_line();
+
         auto ch = string_buffer.getch();
          if (ch.has_value()) {
             tok_value += *ch;
@@ -187,7 +233,9 @@ namespace scan {
             if(found && look != 0) {
                 string_buffer.forward_step(look);
             }
+
             token.set_pos(pos);
+            token.set_filename(filename);
             token.setToken(types::TokenType::TT_SYM, tok_value);
             return token;
         }
@@ -198,12 +246,13 @@ namespace scan {
             TToken token;
             std::string tok_value;
             auto pos = string_buffer.cur_line();
+            auto filename = string_buffer.cur_file();
             while (true) {
                 auto ch = string_buffer.getch();
                 if (!ch.has_value()) {
                     std::ostringstream stream;
                     auto cpos = string_buffer.cur_line();
-                    stream << "Line: " << cpos.first << " Col:"<< cpos.second << " Double quote not terminated.";
+                    stream << "File: " << string_buffer.cur_file() << " Line: " << cpos.first << " Col:"<< cpos.second << " Double quote not terminated.";
                     throw ScanExcept(stream.str());
                 } 
                 if (*ch == '\\') {
@@ -230,6 +279,7 @@ namespace scan {
 
             if (!tok_value.empty()) {
                 token.set_pos(pos);
+                token.set_filename(filename);
                 token.setToken(types::TokenType::TT_STR, tok_value);
                 return token;
             }
@@ -240,13 +290,14 @@ namespace scan {
         std::optional<TToken> Scanner::grabSingle() {
             TToken token;
             std::string tok_value;
+            auto filename = string_buffer.cur_file();
             auto pos = string_buffer.cur_line();
             while (true) {
                 auto ch = string_buffer.getch();
                 if (!ch.has_value()) {
                     std::ostringstream stream;
                     auto cpos = string_buffer.cur_line();
-                    stream << "Line: " << cpos.first << " Col:"<< cpos.second << " String quote not terminated.";
+                    stream << "File: " << string_buffer.cur_file() << " Line: " << cpos.first << " Col:"<< cpos.second << " String quote not terminated.";
                     throw ScanExcept(stream.str());
                 } 
                 if (*ch == '\\') {
@@ -273,6 +324,7 @@ namespace scan {
 
            if (!tok_value.empty()) {
                 token.set_pos(pos);
+                token.set_filename(filename);
                 token.setToken(types::TokenType::TT_STR, tok_value);
                 return token;
             }

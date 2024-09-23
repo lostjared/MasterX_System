@@ -33,6 +33,8 @@ namespace scan {
         std::vector<TToken> tokens;
 
         bool is_c_sym(const StringType& str);
+        uint64_t parseLineNumber();
+        std::string parseFileName();
     };
 
     class ScanExcept {
