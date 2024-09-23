@@ -56,6 +56,7 @@ namespace scan {
                     do {
                         ch = string_buffer.getch();
                     } while(ch.has_value() && ch.value()!='\n');
+                    string_buffer.currentLine -= 1;
                     continue;           
                 } 
             } else if(ch.has_value() && *ch == '/') {
