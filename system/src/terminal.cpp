@@ -597,8 +597,7 @@ namespace mx {
                     break;
             case SDLK_RETURN:
                 if (!inputText.empty()) {
-                    processCommand(app, inputText);
-                    stored_commands.push_back(inputText);  
+                    processCommand(app, inputText);            
                     store_offset = stored_commands.size();  
                     inputText.clear();
                     cursorPosition = 0;
@@ -661,13 +660,21 @@ namespace mx {
         bool clear = false;
 #endif
 
+
+
 #if defined(__linux__) || defined(__APPLE__)
+    if(echo_enabled) {
+        stored_commands.push_back(command);
+        store_offset = stored_commands.size()-1;
+    }
      echo_enabled = true;
+#else
+        stored_commands.push_back(command);
+        store_offset = stored_commands.size()-1;
+
 #endif
 
 
-        stored_commands.push_back(command);
-        store_offset = stored_commands.size()-1;
 #if defined(_WIN32) || defined(FOR_WASM)
         print("\n$ " + command + "\n");
 #endif
