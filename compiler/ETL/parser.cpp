@@ -129,7 +129,6 @@ namespace parse {
         while (token_index < scan->size()) {
            if (test(types::KeywordType::KW_PROC)) {
                 inc();
-                std::cout << "Parse function..\n";
                 auto function = parseFunction();
                 program->body.push_back(std::move(function));
             } else if (test(types::KeywordType::KW_DEFINE)) {
