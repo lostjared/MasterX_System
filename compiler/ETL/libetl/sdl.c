@@ -224,7 +224,7 @@ void sdl_cleartarget() {
 void sdl_clear() {
      SDL_RenderClear(ren);
      sdl_settarget(tex);
-
+     SDL_RenderClear(ren);
 }
 
 void sdl_flip() {
