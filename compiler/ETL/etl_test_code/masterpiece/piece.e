@@ -1,6 +1,11 @@
 #include<libetl/etl.e>
 #include"sdl.e"
 
+#define WIDTH 960
+#define HEIGHT 720
+#define TEXTURE_WIDTH 1440
+#define TEXTURE_HEIGHT 1080
+
 proc set_block_color(color) {
     if(color == 0) {
         return 0;
@@ -227,7 +232,7 @@ proc swap_colors(@block) {
 
 proc init() {
     sdl_init();
-    sdl_create("MasterPiece", 1440, 1080);
+    sdl_create("MasterPiece", TEXTURE_WIDTH, TEXTURE_HEIGHT, WIDTH, HEIGHT);
     srand(time(0));
     let grid = allocate_grid(11, 16);
     let block = allocate_block();

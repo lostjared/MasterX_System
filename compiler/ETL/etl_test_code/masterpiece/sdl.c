@@ -107,7 +107,7 @@ void sdl_messagebox(const char *message) {
 }
 
 
-void sdl_create(char *name, long width, long height) {
+void sdl_create(char *name, long tw, long th, long width, long height) {
      window = SDL_CreateWindow(name, 0, 0, width, height, SDL_WINDOW_SHOWN);
      if(window == NULL) {
         fprintf(stderr, "Could not create window: %s\n", SDL_GetError());
@@ -120,8 +120,8 @@ void sdl_create(char *name, long width, long height) {
         exit(EXIT_FAILURE);
     }
     
-    tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, width, height);
-      
+    tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, tw, th);
+       
     if(tex == NULL) {
         fprintf(stderr, "Error could not create texture: %s\n", SDL_GetError());
         SDL_Quit();
@@ -223,10 +223,14 @@ void sdl_cleartarget() {
 
 void sdl_clear() {
      SDL_RenderClear(ren);
+     sdl_settarget(tex);
+
 }
 
 void sdl_flip() {
-     SDL_RenderPresent(ren);
+    sdl_settarget(NULL);
+    SDL_RenderCopy(ren, tex, NULL, NULL);
+    SDL_RenderPresent(ren);
 }
 
 void sdl_release()  {

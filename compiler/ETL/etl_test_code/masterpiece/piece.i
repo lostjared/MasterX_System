@@ -20,6 +20,7 @@ define time(value);
 define strlen($value);
 define strcmp($value1, $value2);
 define at($value, index);
+define @realloc(@memory, size);
 define @malloc(bytes);
 define @calloc(bytes, size);
 define free(@memory);
@@ -42,7 +43,7 @@ define sdl_init();
 define sdl_quit();
 define sdl_pump();
 define sdl_release();
-define sdl_create($name, width, height);
+define sdl_create($name, text_width, texture_height, width, height);
 define sdl_setcolor(r, g, b, a);
 define sdl_fillrect(x, y, w, h);
 define sdl_flip();
@@ -64,6 +65,11 @@ define sdl_mousey();
 define sdl_messagebox($message);
 define sdl_delay(wait);
 # 3 "piece.e" 2
+
+
+
+
+
 
 proc set_block_color(color) {
     if(color == 0) {
@@ -291,7 +297,7 @@ proc swap_colors(@block) {
 
 proc init() {
     sdl_init();
-    sdl_create("MasterPiece", 1440, 1080);
+    sdl_create("MasterPiece", 1440, 1080, 960, 720);
     srand(time(0));
     let grid = allocate_grid(11, 16);
     let block = allocate_block();

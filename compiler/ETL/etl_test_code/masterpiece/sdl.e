@@ -4,7 +4,7 @@ define sdl_init();
 define sdl_quit();
 define sdl_pump();
 define sdl_release();
-define sdl_create($name, width, height);
+define sdl_create($name, text_width, texture_height, width, height);
 define sdl_setcolor(r, g, b, a);
 define sdl_fillrect(x, y, w, h);
 define sdl_flip();
