@@ -233,7 +233,7 @@ namespace mx {
                 sendCommand("\n");
             } else {
                 parseTerminalData(temp);
-                if(temp.find("password for") != std::string::npos || temp.find("Password: ") != std::string::npos) {
+                if(temp.find("password for") != std::string::npos || temp.find("Password:") != std::string::npos) {
                     echo_enabled = false;
                 }
             }
