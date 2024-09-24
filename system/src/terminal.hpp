@@ -48,6 +48,8 @@ namespace mx {
 #if !defined(FOR_WASM) && !defined(WIN32)
                 int master_fd, slave_fd;
                 bool cursorVisible = true;
+                int is_echo_enabled();
+                bool echo_enabled = true;
 #endif
                 std::string handleBackspaces(const std::string &str); 
                 std::string inputText;

@@ -22,6 +22,14 @@ T my_min(const T& a, const T& b) {
 
 namespace mx {
 
+#if defined(__linux__) || defined(__APPLE__)
+    int Terminal::is_echo_enabled() {
+        struct termios tty;
+        tcgetattr(slave_fd, &tty); // Get the current terminal attributes
+        return (tty.c_lflag & ECHO) != 0;  // Check if the ECHO flag is set
+    }
+#endif
+
     Terminal::Terminal(mxApp  &app) : Window(app) {
         active = true;
         std::vector<std::string> col = app.config.splitByComma(app.config.itemAtKey("terminal", "color").value);
@@ -225,6 +233,9 @@ namespace mx {
                 sendCommand("\n");
             } else {
                 parseTerminalData(temp);
+                if(temp.find("password for") != std::string::npos || temp.find("Password: ") != std::string::npos) {
+                    echo_enabled = false;
+                }
             }
 #elif !defined(FOR_WASM)
                 parseTerminalData(temp);
@@ -268,8 +279,13 @@ namespace mx {
 
         int cx = rc.x + 5;
         int cy = y;
-
-        renderTextWrapped(app, prompt, inputText, cx, cy, maxWidth);
+#if defined(__linux__) || defined(__APPLE__)
+        if(echo_enabled == true) {
+#endif
+            renderTextWrapped(app, prompt, inputText, cx, cy, maxWidth);
+#if defined(__linux__) || defined(__APPLE__)
+        }
+#endif
 
 
         int totalLines = static_cast<int>(outputLines.size());
@@ -516,6 +532,7 @@ namespace mx {
                 if (e.key.keysym.mod & KMOD_CTRL) {
                     
                     #if !defined(FOR_WASM) && !defined(_WIN32)
+                        echo_enabled = true;
                         pid_t fg_pgid = tcgetpgrp(master_fd);
                         if (fg_pgid == -1) {
                             mx::system_err << "MasterX: Failed to get foreground process group\n";
@@ -643,6 +660,11 @@ namespace mx {
 #ifdef FOR_WASM        
         bool clear = false;
 #endif
+
+#if defined(__linux__) || defined(__APPLE__)
+     echo_enabled = true;
+#endif
+
 
         stored_commands.push_back(command);
         store_offset = stored_commands.size()-1;
