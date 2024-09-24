@@ -27,30 +27,30 @@ Follow the steps below to install the project.
 
 Use CMake to generate the build system. First, create a `build` directory and navigate into it:
 
-\`\`\`bash
+```bash
 mkdir build
 cd build
-\`\`\`
+```
 
 Then run the CMake configuration command:
 
-\`\`\`bash
+```bash
 cmake ..
-\`\`\`
+```
 
 By default, the project will be installed in `/usr/local`. If you want to specify a different installation path for `ETL_PATH`, you can provide it using the following command:
 
-\`\`\`bash
+```bash
 cmake -DETLPATH=/your/custom/path ..
-\`\`\`
+```
 
 ### Build the Project
 
 Once CMake has configured the project, build it by running:
 
-\`\`\`bash
+```bash
 cmake --build .
-\`\`\`
+```
 
 This command compiles the source files (`libetl.c` and `sdl.c`) and generates two static libraries: `libetl.a` and `libetl_sdl.a`.
 
@@ -58,9 +58,9 @@ This command compiles the source files (`libetl.c` and `sdl.c`) and generates tw
 
 After building the project, install it using the following command:
 
-\`\`\`bash
+```bash
 sudo cmake --install .
-\`\`\`
+```
 
 This will copy the following files to the designated paths:
 - `libetl.a` and `libetl_sdl.a` to `/usr/local/lib` (or the custom `ETL_PATH` you specified).
@@ -70,24 +70,24 @@ This will copy the following files to the designated paths:
 
 To clean up the build directory and object files, you can run the `cleanup` target:
 
-\`\`\`bash
+```bash
 cmake --build . --target cleanup
-\`\`\`
+```
 
 Alternatively, you can remove the entire `build` directory:
 
-\`\`\`bash
+```bash
 cd ..
 rm -rf build
-\`\`\`
+```
 
 ## Customizing Installation Path
 
 To customize the installation path, set the `ETL_PATH` variable during the configuration step. For example:
 
-\`\`\`bash
+```bash
 cmake -DETLPATH=/my/custom/etl/path ..
-\`\`\`
+```
 
 The libraries and headers will be installed in the specified directory.
 
