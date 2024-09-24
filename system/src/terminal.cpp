@@ -25,8 +25,8 @@ namespace mx {
 #if defined(__linux__) || defined(__APPLE__)
     int Terminal::is_echo_enabled() {
         struct termios tty;
-        tcgetattr(slave_fd, &tty); // Get the current terminal attributes
-        return (tty.c_lflag & ECHO) != 0;  // Check if the ECHO flag is set
+        tcgetattr(slave_fd, &tty); 
+        return (tty.c_lflag & ECHO) != 0; 
     }
 #endif
 

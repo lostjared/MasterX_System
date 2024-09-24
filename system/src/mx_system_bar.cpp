@@ -784,8 +784,7 @@ namespace mx {
                 }
             }
         }
-
-        int menuWidth = app.width / 6;
+        int menuWidth = 1280 / 6;
         int menuHeight = app.height / 2;
         int menuX = app.width - menuWidth - 20;
 
