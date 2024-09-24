@@ -45,6 +45,16 @@ If you wish to use `ETL` (Easy Toy Langauge), follow these instructions to compi
     cd ..
     ```
 
+    or if you want to enable SDL2/SDL2_ttf for ETL
+
+   ```bash
+   mkdir build && cd build
+   cmake -DWITH_SDL=ON ..
+   make -j4
+   sudo make install
+   cd ..
+   ```
+
 ### Step 2: Compile the MasterX System
 
 This step requires that you installed SDL2, SDL2_ttf, libpng, zlib
