@@ -31,6 +31,7 @@ namespace mx {
 #endif
 
     void Terminal::screenResize(int w, int h) {
+        Window::screenResize(w, h);
         const int baseWidth = 1280;
         const int baseHeight = 720;
         int screenWidth = w;

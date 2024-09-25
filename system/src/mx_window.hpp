@@ -21,7 +21,7 @@ namespace mx {
         virtual bool event(mxApp &app, SDL_Event &e) override;
         virtual void stateChanged(bool min, bool max, bool close) {}
         virtual void activate() {}
-        virtual void screenResize(int w, int h) {}
+        virtual void screenResize(int w, int h) { dim_w = w; dim_h = h;}
         void create(DimensionContainer *dim, const std::string &name, const int x, const int y, const int w, const int h);
         void destroyWindow();
         void removeAtClose(bool b);
