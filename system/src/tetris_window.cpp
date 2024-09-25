@@ -7,6 +7,20 @@ namespace mx {
         resetGame();
     }
 
+    void TetrisWindow::screenResize(int w, int h) {
+        const int baseWidth = 1280;
+        const int baseHeight = 720;
+        int screenWidth = w;
+        int screenHeight = h;
+        float scaleX = static_cast<float>(screenWidth) / baseWidth;
+        float scaleY = static_cast<float>(screenHeight) / baseHeight;
+        int windowWidth = static_cast<int>(300 * scaleX);
+        int windowHeight = static_cast<int>(630 * scaleY);
+        int windowPosX = (screenWidth - windowWidth) / 2;
+        SDL_Rect rc={windowPosX, 10, windowWidth, windowHeight};
+        this->setRect(rc);
+    }
+
     void TetrisWindow::resetGame() {
         srand(static_cast<unsigned>(time(nullptr)));
         grid.clear();

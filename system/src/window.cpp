@@ -2,6 +2,22 @@
 #include"matrix.hpp"
 
 namespace mx {
+
+    void mxApp::resize(int w, int h) {
+      SDL_SetWindowSize(win, w, h);
+      SDL_RenderSetLogicalSize(ren, w, h);
+      width = w;
+      height = h;
+      SDL_DestroyTexture(tex);
+      tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+        if (tex == nullptr) {
+            mx::system_err << "SDL_CreateTexture Error: " << SDL_GetError() << std::endl;
+            SDL_DestroyRenderer(ren);
+            SDL_DestroyWindow(win);
+            SDL_Quit();
+            exit(EXIT_FAILURE);
+        }
+    }
     
     bool mxApp::init(const std::string &name, int w, int h) {
 

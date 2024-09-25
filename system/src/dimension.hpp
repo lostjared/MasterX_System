@@ -50,9 +50,10 @@ namespace mx {
         void setDimension(Dimension *d);
         SDL_Texture *matrix_tex = nullptr;
         Dimension *dim = nullptr;
-        SDL_Rect icon_rect = {0};
+        SDL_Rect icon_rect = {0                            };
         bool underline = false;
-        SystemBar *system_bar;
+        SystemBar *system_bar;   
+        void resizeEvent(int w, int h);
     private:
         bool active = false;
         bool visible = false;
@@ -84,6 +85,7 @@ namespace mx {
         std::string selectRandomImage(std::vector<std::string>& logos, std::mt19937& gen);
         void drawIconWithText(bool underline, SDL_Renderer* renderer, TTF_Font* font, const std::string &name, SDL_Texture *ico, int x, int y);
         void drawIcons(SDL_Renderer* renderer, TTF_Font* font, SDL_Texture *dicon, int windowW, int windowH);
+        void resizeEvent(int w, int h);
     private:
         SDL_Texture *wallpaper, *matrix_texture = nullptr;
         std::vector<std::unique_ptr<Screen>> objects;

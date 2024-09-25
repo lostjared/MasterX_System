@@ -14,6 +14,7 @@ namespace mx {
         virtual bool event(mxApp &app, SDL_Event &e) override;
         virtual void draw(mxApp &app) override;
         virtual void activate() override;
+        virtual void screenResize(int w, int h) override;
         void newGame();
         void resetGame();
         void setScreen(int scr);

@@ -11,6 +11,7 @@ namespace mx {
         
         virtual void draw(mxApp &app) override;
         virtual bool event(mxApp &app, SDL_Event &e) override;
+        virtual void screenResize(int w, int h) override;
         void newGame();
     private:
         struct Asteroid {

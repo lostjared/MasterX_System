@@ -35,6 +35,7 @@ namespace mx {
                 virtual ~Terminal();
                 void draw(mxApp  &app);
                 bool event(mxApp &app, SDL_Event  &e);
+                virtual void screenResize(int w, int h) override;
                 void print(const std::string &s);
                 void scroll();
                 void stateChanged(bool min, bool max, bool closed);

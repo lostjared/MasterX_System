@@ -11,6 +11,7 @@ namespace mx {
     class TetrisWindow : public Window {
     public:
         TetrisWindow(mxApp &app);
+        virtual ~TetrisWindow() {}
         virtual void draw(mxApp &app) override;
         virtual bool event(mxApp &app, SDL_Event &e) override;
         void resetGame();
@@ -24,6 +25,7 @@ namespace mx {
         void lockPiece();
         void clearLines();
         void gameOver();
+        virtual void screenResize(int w, int h) override;
 
     private:
         const int rows = 20;

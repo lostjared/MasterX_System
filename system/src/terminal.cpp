@@ -30,6 +30,21 @@ namespace mx {
     }
 #endif
 
+    void Terminal::screenResize(int w, int h) {
+        const int baseWidth = 1280;
+        const int baseHeight = 720;
+        int screenWidth = w;
+        int screenHeight = h;
+        float scaleX = static_cast<float>(screenWidth) / baseWidth;
+        float scaleY = static_cast<float>(screenHeight) / baseHeight;
+        int windowWidth = static_cast<int>(800 * scaleX);
+        int windowHeight = static_cast<int>(505 * scaleY);
+        int windowPosX = (screenWidth - windowWidth) / 2;
+        int windowPosY = (screenHeight - windowHeight) / 2;
+        SDL_Rect rc={windowPosX, windowPosY, windowWidth, windowHeight};
+        this->setRect(rc);
+    }
+
     Terminal::Terminal(mxApp  &app) : Window(app) {
         active = true;
         std::vector<std::string> col = app.config.splitByComma(app.config.itemAtKey("terminal", "color").value);

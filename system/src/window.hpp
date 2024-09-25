@@ -37,6 +37,7 @@ namespace mx {
         void shutdown();
         bool full = false;
         void printText(int x, int y, const std::string &text,  const SDL_Color col);
+        void resize(int w, int h);
         ConfigFile config;
         std::string version;
         std::string system_font;

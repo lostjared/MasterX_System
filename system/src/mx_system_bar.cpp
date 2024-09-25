@@ -275,6 +275,8 @@ namespace mx {
         int startButtonSize = 100;
        static Uint32 lastTime = SDL_GetTicks();
 
+
+
     if (!animationComplete) {
         Uint32 currentTime = SDL_GetTicks();
         Uint32 deltaTime = currentTime - lastTime;   
@@ -282,6 +284,7 @@ namespace mx {
         yPos += speed * deltaTime;
         if (yPos >= targetYPos) {
             yPos = targetYPos;
+
             animationComplete = true;
             DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](cur_dim).get());
             con->setVisible(true);
@@ -291,7 +294,7 @@ namespace mx {
 
         SDL_Color gradBarStart = {240, 240, 240, 255}; 
         SDL_Color gradBarEnd = {200, 200, 200, 255};   
-        SDL_Rect barRect = {0, yPos, windowWidth, barHeight};
+        SDL_Rect barRect = {0, animationComplete == true ? app.height- barHeight : yPos, windowWidth, barHeight};
         for (int y = 0; y < barHeight; ++y) {
             float factor = static_cast<float>(y) / barHeight;
             SDL_Color color;
@@ -325,7 +328,7 @@ namespace mx {
             textColor = {255, 255, 255, 255}; 
             cursor_shown = true;
         }
-        SDL_Rect startButton = {windowWidth - startButtonSize, yPos, startButtonSize, barHeight};
+        SDL_Rect startButton = {windowWidth - startButtonSize, animationComplete == true ? app.height - barHeight : yPos, startButtonSize, barHeight};
         
         if (isHovering) {
             SDL_Color gradStart = {0, 0, 255, 255}; 

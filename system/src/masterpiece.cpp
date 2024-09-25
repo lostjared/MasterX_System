@@ -38,6 +38,22 @@ namespace mx {
         cursor_pos = 0;
     }
 
+    void MasterPiece::screenResize(int w, int h) {
+        std::cout <<"HERE\n";
+        const int baseWidth = 1280;
+        const int baseHeight = 720;
+        int screenWidth = w;
+        int screenHeight = h;
+        float scaleX = static_cast<float>(screenWidth) / baseWidth;
+        float scaleY = static_cast<float>(screenHeight) / baseHeight;
+        int windowWidth = static_cast<int>(640 * scaleX);
+        int windowHeight = static_cast<int>(480 * scaleY);
+        int windowPosX = (screenWidth - windowWidth) / 2;
+        int windowPosY = (screenHeight - windowHeight) / 2;
+        SDL_Rect rc={windowPosX, windowPosY, windowWidth, windowHeight};
+        this->setRect(rc);
+    }
+
     void MasterPiece::setScreen(int scr) {
         cur_screen = scr;
     }   

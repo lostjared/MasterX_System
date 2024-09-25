@@ -31,6 +31,16 @@ namespace mx {
         } 
     }
 
+    void DimensionContainer::resizeEvent(int w, int h) {
+        for(auto &o : objects) {
+            Window  *win = dynamic_cast<Window *>(o.get());
+            if(win) {
+                win->screenResize(w, h);
+            }
+        }
+    }
+
+
     void DimensionContainer::destroyWindow(Window *win) {
         events.removeWindow(win);
         for(auto it = mini_win.begin(); it != mini_win.end(); ++it) {
@@ -186,6 +196,15 @@ namespace mx {
         return selected_image;
     }
 
+    void Dimension::resizeEvent(int w, int h) {
+        for(auto &d : dimensions) {
+            DimensionContainer *con = dynamic_cast<DimensionContainer *>(d.get());
+            if(con) {
+                con->resizeEvent(w, h);
+            }
+        }
+    }
+
     Dimension::Dimension(mxApp &app) {
         cursor_x = (app.width/2) - (32/2);
         cursor_y = (app.height/2) - (32/2);
@@ -214,17 +233,56 @@ namespace mx {
         dash->setMatrix(matrix_texture, false);
         settings_window = dash->createWindow(app);
         settings_window->create(dash, "Settings", 25, 25, 320, 240);   
+        dash->events.addWindow(settings_window);
+        Menu_ID res_menu = settings_window->menu.addHeader(create_header("Resolution"));
+        settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("720p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if(app.full) {
+                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen");
+                return true;
+            }
+            app.resize(1280,720);
+            resizeEvent(1280,720);
+            return true;
+        }));
+        settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("1080p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if(app.full) {
+                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen");
+                return true;
+            }
+            app.resize(1920,1080);
+            resizeEvent(1920, 1080);
+            return true;
+        }));
+        settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("1440p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+             if(app.full) {
+                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen");
+                return true;
+            }
+            app.resize(2560,1440);
+            resizeEvent(2560, 1440);
+            return true;
+        }));
+        settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("2160p (4K)", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+             if(app.full) {
+                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen");
+                return true;
+            }
+            app.resize(3840,2160);
+            resizeEvent(3840, 2160);
+            return true;
+
+        }));
+
         settings_window->show(true);
         settings_window->setReload(true);
         settings_window->setCanResize(false);
         settings_window->removeAtClose(true);
-
         settings_window->children.push_back(std::make_unique<Button>(app));
         toggle_fullscreen = dynamic_cast<Button *>(settings_window->getControl());
         toggle_fullscreen->create(settings_window, "Toggle Fullscreen", 25, 50, 150, 20);
         toggle_fullscreen->setShow(true);
         toggle_fullscreen->setCallback([](mxApp &app, Window *parent, SDL_Event &e) -> bool {
-                app.set_fullscreen(app.win, !app.full);
+                                                       app.set_fullscreen(app.win, !app.full);
                 return true;
         });
         settings_window->children.push_back(std::make_unique<Button>(app));
@@ -266,7 +324,7 @@ namespace mx {
             welcome_ok->setGeometry(rc.w - 110, rc.h - 40, 100, 30);
             welcome_image->getRect(src);
             welcome_image->setGeometry(src.x, src.y, rc.w-10, rc.h-38);    
-            welcome_image->setWindowPos(rc.x, rc.y);
+            welcome_image->setWindowPos(rc.x,rc.y);
         });
 
         welcome_help = welcome->createWindow(app);
