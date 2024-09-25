@@ -477,11 +477,13 @@ namespace mx {
             y = 26;
             w = dim_w;
             h = dim_h-76;
+            dragging = false;
         } else if (!m && maximized) {
             x = oldX;
             y = oldY;
             w = oldW;
             h = oldH;
+            dragging = false;
         }
         maximized = m;
         stateChanged(false, maximized, false);
