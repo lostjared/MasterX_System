@@ -391,6 +391,13 @@ namespace mx {
             og_piece->setScreen(4);
             return true;
         }));
+
+        Menu_ID hlp_menu = piece->menu.addHeader(create_header("About"));
+        piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_Pink.png")), create_menu_item("AbouT", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MessageBox::OkMessageBox(app, win->dim, "About MasterPiece", "(C) 2024 LostSideDead Software writen by Jared Bruni");
+            return true;
+        }));
+
         piece->show(true);
         piece->setReload(true);
         piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));
