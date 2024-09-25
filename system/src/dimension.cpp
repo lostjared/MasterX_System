@@ -435,8 +435,15 @@ namespace mx {
         tetris_window->setIcon(loadTexture(app, "images/tetrisicon.png"));
         Menu_ID t_ = tetris_window->menu.addHeader(create_header("Game"));
         tetris_window->menu.addItem(t_, tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("New Game", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            TetrisWindow *t = dynamic_cast<TetrisWindow *>(win);
-            t->resetGame();
+            MessageBox::OkCancelMessageBox(app, win->dim, "New Game?", "Do you wish to start a new game?", [&](mxApp &app, Window *win, int button) ->  bool {
+                switch(button) {
+                    case 1: {
+                        tetris_window->resetGame();
+                    }
+                    break;
+                }
+                return true;
+            });
             return true;
         }));
         tetris_window->setSystemBar(system_bar);

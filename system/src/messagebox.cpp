@@ -51,6 +51,18 @@ namespace mx {
             int yCenter = drawRect.h / 2 + 50; 
             ok->create(this, "Ok", xCenter, yCenter, 100, 25);
             cancel->create(this, "Cancel", xCenter + 100 + gap, yCenter, 100, 25);
+            ok->setCallback([](mxApp &app, Window *win, SDL_Event   &e) -> bool {
+                MessageBox *msg = dynamic_cast<MessageBox *>(win);
+                msg->event_(app, win, 1);
+                msg->destroyWindow();
+                return true;
+            });
+            cancel->setCallback([](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                MessageBox *msg = dynamic_cast<MessageBox *>(win);
+                msg->event_(app, win, 2);
+                msg->destroyWindow();
+                return true;
+            });
         }
 
         void MessageBox::createControls(mxApp &app) {
@@ -87,5 +99,22 @@ namespace mx {
             msgbox->removeAtClose(true);
             msgbox->setCanResize(false);
             msgbox->show(true);
+        }
+
+        void MessageBox::OkCancelMessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string &text, EventCallbackMsg event_cb) {
+            dim->objects.push_back(std::make_unique<MessageBox>(app));
+            MessageBox *msgbox = dynamic_cast<MessageBox *>(dim->objects[dim->objects.size()-1].get());
+            int box_w = 400;
+            int box_h = 175;
+            msgbox->create(dim, title, (app.width/2) - (box_w/2), (app.height/2) - (box_h/2), box_w, box_h);
+            dim->events.addWindow(msgbox);
+            msgbox->setSystemBar(dim->system_bar);
+            msgbox->menu.menu[0].is_messagebox = true;
+            msgbox->text = text;
+            msgbox->createControlsOkCancel(app);
+            msgbox->removeAtClose(true);
+            msgbox->setCanResize(false);
+            msgbox->show(true);
+            msgbox->event_ = event_cb;
         }
 }
