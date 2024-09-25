@@ -12,7 +12,7 @@ namespace mx {
     template<typename F>
     struct Menu_Item {
         std::string text;
-        SDL_Rect item_rect;
+        SDL_Rect item_rect = {0};
         F callback;
         bool visible;
         bool enabled;
@@ -26,8 +26,8 @@ namespace mx {
 
     struct Menu_Header {
         std::string text;
-        SDL_Rect header_rect;
-        SDL_Rect text_rect;
+        SDL_Rect header_rect = {0};
+        SDL_Rect text_rect = {0};
         bool enabled = true;
         bool visible = false;
         bool window_menu = false;

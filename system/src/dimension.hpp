@@ -50,7 +50,7 @@ namespace mx {
         void setDimension(Dimension *d);
         SDL_Texture *matrix_tex = nullptr;
         Dimension *dim = nullptr;
-        SDL_Rect icon_rect;
+        SDL_Rect icon_rect = {0};
         bool underline = false;
         SystemBar *system_bar;
     private:

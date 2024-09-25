@@ -130,8 +130,6 @@ namespace mx {
         }
 
         bool Menu::event(mxApp &app, SDL_Event &e) {
-            SDL_Point p = {e.button.x, e.button.y};
-
             if (menu_active) {
                 if (e.type == SDL_MOUSEMOTION) {
                     SDL_Point p = {e.motion.x, e.motion.y};
@@ -145,6 +143,7 @@ namespace mx {
                 }
 
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                    SDL_Point p = {e.button.x, e.button.y};
                     bool clicked_outside = true;
                     for (auto &header : menu) {
                         if (header.visible && header.is_messagebox == false) {
@@ -172,6 +171,7 @@ namespace mx {
             }
 
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                SDL_Point p = {e.button.x, e.button.y};
                 for (auto &header : menu) {
                     if (SDL_PointInRect(&p, &header.text_rect)) {
                         menu_active = true;
@@ -196,9 +196,8 @@ namespace mx {
                     }
                 }
             }
-
             return false;
-        }
+    }
 
 
     Menu_ID Menu::addHeader(const Menu_Header &h) {
