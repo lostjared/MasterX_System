@@ -357,9 +357,9 @@ namespace mx {
             return true;
         }));
 
-        Menu_ID hlp_hte_menu = termx->menu.addHeader(create_header("About"));
+        Menu_ID hlp_hte_menu = termx->menu.addHeader(create_header("Help"));
         termx->menu.addItem(hlp_hte_menu,termx->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MessageBox::OkMessageBox(app, win->dim, "About Tetris", "(C) 2024 LostSideDead Software writen by Jared Bruni");
+            MessageBox::OkMessageBox(app, win->dim, "About Terminal", "(C) 2024 LostSideDead Software writen by Jared Bruni");
             return true;
         }));
 
@@ -398,7 +398,7 @@ namespace mx {
             return true;
         }));
 
-        Menu_ID hlp_menu = piece->menu.addHeader(create_header("About"));
+        Menu_ID hlp_menu = piece->menu.addHeader(create_header("Help"));
         piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_Pink.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MessageBox::OkMessageBox(app, win->dim, "About MasterPiece", "(C) 2024 LostSideDead Software writen by Jared Bruni");
             return true;
@@ -428,7 +428,7 @@ namespace mx {
             asteroid_win->newGame();
             return true;
         })); 
-        Menu_ID hlp_amenu = asteroid_window->menu.addHeader(create_header("About"));
+        Menu_ID hlp_amenu = asteroid_window->menu.addHeader(create_header("Help"));
         asteroid_window->menu.addItem(hlp_amenu,asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MessageBox::OkMessageBox(app, win->dim, "About Asteroids", "(C) 2024 LostSideDead Software writen by Jared Bruni");
             return true;
@@ -465,8 +465,8 @@ namespace mx {
             });
             return true;
         }));
-        Menu_ID hlp_hamenu = tetris_window->menu.addHeader(create_header("About"));
-        tetris_window->menu.addItem(hlp_hamenu,tetris_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        Menu_ID hlp_hamenu = tetris_window->menu.addHeader(create_header("Help"));
+        tetris_window->menu.addItem(hlp_hamenu,tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MessageBox::OkMessageBox(app, win->dim, "About Tetris", "(C) 2024 LostSideDead Software writen by Jared Bruni");
             return true;
         }));
