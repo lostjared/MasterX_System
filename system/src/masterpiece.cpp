@@ -39,7 +39,6 @@ namespace mx {
     }
 
     void MasterPiece::screenResize(int w, int h) {
-        std::cout <<"HERE\n";
         const int baseWidth = 1280;
         const int baseHeight = 720;
         int screenWidth = w;

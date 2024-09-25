@@ -457,7 +457,7 @@ namespace mx {
         }));
 
         Menu_ID hlp_menu = piece->menu.addHeader(create_header("Help"));
-        piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_Pink.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_pink.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MessageBox::OkMessageBox(app, win->dim, "About MasterPiece", "(C) 2024 LostSideDead Software written by Jared Bruni");
             return true;
         }));

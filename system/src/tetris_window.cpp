@@ -17,7 +17,7 @@ namespace mx {
         int windowWidth = static_cast<int>(300 * scaleX);
         int windowHeight = static_cast<int>(630 * scaleY);
         int windowPosX = (screenWidth - windowWidth) / 2;
-        SDL_Rect rc={windowPosX, 10, windowWidth, windowHeight};
+        SDL_Rect rc={windowPosX, 50, windowWidth, windowHeight};
         this->setRect(rc);
     }
 
