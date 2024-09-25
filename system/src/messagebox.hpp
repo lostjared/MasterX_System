@@ -25,7 +25,7 @@ namespace mx {
 
     protected:
         std::string text;
-        Button *ok, *cancel;
+        Button *ok = 0, *cancel = 0;
         EventCallbackMsg event_ = 0;
     };
 

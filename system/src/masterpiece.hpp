@@ -26,7 +26,7 @@ namespace mx {
         void draw_credits(mxApp &);
         void draw_options(mxApp  &);
         int cur_screen = 0;
-        SDL_Texture *draw_tex, *logo, *start, *cursor, *gamebg, *blocks[12], *alien;
+        SDL_Texture *draw_tex = 0, *logo = 0, *start = 0, *cursor = 0, *gamebg = 0, *blocks[12] = {0}, *alien = 0;
         Uint32 startTime = 0; 
         Uint32 waitTime = 3000;
         int cursor_pos = 0;

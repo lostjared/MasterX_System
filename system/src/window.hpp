@@ -30,8 +30,8 @@ namespace mx {
         bool init(const std::string &name, int w, int h);
         void release();
         int width = 0, height = 0;
-        TTF_Font *font;
-        SDL_Texture *icon;
+        TTF_Font *font = 0;
+        SDL_Texture *icon = 0;
         SDL_Texture* convertToStreamingTexture(SDL_Texture* originalTexture);
         void set_fullscreen(SDL_Window* window, bool fullscreen);
         void shutdown();

@@ -31,8 +31,8 @@ namespace mx {
             return -1;
         }
     private:
-        std::streambuf* buf1;
-        std::streambuf* buf2;
+        std::streambuf* buf1 = 0;
+        std::streambuf* buf2 = 0;
     };
 
     class TeeStream : public std::ostream {

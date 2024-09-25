@@ -13,16 +13,16 @@ namespace mx {
         virtual ~MenuBar();
         virtual void draw(mxApp &app) override;
         virtual bool event(mxApp  &app, SDL_Event &e) override;
-        bool menuOpen;
-        bool animating;
-        int currentY;
-        int targetY;
+        bool menuOpen = false;
+        bool animating = false;
+        int currentY = 0;
+        int targetY = 0;
         int itemClicked(mxApp &app, int x, int y);
     private:
-        TTF_Font *font;
-        SDL_Surface *itemSurface;
-        SDL_Texture *itemTexture;
-        SDL_Color white;
+        TTF_Font *font = 0;
+        SDL_Surface *itemSurface = 0;
+        SDL_Texture *itemTexture = 0;
+        SDL_Color white = {0};
     };
 
     class Window;
@@ -51,7 +51,7 @@ namespace mx {
         Uint32 holdStartTime = 0;
         int yPos = 0;
         bool animationComplete = false;
-        TTF_Font  *font;
+        TTF_Font  *font = 0;
         SDL_Color start_bg = { 0,0,0,225 };
         bool isHovering = false;
         std::vector<std::unique_ptr<Screen>> objects;

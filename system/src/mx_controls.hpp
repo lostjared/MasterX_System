@@ -24,13 +24,13 @@ namespace mx {
         void setGeometry(int xx, int yy);
         void linkMode(bool m);
     private:
-        TTF_Font *font_;
+        TTF_Font *font_ = 0;
         std::string name_;
         std::string text_;
-        int x,y,size_;
-        SDL_Color color_;
-        int wx, wy;
-        int w, h;
+        int x = 0,y = 0,size_ = 0;
+        SDL_Color color_ = {0};
+        int wx = 0, wy = 0;
+        int w = 0, h = 0;
         bool mode = false;
         bool under_ = false;
         bool multi_lined = false;
@@ -52,17 +52,17 @@ namespace mx {
         void setGeometry(int xx, int yy, int ww, int hh);
      private:
         std::string text;
-        int x, y, w, h;
-        int wx, wy;
-        bool hover;
-        bool pressed;
-        SDL_Color fgColor;
-        SDL_Color bgColor;
-        SDL_Color hover_fg;
-        SDL_Color hover_bg;
-        SDL_Color pressed_fg;
-        SDL_Color pressed_bg;
-        SDL_Color textColor;
+        int x = 0, y = 0, w = 0, h = 0;
+        int wx = 0, wy = 0;
+        bool hover = false;
+        bool pressed = false;
+        SDL_Color fgColor = {0};
+        SDL_Color bgColor = {0};
+        SDL_Color hover_fg = {0};
+        SDL_Color hover_bg = {0};
+        SDL_Color pressed_fg = {0};
+        SDL_Color pressed_bg = {0};
+        SDL_Color textColor = {0};
     };
 
     class Image : public Control {
@@ -78,12 +78,12 @@ namespace mx {
         void setSourceRect(int x, int y, int w, int h);
         void getRect(SDL_Rect &rc);
     private:
-        int x, y, w, h;
+        int x = 0, y = 0, w = 0, h = 0;
         SDL_Texture *image;
         int sw = 0, sh = 0;
         int wx = 0, wy = 0;
         bool use_rect = false;
-        SDL_Rect src;
+        SDL_Rect src = {0};
     };
 }
 

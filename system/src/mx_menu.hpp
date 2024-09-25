@@ -14,8 +14,8 @@ namespace mx {
         std::string text;
         SDL_Rect item_rect = {0};
         F callback;
-        bool visible;
-        bool enabled;
+        bool visible = false;
+        bool enabled = false;
         bool underline = false;
         int icon = -1;
         Menu_Item() : text{}, callback{nullptr}, visible{false}, enabled{true}, icon{-1} {}

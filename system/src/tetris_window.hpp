@@ -31,7 +31,7 @@ namespace mx {
         std::vector<std::vector<int>> grid;
         std::vector<std::vector<int>> currentPiece;
         std::vector<std::vector<int>> nextPiece;
-        int pieceX, pieceY;
+        int pieceX = 0, pieceY = 0;
         bool isGameOver = false;
         int score = 0;
 

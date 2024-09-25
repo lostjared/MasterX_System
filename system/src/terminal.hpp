@@ -97,10 +97,10 @@ namespace mx {
                 static DWORD WINAPI bashReaderThread(LPVOID param);
                 std::mutex outputMutex;
         #elif !defined(FOR_WASM)
-                pid_t bashPID;
-                int pipe_in[2];  
-                int pipe_out[2]; 
-                SDL_Thread *bashThread;
+                pid_t bashPID = 0;
+                int pipe_in[2] = {0};  
+                int pipe_out[2] = {0}; 
+                SDL_Thread *bashThread = 0;
                 static int bashReaderThread(void *ptr);
                 std::mutex outputMutex;
         #endif
