@@ -7,12 +7,24 @@
 
 namespace mx {
 
+    class DimensionContainer;
+
     class MessageBox : public Window {
     public:
         MessageBox(mxApp &app);
         virtual ~MessageBox();
         virtual void draw(mxApp &app) override;
         virtual bool event(mxApp &app, SDL_Event &e) override;
+
+        void createControls(mxApp &app);
+        void createControlsOkCancel(mxApp &app);
+        void resizeControls();
+
+        static void OkMessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string  &text);
+
+    protected:
+        std::string text;
+        Button *ok, *cancel;
     };
 
 }

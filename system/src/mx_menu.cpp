@@ -75,15 +75,15 @@ namespace mx {
             int x = 15 + padding; 
             int y = 7;  
             for (auto &header : menu) {
-                
                 SDL_Surface* headerSurface = TTF_RenderText_Blended(app.font, header.window_menu ? win->title.c_str() : header.text.c_str(), {0, 0, 0, 255});
                 SDL_Texture* headerTexture = SDL_CreateTextureFromSurface(app.ren, headerSurface);
                 SDL_QueryTexture(headerTexture, NULL, NULL, &header.header_rect.w, &header.header_rect.h);
                 header.header_rect.x = x;
                 header.header_rect.y = y;
-                
-                SDL_RenderCopy(app.ren, headerTexture, NULL, &header.header_rect);
-                header.text_rect = header.header_rect;
+                if(header.is_messagebox == false) {
+                    SDL_RenderCopy(app.ren, headerTexture, NULL, &header.header_rect);
+                    header.text_rect = header.header_rect;
+                }
                 SDL_FreeSurface(headerSurface);
                 SDL_DestroyTexture(headerTexture);
                 header.header_rect.x -= 5;
@@ -147,7 +147,7 @@ namespace mx {
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
                     bool clicked_outside = true;
                     for (auto &header : menu) {
-                        if (header.visible) {
+                        if (header.visible && header.is_messagebox == false) {
                             for (auto &item : header.items) {
                                 if (SDL_PointInRect(&p, &item.item_rect)) {
                                     if (item.callback) {

@@ -52,8 +52,8 @@ namespace mx {
         Dimension *dim = nullptr;
         SDL_Rect icon_rect;
         bool underline = false;
-    private:
         SystemBar *system_bar;
+    private:
         bool active = false;
         bool visible = false;
         bool transitioning = false;

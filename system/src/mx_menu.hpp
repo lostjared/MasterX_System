@@ -31,6 +31,7 @@ namespace mx {
         bool enabled = true;
         bool visible = false;
         bool window_menu = false;
+        bool is_messagebox = false;
         Menu_Header();
         ~Menu_Header();
         std::vector<Menu_Item<menuCallback>> items;

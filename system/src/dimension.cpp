@@ -13,7 +13,7 @@
 #include<unordered_set>
 #include<random>
 #include"matrix.hpp"
-
+#include"messagebox.hpp"
 
 namespace mx {
 
@@ -383,6 +383,7 @@ namespace mx {
         piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_yellow.png")), create_menu_item("Options", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->setScreen(3);
+            MessageBox::OkMessageBox(app, og_piece->dim, "No Options", "There are no Options at the time");
             return true;
         }));
         piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_green.png")), create_menu_item("Credits", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
@@ -433,7 +434,7 @@ namespace mx {
         tetris_window->setReload(true);
         tetris_window->setIcon(loadTexture(app, "images/tetrisicon.png"));
         Menu_ID t_ = tetris_window->menu.addHeader(create_header("Game"));
-        tetris_window->menu.addItem(t_, tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        tetris_window->menu.addItem(t_, tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("New Game", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
             TetrisWindow *t = dynamic_cast<TetrisWindow *>(win);
             t->resetGame();
             return true;
