@@ -357,6 +357,12 @@ namespace mx {
             return true;
         }));
 
+        Menu_ID hlp_hte_menu = termx->menu.addHeader(create_header("About"));
+        termx->menu.addItem(hlp_hte_menu,termx->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MessageBox::OkMessageBox(app, win->dim, "About Tetris", "(C) 2024 LostSideDead Software writen by Jared Bruni");
+            return true;
+        }));
+
         term->setMatrix(matrix_texture, false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
@@ -373,7 +379,7 @@ namespace mx {
         windowPosX = (screenWidth - windowWidth) / 2;
         windowPosY = (screenHeight - windowHeight) / 2;
         piece->create(piece_cont, "MasterPiece", windowPosX, windowPosY, windowWidth, windowHeight);
-        
+                                                            
         Menu_ID pm_gmenu = piece->menu.addHeader(create_header("Game"));
         piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_red.png")), create_menu_item("New Game",  [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
@@ -393,7 +399,7 @@ namespace mx {
         }));
 
         Menu_ID hlp_menu = piece->menu.addHeader(create_header("About"));
-        piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_Pink.png")), create_menu_item("AbouT", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_Pink.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MessageBox::OkMessageBox(app, win->dim, "About MasterPiece", "(C) 2024 LostSideDead Software writen by Jared Bruni");
             return true;
         }));
@@ -421,7 +427,13 @@ namespace mx {
             AsteroidsWindow *asteroid_win = dynamic_cast<AsteroidsWindow *>(win);
             asteroid_win->newGame();
             return true;
+        })); 
+        Menu_ID hlp_amenu = asteroid_window->menu.addHeader(create_header("About"));
+        asteroid_window->menu.addItem(hlp_amenu,asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MessageBox::OkMessageBox(app, win->dim, "About Asteroids", "(C) 2024 LostSideDead Software writen by Jared Bruni");
+            return true;
         }));
+
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         tetris = dynamic_cast<DimensionContainer *>(getDimension());
@@ -453,6 +465,12 @@ namespace mx {
             });
             return true;
         }));
+        Menu_ID hlp_hamenu = tetris_window->menu.addHeader(create_header("About"));
+        tetris_window->menu.addItem(hlp_hamenu,tetris_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MessageBox::OkMessageBox(app, win->dim, "About Tetris", "(C) 2024 LostSideDead Software writen by Jared Bruni");
+            return true;
+        }));
+
         tetris_window->setSystemBar(system_bar);
         asteroid_window->setSystemBar(system_bar);
         piece->setSystemBar(system_bar);
