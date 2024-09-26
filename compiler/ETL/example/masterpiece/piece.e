@@ -11,19 +11,23 @@ proc set_block_color(color) {
         return 0;
     } 
     if(color == 1) {
-        sdl_setcolor(255,0,0,255);
+        sdl_setstartcolor(100,0,0,255);
+        sdl_setendcolor(255,0,0,255);
         return 1;
     }
     if(color == 2) {
-        sdl_setcolor(0,255,0,255);
+        sdl_setstartcolor(0,100,0,255);
+        sdl_setendcolor(0,255,0,255);
         return 2;
     }
     if(color == 3)  {
-        sdl_setcolor(0,0,255,255);
+        sdl_setstartcolor(0,0,100,255);
+        sdl_setendcolor(0,0,255,255);
         return 3;
     }
     if(color == 4) {
-        sdl_setcolor(255,0,255,25);
+        sdl_setstartcolor(100,0,150,255);
+        sdl_setendcolor(255,0,255,255);
         return 4;
     } 
     return 5;
@@ -35,7 +39,7 @@ proc set_block_at(@block, index) {
     let x = 32 * 4;
     let y = 16 * 4;
     set_block_color(mematb(block, index));
-    sdl_fillrect(x*bx+20, y*by+30, 32 * 4, 16 * 4);
+    sdl_draw_gradient(x*bx+20, y*by+30, 32 * 4, 16 * 4);
     return 0;
 }
 
@@ -51,7 +55,7 @@ proc draw_grid(@grid, @block) {
             let color = mematb(grid, x * 16 + y);
             
             if(set_block_color(color) != 0) {
-                sdl_fillrect(grid_x, grid_y, block_size_w, block_size_h);
+                sdl_draw_gradient(grid_x, grid_y, block_size_w, block_size_h);
             }
         }
     }
