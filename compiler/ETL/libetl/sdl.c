@@ -27,7 +27,6 @@ void sdl_init() {
         SDL_Quit();
         exit(EXIT_FAILURE);
     }
-
     srand(time(0));
 }
 
@@ -192,7 +191,11 @@ void sdl_printtext(long x, long y, char *src) {
 
 long sdl_keydown(long key) {
     const Uint8 *keys = SDL_GetKeyboardState(0);
-    return keys[key];
+
+    if(key >= 0 && key <= 255)
+         return keys[key];
+
+    return -1;
 }
 
 long sdl_getticks() {
