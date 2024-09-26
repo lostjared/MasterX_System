@@ -42,7 +42,7 @@ if(WITH_SDL)
     
     # Create a separate SDL library
     add_library(etl_sdl STATIC ${CMAKE_SOURCE_DIR}/libetl/sdl.c)
-    target_include_directories(etl_sdl PUBLIC ${SDL2_INCLUDE_DIRS})
+    target_include_directories(etl_sdl PUBLIC ${SDL2_INCLUDE_DIRS} /usr/local/include/SDL2 /usr/include/SDL2)
     target_link_libraries(etl_sdl PRIVATE ${SDL2_LIBRARIES})
 
     # Optionally, link SDL to ETL_C if needed
