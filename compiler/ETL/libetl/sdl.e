@@ -25,4 +25,7 @@ define sdl_mousex();
 define sdl_mousey();
 define sdl_messagebox($message);
 define sdl_delay(wait);
+define sdl_setstartcolor(r,g,b,a);
+define sdl_setendcolor(r,g,b,a);
+define sdl_draw_gradient(x, y, w, h);
 #endif

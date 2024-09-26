@@ -216,6 +216,37 @@ long sdl_pump() {
     return 1;
 }
 
+SDL_Color startColor = {0}, endColor = {0};
+
+void sdl_setstartcolor(long r, long g, long b, long a) {
+    startColor.r = (unsigned char)r;
+    startColor.g = (unsigned char)g;
+    startColor.b = (unsigned char)b;
+    startColor.a = (unsigned char)a;
+}
+
+void sdl_setendcolor(long r, long g, long b, long a) {
+    endColor.r = (unsigned char)r;
+    endColor.g = (unsigned char)g;
+    endColor.b = (unsigned char)b;
+    endColor.a = (unsigned char)a;
+}
+
+void sdl_draw_gradient(long x, long y, long w, long h) {
+    SDL_Rect rect = {x,y,w,h};
+    float rStep = (endColor.r - startColor.r) / (float)rect.h;
+    float gStep = (endColor.g - startColor.g) / (float)rect.h;
+    float bStep = (endColor.b - startColor.b) / (float)rect.h;
+    float aStep = (endColor.a - startColor.a) / (float)rect.h;
+    for (int y = 0; y < rect.h; ++y) {
+        Uint8 r = startColor.r + rStep * y;
+        Uint8 g = startColor.g + gStep * y;
+        Uint8 b = startColor.b + bStep * y;
+        Uint8 a = startColor.a + aStep * y;
+        SDL_SetRenderDrawColor(ren, r, g, b, a);
+        SDL_RenderDrawLine(ren, rect.x, rect.y + y, rect.x + rect.w, rect.y + y);
+    }
+}
 
 void sdl_settarget(SDL_Texture *text) {
     SDL_SetRenderTarget(ren, text);
