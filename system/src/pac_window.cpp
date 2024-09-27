@@ -18,11 +18,11 @@ namespace mx {
         grid = {
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // Row 1
             {1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1}, // Row 2
-            {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1}, // Row 3
+            {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1}, // Row 3
             {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1}, // Row 4
             {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // Row 5
             {1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1}, // Row 6
-            {1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}, // Row 7
+            {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // Row 7
             {1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, // Row 8
             {1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, // Row 9
             {1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, // Row 10
@@ -46,6 +46,8 @@ namespace mx {
             {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // Row 28
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}  // Row 29
         };
+
+        grid[21][15] = 0;
     }
     
     void PacWindow::draw(mxApp &app) {
@@ -71,10 +73,12 @@ namespace mx {
     void PacWindow::drawGrid(mxApp &app) {
         int cellWidth = 22;
         int cellHeight = 15;
+        int offset_x = 25;
+        int offset_y = 25;
 
         for (int y = 0; y < static_cast<int>(grid.size()); ++y) {
             for (int x = 0; x < static_cast<int>(grid[y].size()); ++x) {
-                SDL_Rect cell = {x * cellWidth, y * cellHeight, cellWidth, cellHeight};
+                SDL_Rect cell = {(x * cellWidth)+offset_x, (y * cellHeight)+offset_y, cellWidth, cellHeight};
                 if (grid[y][x] == 1) {
                     SDL_SetRenderDrawColor(app.ren, 255, 0, 0, 255);                 
                 } else if (grid[y][x] == 2) {
@@ -86,9 +90,11 @@ namespace mx {
             }
         }
 
-        SDL_Rect playerRect = {playerX * cellWidth, playerY * cellHeight, cellWidth, cellHeight};
+        SDL_Rect playerRect = {(playerX * cellWidth)+offset_x, (playerY * cellHeight)+offset_y, cellWidth, cellHeight};
         SDL_SetRenderDrawColor(app.ren, 0, 0, 255, 255); 
         SDL_RenderFillRect(app.ren, &playerRect);
+
+        app.printText(10, 10, "Poss :" + std::to_string(playerX) + " y: " + std::to_string(playerY), {255,255,255,255});
     }
 
     bool PacWindow::event(mxApp &app, SDL_Event &e) {
