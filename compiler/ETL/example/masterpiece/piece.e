@@ -248,6 +248,29 @@ proc init() {
     memstorel(score, 0, 0);
     let game_over = 0;
 
+    let start_screen = sdl_loadtex("img/masterpiece_start.bmp");
+    let wait_key = 0;
+
+    while(sdl_pump() && wait_key == 0) {
+        sdl_clear();
+        sdl_copytex(start_screen, 0, 0, 1440, 1080);
+        sdl_settextcolor(255,255,255,255);
+        sdl_printtext(25, 25, "Press Any Key to Start");
+        sdl_flip();
+
+        if(sdl_keydown(12)) {
+            wait_key = 1;
+        }
+
+        for(let key = 0; key < 127; key = key + 1) {
+            if(sdl_keydown(key)) {
+                wait_key = 1;
+                break;
+            }
+        }
+    }
+    sdl_destroytex(start_screen);
+
     let puzzle_bg = sdl_loadtex("img/puzzle.bmp");
     while (sdl_pump()  && game_over == 0) {
         sdl_clear(); // clear screen
