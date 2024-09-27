@@ -6,7 +6,7 @@
 
 TTF_Font *font = NULL;
 
-void sdl_init() {
+void sdl_init_size(int fsize) {
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "Error on initilaztion\n");
         fflush(stderr);
@@ -19,7 +19,7 @@ void sdl_init() {
         exit(EXIT_FAILURE);
     }
 
-    font = TTF_OpenFont("font.ttf", 18);
+    font = TTF_OpenFont("font.ttf", fsize);
     if(!font) {
         fprintf(stderr, "Error could not open font: %s\n", TTF_GetError());
         fflush(stderr);
@@ -28,6 +28,10 @@ void sdl_init() {
         exit(EXIT_FAILURE);
     }
     srand(time(0));
+}
+
+void sdl_init() {
+    sdl_init_size(18);
 }
 
 

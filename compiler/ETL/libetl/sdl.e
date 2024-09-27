@@ -1,6 +1,7 @@
 #ifndef __SDLE_H__
 #define __SDLE_H__
 define sdl_init();
+define sdl_init_size(font_Size);
 define sdl_quit();
 define sdl_pump();
 define sdl_release();
