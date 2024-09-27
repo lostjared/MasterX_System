@@ -14,6 +14,7 @@
 #include<random>
 #include"matrix.hpp"
 #include"messagebox.hpp"
+#include"pac_window.hpp"
 
 namespace mx {
 
@@ -538,6 +539,9 @@ namespace mx {
         welcome_help->setSystemBar(system_bar);
         about_window->setSystemBar(system_bar);
         termx->setSystemBar(system_bar);
+
+        PacWindow::main(app, this);
+
         setCurrentDimension(1);
         system_bar->activateDimension(1);
         SDL_Surface *hand_cursor_surf = SDL_LoadBMP(getPath("images/hand.bmp").c_str());

@@ -88,12 +88,14 @@ namespace mx {
         void resizeEvent(int w, int h);
     private:
         SDL_Texture *wallpaper, *matrix_texture = nullptr;
-        std::vector<std::unique_ptr<Screen>> objects;
-        std::vector<std::unique_ptr<Screen>> dimensions;
         DimensionContainer *welcome, *dash;
         DimensionContainer *about;
         DimensionContainer *term, *asteroid, *tetris;
+    public:
+        std::vector<std::unique_ptr<Screen>> objects;
+        std::vector<std::unique_ptr<Screen>> dimensions;
         SystemBar *system_bar;
+    private:
         Window *welcome_window, *welcome_help;
         Window *about_window, *settings_window;
         Button *about_window_ok, *welcome_ok, *toggle_fullscreen, *toggle_matrix;
