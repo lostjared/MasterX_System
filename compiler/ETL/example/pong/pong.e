@@ -1,6 +1,9 @@
 #include<libetl/etl.e>
 #include<libetl/sdl.e>
 
+#define PADDLE1_X 30
+#define PADDLE2_X 610
+
 proc draw_paddle(x, y) {
     sdl_setcolor(255, 255, 255, 255); 
     sdl_fillrect(x, y, 10, 60); 
@@ -26,12 +29,12 @@ proc init() {
     while(sdl_pump()) {
         sdl_setcolor(0, 0, 0, 255);
         sdl_clear();
-        draw_paddle(10, paddle1_y);    
-        draw_paddle(620, paddle2_y);   
+        draw_paddle(PADDLE1_X, paddle1_y);    
+        draw_paddle(PADDLE2_X, paddle2_y);   
         draw_ball(ball_x, ball_y);
         let current_time = sdl_getticks();
         let adjusted = current_time - prev_time;
-        if (adjusted >= 4) { 
+        if (adjusted >= 1000/60) { 
             prev_time = current_time;
             ball_x = ball_x + ball_vel_x;
             ball_y = ball_y + ball_vel_y;
@@ -40,12 +43,11 @@ proc init() {
                 ball_vel_y = -ball_vel_y; 
             }
             
-            if (ball_x <= 20 && ball_y >= paddle1_y && ball_y <= (paddle1_y + 60)) {
+            if (ball_x <= PADDLE1_X+10 && ball_y >= paddle1_y && ball_y <= (paddle1_y + 60)) {
                 ball_vel_x = -ball_vel_x; 
             }
-            
-            
-            if (ball_x >= 610 && ball_y >= paddle2_y && ball_y <= (paddle2_y + 60)) {
+                     
+            if (ball_x >= PADDLE2_X-20 && ball_y >= paddle2_y && ball_y <= (paddle2_y + 60)) {
                 ball_vel_x = -ball_vel_x; 
             }
 
