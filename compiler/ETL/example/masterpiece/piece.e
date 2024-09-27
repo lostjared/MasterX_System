@@ -235,7 +235,7 @@ proc swap_colors(@block) {
 }
 
 proc init() {
-    sdl_init();
+    sdl_init_size(48);
     sdl_create("MasterPiece", TEXTURE_WIDTH, TEXTURE_HEIGHT, WIDTH, HEIGHT);
     srand(time(0));
     let grid = allocate_grid(11, 16);
@@ -304,7 +304,7 @@ proc init() {
         sdl_clear();
         sdl_copytex(game_over_screen, 0, 0, 1440, 1080);
         sdl_setcolor(0, 0, 0, 255);
-        sdl_settextcolor(255, 255, 255 ,255);
+        sdl_settextcolor(rand()%255, rand()%255, rand()%255 ,255);
         sdl_printtext(45, 45, "Game Over Score: " + str(mematl(score, 0)));
         sdl_flip();
     }
