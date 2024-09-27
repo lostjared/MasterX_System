@@ -89,38 +89,98 @@ namespace mx {
         SDL_Rect playerRect = {(playerX * cellWidth)+offset_x, (playerY * cellHeight)+offset_y, cellWidth, cellHeight};
         SDL_SetRenderDrawColor(app.ren, 0, 0, 255, 255); 
         SDL_RenderFillRect(app.ren, &playerRect);
-
-        app.printText(10, 10, "Poss :" + std::to_string(playerX) + " y: " + std::to_string(playerY), {255,255,255,255});
+        
+        static Uint32 last = SDL_GetTicks();
+        Uint32 current = SDL_GetTicks();
+        if(current-last >= 100) {
+            movementLogic();  
+            last = current;  
+        }
     }
 
     bool PacWindow::event(mxApp &app, SDL_Event &e) {
         if (e.type == SDL_KEYDOWN) {
             switch (e.key.keysym.sym) {
                 case SDLK_UP:
-                    movePlayer(0, -1);
+                    nextDirection = Direction::DIR_UP;
                     break;
                 case SDLK_DOWN:
-                    movePlayer(0, 1);
+                    nextDirection = Direction::DIR_DOWN;
                     break;
                 case SDLK_LEFT:
-                    movePlayer(-1, 0);
+                    nextDirection = Direction::DIR_LEFT;
                     break;
                 case SDLK_RIGHT:
-                    movePlayer(1, 0);
+                    nextDirection = Direction::DIR_RIGHT;
                     break;
             }
         }
         return Window::event(app, e);
     }
 
-    void PacWindow::movePlayer(int dx, int dy) {
+    bool PacWindow::movePlayer(int dx, int dy) {
         int newX = playerX + dx;
         int newY = playerY + dy;
 
         if (grid[newY][newX] != 1) {
             playerX = newX;
             playerY = newY;
+            return true;
         }
+        return false;
+    }
+
+    void PacWindow::movementLogic() {
+
+         if (nextDirection != direction) {
+            switch(nextDirection) {
+                case Direction::DIR_LEFT:
+                    if (movePlayer(-1, 0)) {
+                        direction = Direction::DIR_LEFT;
+                        return;
+                    }
+                    break;
+                case Direction::DIR_RIGHT:
+                    if (movePlayer(1, 0)) {
+                        direction = Direction::DIR_RIGHT;
+                        return;
+                    }
+                    break;
+                case Direction::DIR_UP:
+                    if (movePlayer(0, -1)) {
+                        direction = Direction::DIR_UP;
+                        return;
+                    }
+                    break;
+                case Direction::DIR_DOWN:
+                    if (movePlayer(0, 1)) {
+                        direction = Direction::DIR_DOWN;
+                        return;
+                    }
+                    break;
+            }
+        }
+        int dx = 0, dy = 0;
+
+        switch(direction) {
+            case Direction::DIR_LEFT:
+                dx = -1;
+                break;
+            case Direction::DIR_RIGHT:
+                dx = 1;
+                break;
+            case Direction::DIR_UP:
+                dy = -1;
+                break;
+            case Direction::DIR_DOWN:
+                dy = 1;
+                break;
+        }
+
+        if (movePlayer(dx, dy)) {
+            return;  
+        }
+
     }
 
     void PacWindow::screenResize(int w, int h) {

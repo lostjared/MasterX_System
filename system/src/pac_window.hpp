@@ -9,6 +9,8 @@ namespace mx {
     class DimensionContainer;
     class Dimension;
 
+    enum class Direction { DIR_LEFT, DIR_RIGHT, DIR_UP, DIR_DOWN };
+
     class PacWindow : public mx::Window {
     public:
         PacWindow(mxApp &app);
@@ -21,7 +23,7 @@ namespace mx {
         void initializeGame();
         void update();
         void drawGrid(mxApp &app);
-        void movePlayer(int dx, int dy);
+        bool movePlayer(int dx, int dy);
 
         static void main(mxApp &app, Dimension *dim);
         static DimensionContainer *dim_c;
@@ -31,6 +33,9 @@ namespace mx {
         int playerX, playerY;
         std::vector<std::vector<int>> grid;
         SDL_Texture *draw_tex;
+        Direction direction = Direction::DIR_RIGHT;
+        Direction nextDirection = Direction::DIR_RIGHT;
+        void movementLogic();
     };
 
 }
