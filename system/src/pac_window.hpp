@@ -36,6 +36,7 @@ namespace mx {
         Direction direction = Direction::DIR_RIGHT;
         Direction nextDirection = Direction::DIR_RIGHT;
         void movementLogic();
+        void drawCharacter(SDL_Renderer* renderer, int x, int y, int radius);
     };
 
 }

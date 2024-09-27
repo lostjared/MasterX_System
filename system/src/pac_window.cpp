@@ -85,16 +85,75 @@ namespace mx {
                 SDL_RenderFillRect(app.ren, &cell);
             }
         }
-
-        SDL_Rect playerRect = {(playerX * cellWidth)+offset_x, (playerY * cellHeight)+offset_y, cellWidth, cellHeight};
-        SDL_SetRenderDrawColor(app.ren, 0, 0, 255, 255); 
-        SDL_RenderFillRect(app.ren, &playerRect);
-        
+        SDL_SetRenderDrawColor(app.ren, 150, 150, 0, 255);
+        drawCharacter(app.ren, playerX, playerY, 8);
         static Uint32 last = SDL_GetTicks();
         Uint32 current = SDL_GetTicks();
         if(current-last >= 100) {
             movementLogic();  
             last = current;  
+        }
+    }
+
+    void PacWindow::drawCharacter(SDL_Renderer* renderer, int playerX, int playerY, int radius) {
+
+        static bool mouthOpening = true;
+        static int  angle = 0;
+        if (mouthOpening) {
+            angle += 2; 
+            if (angle >= 45) {
+                mouthOpening = false; 
+            }
+        } else {
+            angle -= 2; 
+            if (angle <= 0) {
+                mouthOpening = true; 
+            }
+        }
+        int cellWidth = 22; 
+        int cellHeight = 15;
+        int offset_x = 13;
+        int offset_y = 20;
+
+        int centerX = (playerX * cellWidth) + (cellWidth / 2);
+        int centerY = (playerY * cellHeight) + (cellHeight / 2);
+        centerX += offset_x;
+        centerY += offset_y;
+        int drawX = centerX - radius;
+        int drawY = centerY - radius;
+
+        double startAngle = 0.0, endAngle = 0.0;
+
+        switch(direction) {
+            case Direction::DIR_LEFT:
+                startAngle = -angle / 2;
+                endAngle = angle / 2;
+                break;
+            case Direction::DIR_RIGHT:
+                startAngle = 180 - (angle / 2);
+                endAngle = 180 + (angle / 2);
+                break;
+            case Direction::DIR_UP:
+                startAngle = 90 - (angle / 2);
+                endAngle = 90 + (angle / 2);
+                break;
+            case Direction::DIR_DOWN:
+                startAngle = -90 - (angle / 2);
+                endAngle = -90 + (angle / 2);
+                break;
+        }
+
+        for (int w = 0; w < radius * 2; w++) {
+            for (int h = 0; h < radius * 2; h++) {
+                int dx = radius - w;
+                int dy = radius - h;
+                if ((dx * dx + dy * dy) <= (radius * radius)) {
+                    double theta = atan2(dy, dx) * 180 / M_PI;
+                    if (theta < startAngle || theta > endAngle) {
+                        SDL_RenderDrawPoint(renderer, drawX + w, drawY + h);
+                    }
+                }
+            }
         }
     }
 
