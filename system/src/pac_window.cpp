@@ -103,34 +103,38 @@ namespace mx {
         int cellHeight = 15;
         int offset_x = 13;
         int offset_y = 20;
-        int wallThickness = 3;
- 
+        int wallThickness = 4;
+        int halfWall = wallThickness / 2;
+
         for (int y = 0; y < static_cast<int>(grid.size()); ++y) {
             for (int x = 0; x < static_cast<int>(grid[y].size()); ++x) {
-                SDL_Rect cell = {(x * cellWidth) + offset_x, (y * cellHeight) + offset_y, cellWidth, cellHeight};
-
                 if (grid[y][x] == 1) {
-                    SDL_SetRenderDrawColor(app.ren, 0, 0, 255, 255);
-                    if (y > 0 && grid[y - 1][x] != 1) {
-                        SDL_Rect topWall = {cell.x, cell.y, cell.w, wallThickness};
+                    SDL_SetRenderDrawColor(app.ren, 0, 0, 255, 255);    
+                    int cellX = (x * cellWidth) + offset_x;
+                    int cellY = (y * cellHeight) + offset_y;
+
+                    if (y == 0 || grid[y - 1][x] != 1) {
+                        SDL_Rect topWall = { cellX - halfWall, cellY - halfWall, cellWidth + wallThickness, wallThickness };
                         SDL_RenderFillRect(app.ren, &topWall);
                     }
-                    if (y < static_cast<int>(grid.size()) - 1 && grid[y + 1][x] != 1) {
-                        SDL_Rect bottomWall = {cell.x, cell.y + cell.h - wallThickness, cell.w, wallThickness};
-                        SDL_RenderFillRect(app.ren, &bottomWall);
-                    }
-                    if (x > 0 && grid[y][x - 1] != 1) {
-                        SDL_Rect leftWall = {cell.x, cell.y, wallThickness, cell.h};
+
+                    if (x == 0 || grid[y][x - 1] != 1) {
+                        SDL_Rect leftWall = { cellX - halfWall, cellY - halfWall, wallThickness, cellHeight + wallThickness };
                         SDL_RenderFillRect(app.ren, &leftWall);
                     }
-                    if (x < static_cast<int>(grid[y].size()) - 1 && grid[y][x + 1] != 1) {
-                        SDL_Rect rightWall = {cell.x + cell.w - wallThickness, cell.y, wallThickness, cell.h};
+
+                    if (y == static_cast<int>(grid.size()) - 1 || grid[y + 1][x] != 1) {
+                        SDL_Rect bottomWall = { cellX - halfWall, cellY + cellHeight - halfWall, cellWidth + wallThickness, wallThickness };
+                        SDL_RenderFillRect(app.ren, &bottomWall);
+                    }
+
+                    if (x == static_cast<int>(grid[y].size()) - 1 || grid[y][x + 1] != 1) {
+                        SDL_Rect rightWall = { cellX + cellWidth - halfWall, cellY - halfWall, wallThickness, cellHeight + wallThickness };
                         SDL_RenderFillRect(app.ren, &rightWall);
                     }
                 }
             }
         }
-
         for (int y = 0; y < static_cast<int>(grid.size()); ++y) {
             for (int x = 0; x < static_cast<int>(grid[y].size()); ++x) {
                 if (pellet_grid[y][x] == 0) {
