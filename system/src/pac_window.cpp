@@ -1,5 +1,6 @@
 #include "pac_window.hpp"
 #include "dimension.hpp"
+#include "messagebox.hpp"
 
 namespace mx {
 
@@ -15,7 +16,9 @@ namespace mx {
     }
 
     void PacWindow::initializeGame() {
-        grid = {
+        grid.clear();
+        pellet_grid.clear();
+        static const std::vector<std::vector<int>> cgrid {
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
             {1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1}, 
             {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1}, 
@@ -47,7 +50,7 @@ namespace mx {
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}  
         };
 
-         pellet_grid = {
+         static const std::vector<std::vector<int>> cpellet_grid {
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
             {1, 2, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 2, 1}, 
             {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1}, 
@@ -78,6 +81,9 @@ namespace mx {
             {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1}, 
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}  
         };
+        
+        grid = cgrid;
+        pellet_grid = cpellet_grid;
     }
     
     void PacWindow::draw(mxApp &app) {
@@ -166,7 +172,7 @@ namespace mx {
                 time_remaining --;
         }
 
-        app.printText(5, 5, "Score: " + std::to_string(score), {255,255,255,255});
+        app.printText(5, 5, "Lives: " + std::to_string(lives) + " Score: " + std::to_string(score), {255,255,255,255});
     }
 
     void PacWindow::drawCharacter(SDL_Renderer* renderer, int playerX, int playerY, int radius) {
@@ -359,10 +365,10 @@ namespace mx {
     void PacWindow::main(mxApp &app, Dimension *dim) {
         dim->dimensions.push_back(std::make_unique<DimensionContainer>(app));
         dim_c = dynamic_cast<DimensionContainer *>(dim->dimensions[dim->dimensions.size()-1].get());
-        dim_c->init(dim->system_bar, "PacAttack", loadTexture(app, "images/codespiral.png"));
+        dim_c->init(dim->system_bar, "PacAttack", loadTexture(app, "images/pacwall.png"));
         dim_c->setActive(false);
         dim_c->setVisible(false);
-        dim_c->setIcon(loadTexture(app, "images/xicon.png"));
+        dim_c->setIcon(loadTexture(app, "images/ghost.png"));
         dim_c->objects.push_back(std::make_unique<PacWindow>(app));
         pac_window = dynamic_cast<PacWindow *>(dim_c->objects[dim_c->objects.size()-1].get());
         const int baseWidth = 1280;
@@ -377,8 +383,32 @@ namespace mx {
         int windowPosY = (screenHeight - windowHeight) / 2;
         pac_window->create(dim_c, "PacAttack", windowPosX, windowPosY, windowWidth, windowHeight);
         dim_c->events.addWindow(pac_window);
+        pac_window->setIcon(loadTexture(app, "images/ghost.png"));
         pac_window->setSystemBar(dim->system_bar);
+        pac_window->setReload(true);
+        pac_window->setCanResize(false);
+
+        Menu_ID game_id = pac_window->menu.addHeader(create_header("Game"));
+        pac_window->menu.addItem(game_id, pac_window->menu.addIcon(loadTexture(app, "images/ghost.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            static PacWindow *p = nullptr;
+            p = dynamic_cast<PacWindow *>(win);
+            MessageBox::OkCancelMessageBox(app, win->dim, "Start a new game?", "Start a new game?", [&](mxApp &app, Window *win, int ok) -> bool {
+                p->newGame();
+                return true;
+            });
+            return true;
+        }));
+
         pac_window->show(true);
+    }
+
+    void PacWindow::newGame() {
+        score = 0;
+        time_remaining = 0;
+        initializeGame();
+        lives = 3;
+        playerX = 5;
+        playerY = 5;
     }
 
 }
