@@ -49,7 +49,7 @@ namespace mx {
 
          pellet_grid = {
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
-            {1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1}, 
+            {1, 2, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 2, 1}, 
             {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1}, 
             {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1}, 
             {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
@@ -62,7 +62,7 @@ namespace mx {
             {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}, 
             {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
             {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}, 
-            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1}, 
             {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}, 
             {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
             {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1}, 
@@ -75,7 +75,7 @@ namespace mx {
             {1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, 
             {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
             {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}, 
-            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1}, 
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}  
         };
     }
@@ -142,18 +142,31 @@ namespace mx {
                     int centerY = offset_y+((y * cellHeight) + (cellHeight / 2));
                     SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
                     drawCircle(app.ren, centerX, centerY, 2);
+                } else if(pellet_grid[y][x] == 2) {
+                    int centerX = offset_x+((x * cellWidth) + (cellWidth / 2));
+                    int centerY = offset_y+((y * cellHeight) + (cellHeight / 2));
+                    SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
+                    drawCircle(app.ren, centerX, centerY, 4);
                 }
             }
         }
 
-        SDL_SetRenderDrawColor(app.ren, 150, 150, 0, 255);
+        if(time_remaining == 0)
+            SDL_SetRenderDrawColor(app.ren, 150, 150, 0, 255);
+        else if(time_remaining > 0)
+            SDL_SetRenderDrawColor(app.ren,rand()%255, rand()%255, rand()%255, 255);
+
         drawCharacter(app.ren, playerX, playerY, 8);
         static Uint32 last = SDL_GetTicks();
         Uint32 current = SDL_GetTicks();
         if(current-last >= 100) {
             movementLogic();  
             last = current;  
+            if(time_remaining > 0)
+                time_remaining --;
         }
+
+        app.printText(5, 5, "Score: " + std::to_string(score), {255,255,255,255});
     }
 
     void PacWindow::drawCharacter(SDL_Renderer* renderer, int playerX, int playerY, int radius) {
@@ -260,6 +273,11 @@ namespace mx {
             playerY = newY;
             if(pellet_grid[playerY][playerX] == 0) {
                 pellet_grid[playerY][playerX] = -1;
+                score += 1;
+            } else if(pellet_grid[playerY][playerX] == 2) {
+                pellet_grid[playerY][playerX] = -1;
+                time_remaining = 50;
+                score += 20;
             }
             return true;
         }

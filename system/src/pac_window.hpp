@@ -36,6 +36,8 @@ namespace mx {
         SDL_Texture *draw_tex;
         Direction direction = Direction::DIR_RIGHT;
         Direction nextDirection = Direction::DIR_RIGHT;
+        Uint32 time_remaining = 0;
+        Uint32 score = 0;
         void movementLogic();
         void drawCharacter(SDL_Renderer* renderer, int x, int y, int radius);
         void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius);
