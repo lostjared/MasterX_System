@@ -14,8 +14,11 @@ debug_flag=""
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
+    -q)
+      debug_flag+="-q "
+      ;;
     -d)
-      debug_flag="-d"
+      debug_flag+="-d "
       ;;
     --)
       shift
@@ -41,7 +44,7 @@ while [[ "$#" -gt 0 ]]; do
         echo "Assembling failed for ${base_name}.s"
         exit 1
       else
-        echo "Assembled ${base_name}.s to ${base_name}.o"
+        echo "Assembled [${base_name}.s -> ${base_name}.o]"
       fi
 
       temp_o_files+=("${base_name}.o")

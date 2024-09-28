@@ -9,7 +9,7 @@
 
 extern void outputDebugInfo(std::ostream &file, symbol::SymbolTable &table, const ir::IRCode &code);
 
-void test_parse(const std::string &filename, const std::string &out_file, bool debug_info) {
+void test_parse(const std::string &filename, const std::string &out_file, bool debug_info, bool quiet_mode) {
     std::fstream file;
     file.open(filename, std::ios::in);
     if(!file.is_open()) {
@@ -33,9 +33,13 @@ void test_parse(const std::string &filename, const std::string &out_file, bool d
                             auto irContext = irGen.generateIR(rootAST);  
                             ir::IROptimizer opt;
                             irContext.instructions = std::move(opt.optimize(irContext.instructions));
-                            std::cout << "ETL: IR code: {\n";
-                            for (const auto &instr : irContext.instructions) {
-                                std::cout << "\t" << instr.toString() << "\n";
+                            if(!quiet_mode) {
+                                std::cout << "ETL: IR code: {\n";
+                                for (const auto &instr : irContext.instructions) {
+                                    std::cout << "\t" << instr.toString() << "\n";
+                                }
+                            } else {
+                                std::cout << "ETL: IR code: [generated]\n";
                             }
                             if(debug_info == true) {
                                 std::fstream file;
@@ -53,12 +57,12 @@ void test_parse(const std::string &filename, const std::string &out_file, bool d
                             ofile.open(out_file, std::ios::out);
                             ofile << text << "\n";
                             ofile.close();
-                            
-                            std::cout << "}\n";
+                            if(!quiet_mode) 
+                                std::cout << "}\n";
                             if(debug_info == true)
                                 std::cout << "ETL: outputted debug info [debug.html]\n";
 
-                            std::cout << "ETL: compiled [" << out_file << "]\n";
+                            std::cout << "ETL: compiled [" << filename << " -> " << out_file << "]\n";
                             exit(EXIT_SUCCESS);
                             
                 }
