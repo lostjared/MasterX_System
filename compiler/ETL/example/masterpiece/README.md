@@ -16,9 +16,14 @@ The objective is to line up 3 blocks in a row, either horizontally, vertically, 
 
 Challenge yourself to keep clearing blocks and avoid letting the screen overflow!
 
+## Requirements
+
+ETL, SDL2, SDL2_ttf
+
 ## How to Compile
 
 To compile this, ensure you installed the ETL compiler by building it from the source code.
+When building ETL using -DWITH_SDL=ON flag when configuring with CMake to turn on SDL.
 Currently, the platforms it supports are Linux, macOS, and WSL2 on Windows (Ubuntu 24.04).
 Enter the directory containing this source code and type
 
