@@ -11,7 +11,7 @@ This script automates the process of compiling `.e` files using the `ETL_C` tool
 ## Usage
 
 ```bash
-etl output_executable file1.e [file2.e ... | file3.o ...] [-- linker_flags] [-d]
+etl output_executable file1.e [file2.e ... | file3.o ...] [-- linker_flags] [-d] -[q]
 ```
 
 ### Parameters:
@@ -21,6 +21,7 @@ etl output_executable file1.e [file2.e ... | file3.o ...] [-- linker_flags] [-d]
 - `--`: Specifies the start of linker flags (optional).
 - `linker_flags`: Custom linker flags for the final linking step (optional).
 - `-d`: Enables debug mode for `ETL_C` (optional).
+- `-q`: Enables quiet mode (Don't output IR code to stdout)
 
 ### Example:
 ```bash
