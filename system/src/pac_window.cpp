@@ -46,6 +46,38 @@ namespace mx {
             {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
             {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}  
         };
+
+         pellet_grid = {
+            {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1}, 
+            {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1}, 
+            {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1}, 
+            {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, 
+            {1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, 
+            {1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1}, 
+            {1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, 
+            {1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, 
+            {1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}, 
+            {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, 
+            {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}  
+        };
     }
     
     void PacWindow::draw(mxApp &app) {
@@ -71,20 +103,45 @@ namespace mx {
         int cellHeight = 15;
         int offset_x = 13;
         int offset_y = 20;
+        int wallThickness = 3;
+ 
+        for (int y = 0; y < static_cast<int>(grid.size()); ++y) {
+            for (int x = 0; x < static_cast<int>(grid[y].size()); ++x) {
+                SDL_Rect cell = {(x * cellWidth) + offset_x, (y * cellHeight) + offset_y, cellWidth, cellHeight};
+
+                if (grid[y][x] == 1) {
+                    SDL_SetRenderDrawColor(app.ren, 0, 0, 255, 255);
+                    if (y > 0 && grid[y - 1][x] != 1) {
+                        SDL_Rect topWall = {cell.x, cell.y, cell.w, wallThickness};
+                        SDL_RenderFillRect(app.ren, &topWall);
+                    }
+                    if (y < static_cast<int>(grid.size()) - 1 && grid[y + 1][x] != 1) {
+                        SDL_Rect bottomWall = {cell.x, cell.y + cell.h - wallThickness, cell.w, wallThickness};
+                        SDL_RenderFillRect(app.ren, &bottomWall);
+                    }
+                    if (x > 0 && grid[y][x - 1] != 1) {
+                        SDL_Rect leftWall = {cell.x, cell.y, wallThickness, cell.h};
+                        SDL_RenderFillRect(app.ren, &leftWall);
+                    }
+                    if (x < static_cast<int>(grid[y].size()) - 1 && grid[y][x + 1] != 1) {
+                        SDL_Rect rightWall = {cell.x + cell.w - wallThickness, cell.y, wallThickness, cell.h};
+                        SDL_RenderFillRect(app.ren, &rightWall);
+                    }
+                }
+            }
+        }
 
         for (int y = 0; y < static_cast<int>(grid.size()); ++y) {
             for (int x = 0; x < static_cast<int>(grid[y].size()); ++x) {
-                SDL_Rect cell = {(x * cellWidth)+offset_x, (y * cellHeight)+offset_y, cellWidth, cellHeight};
-                if (grid[y][x] == 1) {
-                    SDL_SetRenderDrawColor(app.ren, 155, 155, 155, 255);                 
-                } else if (grid[y][x] == 2) {
-                    SDL_SetRenderDrawColor(app.ren, 255, 255, 0, 255); 
-                } else {
-                    SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255); 
+                if (pellet_grid[y][x] == 0) {
+                    int centerX = offset_x+((x * cellWidth) + (cellWidth / 2));
+                    int centerY = offset_y+((y * cellHeight) + (cellHeight / 2));
+                    SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
+                    drawCircle(app.ren, centerX, centerY, 2);
                 }
-                SDL_RenderFillRect(app.ren, &cell);
             }
         }
+
         SDL_SetRenderDrawColor(app.ren, 150, 150, 0, 255);
         drawCharacter(app.ren, playerX, playerY, 8);
         static Uint32 last = SDL_GetTicks();
@@ -157,6 +214,19 @@ namespace mx {
         }
     }
 
+    void PacWindow::drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
+        for (int w = 0; w < radius * 2; w++) {
+            for (int h = 0; h < radius * 2; h++) {
+                int dx = radius - w;
+                int dy = radius - h;
+                if ((dx * dx + dy * dy) <= (radius * radius)) {
+                    SDL_RenderDrawPoint(renderer, centerX + dx, centerY + dy);
+                }
+            }
+        }
+    }
+
+
     bool PacWindow::event(mxApp &app, SDL_Event &e) {
         if (e.type == SDL_KEYDOWN) {
             switch (e.key.keysym.sym) {
@@ -184,6 +254,9 @@ namespace mx {
         if (grid[newY][newX] != 1) {
             playerX = newX;
             playerY = newY;
+            if(pellet_grid[playerY][playerX] == 0) {
+                pellet_grid[playerY][playerX] = -1;
+            }
             return true;
         }
         return false;

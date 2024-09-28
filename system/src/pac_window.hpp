@@ -32,11 +32,13 @@ namespace mx {
     private:
         int playerX, playerY;
         std::vector<std::vector<int>> grid;
+        std::vector<std::vector<int>> pellet_grid;
         SDL_Texture *draw_tex;
         Direction direction = Direction::DIR_RIGHT;
         Direction nextDirection = Direction::DIR_RIGHT;
         void movementLogic();
         void drawCharacter(SDL_Renderer* renderer, int x, int y, int radius);
+        void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius);
     };
 
 }
