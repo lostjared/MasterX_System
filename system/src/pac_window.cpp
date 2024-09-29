@@ -6,7 +6,7 @@ namespace mx {
 
     PacWindow::PacWindow(mxApp &app) : Window(app), playerX(5), playerY(5) {
         initializeGame();
-        draw_tex = SDL_CreateTexture(app.ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 640, 480);
+        draw_tex = SDL_CreateTexture(app.ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 875, 640);
     }
 
     PacWindow::~PacWindow(){
@@ -84,6 +84,8 @@ namespace mx {
         
         grid = cgrid;
         pellet_grid = cpellet_grid;
+        clearGhosts();
+        initGhosts();
     }
     
     void PacWindow::draw(mxApp &app) {
@@ -105,12 +107,8 @@ namespace mx {
         SDL_RenderCopy(app.ren, draw_tex, nullptr, &drc);
     }
     void PacWindow::drawGrid(mxApp &app) {
-        int cellWidth = 22;
-        int cellHeight = 15;
-        int offset_x = 13;
-        int offset_y = 20;
-        int wallThickness = 4;
-        int halfWall = wallThickness / 2;
+        int wallThickness = 2;
+        int halfWall = 1;  
 
         for (int y = 0; y < static_cast<int>(grid.size()); ++y) {
             for (int x = 0; x < static_cast<int>(grid[y].size()); ++x) {
@@ -157,12 +155,17 @@ namespace mx {
             }
         }
 
+        drawGhosts(app);
+
         if(time_remaining == 0)
             SDL_SetRenderDrawColor(app.ren, 150, 150, 0, 255);
         else if(time_remaining > 0)
             SDL_SetRenderDrawColor(app.ren,rand()%255, rand()%255, rand()%255, 255);
-
+        
         drawCharacter(app.ren, playerX, playerY, 8);
+       
+        
+        
         static Uint32 last = SDL_GetTicks();
         Uint32 current = SDL_GetTicks();
         if(current-last >= 100) {
@@ -170,9 +173,41 @@ namespace mx {
             last = current;  
             if(time_remaining > 0)
                 time_remaining --;
-        }
 
+            if(ghosts.size() == 0) {
+                newGame();
+            }
+
+        
+        }
+        
         app.printText(5, 5, "Lives: " + std::to_string(lives) + " Score: " + std::to_string(score), {255,255,255,255});
+    }
+
+    void PacWindow::checkColide() {
+        SDL_Rect pacmanRect = {playerX * cellWidth + offset_x, playerY * cellHeight + offset_y, cellWidth, cellHeight};
+        for(auto g = ghosts.begin(); g != ghosts.end(); ++g) {
+            SDL_Rect ghostRect = {g->x * cellWidth + offset_x, g->y * cellHeight + offset_y, cellWidth, cellHeight};
+            if (SDL_HasIntersection(&pacmanRect, &ghostRect)) {
+                if(time_remaining > 0) {
+                    ghosts.erase(g);
+                    return;
+                }
+                else {
+                    
+                    lives--;
+                    if(lives == 0) {
+                        newGame();
+                    } else {
+                        clearGhosts();
+                        initGhosts();
+                        playerX = 5;
+                        playerY = 5;
+                    }
+                }
+                return;
+            }
+        }
     }
 
     void PacWindow::drawCharacter(SDL_Renderer* renderer, int playerX, int playerY, int radius) {
@@ -190,11 +225,6 @@ namespace mx {
                 mouthOpening = true; 
             }
         }
-        int cellWidth = 22; 
-        int cellHeight = 15;
-        int offset_x = 13;
-        int offset_y = 20;
-
         int centerX = (playerX * cellWidth) + (cellWidth / 2);
         int centerY = (playerY * cellHeight) + (cellHeight / 2);
         centerX += offset_x;
@@ -266,6 +296,7 @@ namespace mx {
                     nextDirection = Direction::DIR_RIGHT;
                     break;
             }
+            return true;
         }
         return Window::event(app, e);
     }
@@ -291,6 +322,8 @@ namespace mx {
     }
 
     void PacWindow::movementLogic() {
+        moveGhosts();
+        checkColide();
 
          if (nextDirection != direction) {
             switch(nextDirection) {
@@ -338,6 +371,7 @@ namespace mx {
         }
 
         if (movePlayer(dx, dy)) {
+            checkColide();
             return;  
         }
 
@@ -351,11 +385,11 @@ namespace mx {
         int screenHeight = h;
         float scaleX = static_cast<float>(screenWidth) / baseWidth;
         float scaleY = static_cast<float>(screenHeight) / baseHeight;
-        int windowWidth = static_cast<int>(640 * scaleX);
-        int windowHeight = static_cast<int>(480 * scaleY);
+        int windowWidth = static_cast<int>(800 * scaleX);
+        int windowHeight = static_cast<int>(600 * scaleY);
         int windowPosX = (screenWidth - windowWidth) / 2;
         int windowPosY = (screenHeight - windowHeight) / 2;
-        SDL_Rect rc={windowPosX, windowPosY, windowWidth, windowHeight};
+        SDL_Rect rc={windowPosX, windowPosY-25, windowWidth, windowHeight};
         this->setRect(rc);
     }
 
@@ -377,11 +411,11 @@ namespace mx {
         int screenHeight = app.height;
         float scaleX = static_cast<float>(screenWidth) / baseWidth;
         float scaleY = static_cast<float>(screenHeight) / baseHeight;
-        int windowWidth = static_cast<int>(640 * scaleX);
-        int windowHeight = static_cast<int>(480 * scaleY);
+        int windowWidth = static_cast<int>(800 * scaleX);
+        int windowHeight = static_cast<int>(600 * scaleY);
         int windowPosX = (screenWidth - windowWidth) / 2;
         int windowPosY = (screenHeight - windowHeight) / 2;
-        pac_window->create(dim_c, "PacAttack", windowPosX, windowPosY, windowWidth, windowHeight);
+        pac_window->create(dim_c, "PacAttack", windowPosX, windowPosY-50, windowWidth, windowHeight);
         dim_c->events.addWindow(pac_window);
         pac_window->setIcon(loadTexture(app, "images/ghost.png"));
         pac_window->setSystemBar(dim->system_bar);
@@ -411,4 +445,125 @@ namespace mx {
         playerY = 5;
     }
 
+    void PacWindow::initGhosts() {
+        Ghost ghost1 = {13, 12, Direction::DIR_DOWN, 1, {0, 0, 255, 255}};   // Inky (Blue)
+        Ghost ghost2 = {14, 12, Direction::DIR_DOWN, 1, {255, 0, 0, 255}};   // Blinky (Red)
+        Ghost ghost3 = {13, 8, Direction::DIR_UP, 1, {255, 184, 255, 255}};  // Pinky (Pink)
+        Ghost ghost4 = {14, 8, Direction::DIR_UP, 1, {255, 184, 82, 255}};   // Clyde (Orange)        
+        ghosts.push_back(ghost1);
+        ghosts.push_back(ghost2);
+        ghosts.push_back(ghost3);
+        ghosts.push_back(ghost4);
+    }
+    void PacWindow::clearGhosts() {
+        ghosts.clear();
+    }
+
+    void PacWindow::moveGhosts() {
+        for (auto &g : ghosts) {
+            int newX = g.x, newY = g.y;
+            
+            switch (g.direction) {
+                case Direction::DIR_UP:
+                    newY -= g.speed;
+                    break;
+                case Direction::DIR_DOWN:
+                    newY += g.speed;
+                    break;
+                case Direction::DIR_LEFT:
+                    newX -= g.speed;
+                    break;
+                case Direction::DIR_RIGHT:
+                    newX += g.speed;
+                    break;
+            }
+
+            if (grid[newY][newX] != 1) {
+                g.x = newX;
+                g.y = newY;
+            } else {
+                g.direction = static_cast<Direction>(rand()%4);
+            }
+        }
+    }
+
+    void PacWindow::drawGhosts(mxApp &app) {
+
+        for(auto &g : ghosts) {
+
+            int centerX = (g.x * cellWidth) + (20 / 2) + offset_x;
+            int centerY = (g.y * cellHeight) + (14 / 2) + offset_y;
+            drawGhost(app.ren, centerX, centerY, 20, 14, g.color);
+
+        }
+    }
+
+    void PacWindow::drawGhost(SDL_Renderer* renderer, int x, int y, int width, int height, SDL_Color color) {
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        int radius = width / 2;
+        for (int w = 0; w < radius * 2; w++) {
+            for (int h = 0; h < radius; h++) {
+                int dx = radius - w;
+                int dy = radius - h;
+                if ((dx * dx + dy * dy) <= (radius * radius)) {
+                    SDL_RenderDrawPoint(renderer, x + w, y + h);
+                }
+            }
+        }
+        SDL_Rect bodyRect = {x, y + radius, width, height - radius};
+        SDL_RenderFillRect(renderer, &bodyRect);
+        int zigZagHeight = height / 6;
+        int numZigs = 3;
+        for (int i = 0; i < numZigs; i++) {
+            int startX = x + (i * (width / numZigs));
+            int endX = startX + (width / numZigs);
+            int topY = y + height - zigZagHeight;
+            int bottomY = y + height;
+            SDL_RenderDrawLine(renderer, startX, topY, (startX + endX) / 2, bottomY);
+            SDL_RenderDrawLine(renderer, (startX + endX) / 2, bottomY, endX, topY);
+        }
+        
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        int eyeRadius = width / 8;
+        int eyeOffsetX = width / 4;
+        int eyeOffsetY = height / 6;
+        for (int w = 0; w < eyeRadius * 2; w++) {
+            for (int h = 0; h < eyeRadius * 2; h++) {
+                int dx = eyeRadius - w;
+                int dy = eyeRadius - h;
+                if ((dx * dx + dy * dy) <= (eyeRadius * eyeRadius)) {
+                    SDL_RenderDrawPoint(renderer, x + eyeOffsetX + w, y + eyeOffsetY + h);
+                }
+            }
+        }
+        for (int w = 0; w < eyeRadius * 2; w++) {
+            for (int h = 0; h < eyeRadius * 2; h++) {
+                int dx = eyeRadius - w;
+                int dy = eyeRadius - h;
+                if ((dx * dx + dy * dy) <= (eyeRadius * eyeRadius)) {
+                    SDL_RenderDrawPoint(renderer, x + width - eyeOffsetX - eyeRadius + w, y + eyeOffsetY + h);
+                }
+            }
+        }
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        int pupilRadius = width / 16;
+        for (int w = 0; w < pupilRadius * 2; w++) {
+            for (int h = 0; h < pupilRadius * 2; h++) {
+                int dx = pupilRadius - w;
+                int dy = pupilRadius - h;
+                if ((dx * dx + dy * dy) <= (pupilRadius * pupilRadius)) {
+                    SDL_RenderDrawPoint(renderer, x + eyeOffsetX + eyeRadius / 2 + w, y + eyeOffsetY + pupilRadius + h);
+                }
+            }
+        }
+        for (int w = 0; w < pupilRadius * 2; w++) {
+            for (int h = 0; h < pupilRadius * 2; h++) {
+                int dx = pupilRadius - w;
+                int dy = pupilRadius - h;
+                if ((dx * dx + dy * dy) <= (pupilRadius * pupilRadius)) {
+                    SDL_RenderDrawPoint(renderer, x + width - eyeOffsetX - eyeRadius + eyeRadius / 2 + w, y + eyeOffsetY + pupilRadius + h);
+                }
+            }
+        }
+    }
 }

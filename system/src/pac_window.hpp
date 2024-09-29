@@ -34,15 +34,34 @@ namespace mx {
         int playerX = 0, playerY = 0;
         std::vector<std::vector<int>> grid;
         std::vector<std::vector<int>> pellet_grid;
+        struct Ghost {
+            int x = 0;
+            int y = 0;
+            Direction direction = Direction::DIR_LEFT;
+            int speed = 0;
+            SDL_Color color = {0};
+        };
+        std::vector<Ghost> ghosts;
         SDL_Texture *draw_tex;
         Direction direction = Direction::DIR_RIGHT;
         Direction nextDirection = Direction::DIR_RIGHT;
         Uint32 time_remaining = 0;
         Uint32 score = 0;
         Uint32 lives = 3;
+        int cellWidth = 30;
+        int cellHeight = 20;
+        int offset_x = 16;
+        int offset_y = 25;
+  
         void movementLogic();
         void drawCharacter(SDL_Renderer* renderer, int x, int y, int radius);
         void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius);
+        void drawGhost(SDL_Renderer* renderer, int x, int y, int width, int height, SDL_Color color);
+        void initGhosts();
+        void clearGhosts();
+        void drawGhosts(mxApp &app);
+        void moveGhosts();
+        void checkColide();
     };
 
 }
