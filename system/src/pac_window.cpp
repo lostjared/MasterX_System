@@ -177,16 +177,34 @@ namespace mx {
             if(ghosts.size() == 0) {
                 newGame();
             }
-
-        
         }
-        
+        checkColide();
         app.printText(5, 5, "Lives: " + std::to_string(lives) + " Score: " + std::to_string(score), {255,255,255,255});
     }
 
     void PacWindow::checkColide() {
         SDL_Rect pacmanRect = {playerX * cellWidth + offset_x, playerY * cellHeight + offset_y, cellWidth, cellHeight};
         for(auto g = ghosts.begin(); g != ghosts.end(); ++g) {
+
+            if(g->x == playerX && g->y == playerY) {
+                if(time_remaining > 0) {
+                    ghosts.erase(g);
+                    return;
+                } else {
+                    lives--;
+                    if(lives == 0) {
+                        newGame();
+                        return;
+                    } else {
+                        clearGhosts();
+                        initGhosts();
+                        playerX = 5;
+                        playerY = 5;
+                        return;
+                    }
+                }
+            }
+
             SDL_Rect ghostRect = {g->x * cellWidth + offset_x, g->y * cellHeight + offset_y, cellWidth, cellHeight};
             if (SDL_HasIntersection(&pacmanRect, &ghostRect)) {
                 if(time_remaining > 0) {
@@ -194,15 +212,16 @@ namespace mx {
                     return;
                 }
                 else {
-                    
                     lives--;
                     if(lives == 0) {
                         newGame();
+                        return;
                     } else {
                         clearGhosts();
                         initGhosts();
                         playerX = 5;
                         playerY = 5;
+                        return;
                     }
                 }
                 return;
