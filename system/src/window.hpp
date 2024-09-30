@@ -36,8 +36,12 @@ namespace mx {
         void set_fullscreen(SDL_Window* window, bool fullscreen);
         void shutdown();
         bool full = false;
+        void font_printText(TTF_Font *fnt, int x, int y, const std::string &text,  const SDL_Color col);
+        void font_printText_Solid(TTF_Font *fnt, int x, int y, const std::string &text, const SDL_Color col);
         void printText(int x, int y, const std::string &text,  const SDL_Color col);
+        void printText_Solid(int x, int y, const std::string &text, const SDL_Color col);
         void resize(int w, int h);
+        TTF_Font *loadFont(const std::string &font, const int size);
         ConfigFile config;
         std::string version;
         std::string system_font;

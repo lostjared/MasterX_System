@@ -111,7 +111,7 @@ namespace mx {
         full = fullscreen;
     }
 
-    void mxApp::printText(int x, int y, const std::string &text, const SDL_Color col) {
+    void mxApp::font_printText(TTF_Font *font, int x, int y, const std::string &text,  const SDL_Color col) {
         SDL_Surface *surf = TTF_RenderText_Blended(font, text.c_str(), col);
         if(!surf) {
             mx::system_err << "MasterX: System Font Render failed...\n";
@@ -129,6 +129,44 @@ namespace mx {
         SDL_RenderCopy(ren, tex_, nullptr,  &rc);
         SDL_FreeSurface(surf);
         SDL_DestroyTexture(tex_);
+    }
+    void mxApp::font_printText_Solid(TTF_Font *font, int x, int y, const std::string &text, const SDL_Color col) {
+        SDL_Surface *surf = TTF_RenderText_Solid(font, text.c_str(), col);
+        if(!surf) {
+            mx::system_err << "MasterX: System Font Render failed...\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
+        SDL_Texture *tex_ = SDL_CreateTextureFromSurface(ren, surf);
+        if(!tex_) {
+            mx::system_err << "MastesrX System: Could not create texture..\n";
+            mx::system_err.flush();
+            SDL_FreeSurface(surf);
+            exit(EXIT_FAILURE);
+        }
+        SDL_Rect rc = {x, y, surf->w, surf->h};
+        SDL_RenderCopy(ren, tex_, nullptr,  &rc);
+        SDL_FreeSurface(surf);
+        SDL_DestroyTexture(tex_);
+    }
+  
+
+    void mxApp::printText(int x, int y, const std::string &text, const SDL_Color col) {
+        font_printText(font, x, y, text, col);
+    }
+
+    void mxApp::printText_Solid(int x, int y, const std::string &text, const SDL_Color col) {
+        font_printText_Solid(font, x, y, text, col);
+    }
+
+    TTF_Font *mxApp::loadFont(const std::string &font, const int size) {
+        TTF_Font *fnt = TTF_OpenFont(getPath(font).c_str(), size);
+        if(!fnt) {
+            mx::system_err << "MasterX System: Error loading font..: " << getPath(font) << "\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
+        return fnt;
     }
 
     mxApp::~mxApp() {

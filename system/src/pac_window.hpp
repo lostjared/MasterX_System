@@ -31,6 +31,10 @@ namespace mx {
         static PacWindow *pac_window;
 
     private:
+        TTF_Font  *game_over_font = nullptr;
+        TTF_Font  *game_score_font = nullptr;
+        SDL_Texture *game_over_tex = nullptr;
+        bool game_over = false;
         int playerX = 0, playerY = 0;
         std::vector<std::vector<int>> grid;
         std::vector<std::vector<int>> pellet_grid;
