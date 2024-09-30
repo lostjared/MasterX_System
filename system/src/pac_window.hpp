@@ -21,11 +21,12 @@ namespace mx {
         virtual void screenResize(int w, int h) override;
 
         void newGame();
+        void nextLevel();
         void initializeGame();
         void update();
         void drawGrid(mxApp &app);
         bool movePlayer(int dx, int dy);
-
+        bool pelletsEmpty() const;
         static void main(mxApp &app, Dimension *dim);
         static DimensionContainer *dim_c;
         static PacWindow *pac_window;
@@ -52,6 +53,7 @@ namespace mx {
         Uint32 time_remaining = 0;
         Uint32 score = 0;
         Uint32 lives = 3;
+        Uint32 level = 1;
         int cellWidth = 30;
         int cellHeight = 20;
         int offset_x = 16;

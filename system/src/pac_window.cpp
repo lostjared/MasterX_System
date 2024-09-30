@@ -108,12 +108,27 @@ namespace mx {
         initGhosts();
     }
     
+    bool PacWindow::pelletsEmpty() const {
+
+        for(const auto &i : pellet_grid) {
+            for(const auto &z : i) {
+                if(z == 0 || z == 2)
+                    return false;
+            }
+        }
+        return true;
+    }
+
     void PacWindow::draw(mxApp &app) {
         
         if(!isVisible())
             return;
         if(!isDraw())
             return;
+
+        if(pelletsEmpty()) {
+            nextLevel();
+        }
 
         Window::draw(app);
         Window::drawMenubar(app);
@@ -125,24 +140,10 @@ namespace mx {
             drawGrid(app);
         else {
             SDL_RenderCopy(app.ren, game_over_tex, nullptr, nullptr);
-            SDL_Surface *surf = TTF_RenderText_Solid(game_over_font, "Game Over", {static_cast<unsigned char>(rand()%255),static_cast<unsigned char>(rand()%255),static_cast<unsigned char>(rand()%255),255});
-            if(!surf) {
-                mx::system_err << "MasterX System: Failed to render text..\n";
-                return;
-            }
-            int w = surf->w;
-            int h = surf->h;
-            SDL_Texture *tex = SDL_CreateTextureFromSurface(app.ren, surf);
-            if(!tex) {
-                SDL_FreeSurface(surf);
-                mx::system_err << "MasterX System: Error creating texture in PacAttack: draw\n";
-                mx::system_err.flush();
-                return;
-            }
-            SDL_FreeSurface(surf);
-            SDL_Rect rc = {(875/2) - (w/2), (640/2) - (h/2), w, h};
-            SDL_RenderCopy(app.ren, tex, nullptr, &rc);
-            SDL_DestroyTexture(tex);
+            int w = 0, h = 0;
+            TTF_SizeText(game_over_font, "Game Over you Lose", &w, &h);
+            app.font_printText_Solid(game_over_font, (875/2)-(w/2), (640/2)-(h/2), "Game Over you Lose", {255, 255, 255, 255});
+            app.font_printText_Solid(game_over_font, ((875/2)-(w/2))+3, ((640/2)-(h/2))+3, "Game Over you Lose", {175, 0, 175, 255});
         }
         SDL_SetRenderTarget(app.ren, app.tex);
         SDL_Rect drc;
@@ -214,13 +215,9 @@ namespace mx {
             last = current;  
             if(time_remaining > 0)
                 time_remaining --;
-
-            if(ghosts.size() == 0) {
-                newGame();
-            }
         }
         checkColide();
-        app.font_printText_Solid(game_score_font, 15, 15, "Lives: " + std::to_string(lives) + " Score: " + std::to_string(score), {static_cast<unsigned char>(rand()%255),static_cast<unsigned char>(rand()%255),static_cast<unsigned char>(rand()%255),255});
+        app.font_printText_Solid(game_score_font, 15, 15, "Lives: " + std::to_string(lives) + " Score: " + std::to_string(score) + " Level: " + std::to_string(level), {static_cast<unsigned char>(rand()%255),static_cast<unsigned char>(rand()%255),static_cast<unsigned char>(rand()%255),255});
     }
 
     void PacWindow::checkColide() {
@@ -255,8 +252,7 @@ namespace mx {
                 else {
                     lives--;
                     if(lives == 0) {
-                        lives = 3;
-                        newGame();
+                        game_over = true;
                         return;
                     } else {
                         clearGhosts();
@@ -489,6 +485,7 @@ namespace mx {
             p = dynamic_cast<PacWindow *>(win);
             MessageBox::OkCancelMessageBox(app, win->dim, "Start a new game?", "Start a new game?", [&](mxApp &app, Window *win, int ok) -> bool {
                 p->lives = 3;
+                p->level = 1;
                 p->newGame();
                 return true;
             });
@@ -505,6 +502,15 @@ namespace mx {
         playerX = 5;
         playerY = 5;
         game_over = false;
+    }
+
+    void PacWindow::nextLevel() {
+        time_remaining = 0;
+        initializeGame();
+        playerX = 5;
+        playerY = 5;
+        game_over = false;
+        level++;
     }
 
     void PacWindow::initGhosts() {
