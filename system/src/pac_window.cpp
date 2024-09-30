@@ -491,7 +491,11 @@ namespace mx {
             });
             return true;
         }));
-
+        Menu_ID help_id = pac_window->menu.addHeader(create_header("Help"));
+        pac_window->menu.addItem(help_id, pac_window->menu.addIcon(loadTexture(app, "images/ghost.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MessageBox::OkMessageBox(app, win->dim, "About PacAttack", "PacAttack created by Jared Bruni");
+            return true;
+        }));
         pac_window->show(true);
     }
 
