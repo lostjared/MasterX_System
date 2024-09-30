@@ -61,10 +61,14 @@ namespace mx {
         int prev_dim = 0;
         int hoverIndex = 0;
         bool menuHover = false;
+        size_t bar_offset = 0;
         void drawDimensions(mxApp &app);
         std::vector<int> activeDimensionsStack;
         std::vector<Window *> minimizedWindows;
-     
+
+        void drawArrow(SDL_Renderer* ren, int x, int y, int width, int height, const std::string& direction);
+        SDL_Rect arrowRectLeft = {0};
+        SDL_Rect arrowRectRight = {0};
     };  
 }
 

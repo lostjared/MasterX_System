@@ -139,114 +139,166 @@ namespace mx {
         }
     }
  
-   void SystemBar::drawDimensions(mxApp &app) {
-        if (dimensions != nullptr && animationComplete == true) {
-            int activeIndex = 0;  
-            bool tcursor = false;
-            for (size_t j = 0; j < activeDimensionsStack.size(); ++j) {
-            int i = activeDimensionsStack[j];
-            DimensionContainer *dim = dynamic_cast<DimensionContainer *>(dimensions->operator[](i).get());
-        
-            if (dim != nullptr && dim->isActive()) { 
+    void SystemBar::drawDimensions(mxApp &app) {
 
-                const std::string &name = dim->name;
-                SDL_Color white = {255, 255, 255, 255};
-                SDL_Surface* textSurface = TTF_RenderText_Blended(font, name.c_str(), white);
-                if (textSurface == nullptr) {
-                    continue;
-                }
+         int button_height = 0;
+         int bar_height = 0;
 
-                SDL_Texture* textTexture = SDL_CreateTextureFromSurface(app.ren, textSurface);
-                int text_width = textSurface->w;
-                int text_height = textSurface->h;
-                SDL_FreeSurface(textSurface);
-                if (textTexture == nullptr) {
-                    continue;
-                }
+                if (dimensions != nullptr && animationComplete == true) {
+                    int activeIndex = 0;  
+                    bool tcursor = false;
+                    int button_width = 150;  
+                    int button_spacing = 10; 
+                    int arrow_width = 15;    
 
-                int button_width = 150; 
-                int button_height = text_height + 20;
-                int bar_height = 50;
-                int button_y = (bar_height - button_height) / 2 + app.height - bar_height; 
+            
+                    int available_width = app.width - (arrow_width * 2) - (button_spacing * 2);
+                    int max_buttons = available_width / (button_width + button_spacing);
+
+                    for (size_t j = bar_offset; j < bar_offset+max_buttons && j < activeDimensionsStack.size(); ++j) {
+                        
+                    int i = activeDimensionsStack[j];
+                    DimensionContainer *dim = dynamic_cast<DimensionContainer *>(dimensions->operator[](i).get());
                 
-                int button_x = 10 + activeIndex * (button_width + 10);  
-                activeIndex++;  
+                    if (dim != nullptr && dim->isActive()) { 
 
-                SDL_Color gradStart, gradEnd;
+                        const std::string &name = dim->name;
+                        SDL_Color white = {255, 255, 255, 255};
+                        SDL_Surface* textSurface = TTF_RenderText_Blended(font, name.c_str(), white);
+                        if (textSurface == nullptr) {
+                            continue;
+                        }
 
-                if (static_cast<int>(i) == cur_dim) {
-                    gradStart = {0, 0, 255, 255};  
-                    gradEnd = {0, 0, 139, 255};    
-                } else {
-                    gradStart = {192, 192, 192, 255}; 
-                    gradEnd = {128, 128, 128, 255};   
-                }
+                        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(app.ren, textSurface);
+                        int text_width = textSurface->w;
+                        int text_height = textSurface->h;
+                        SDL_FreeSurface(textSurface);
+                        if (textTexture == nullptr) {
+                            continue;
+                        }
 
-                SDL_Rect buttonRect = {button_x, button_y, button_width, button_height};
+                        button_width = 150; 
+                        button_height = text_height + 20;
+                        bar_height = 50;
+                        int button_y = (bar_height - button_height) / 2 + app.height - bar_height; 
+                        
+                        int button_x = 10 + activeIndex * (button_width + 10);  
+                        activeIndex++;  
 
-                for (int y = buttonRect.y; y < buttonRect.y + buttonRect.h; ++y) {
-                    float factor = static_cast<float>(y - buttonRect.y) / buttonRect.h;
-                    SDL_Color color;
-                    color.r = gradStart.r + static_cast<Uint8>(factor * (gradEnd.r - gradStart.r));
-                    color.g = gradStart.g + static_cast<Uint8>(factor * (gradEnd.g - gradStart.g));
-                    color.b = gradStart.b + static_cast<Uint8>(factor * (gradEnd.b - gradStart.b));
-                    color.a = 255;
+                        SDL_Color gradStart, gradEnd;
 
-                    SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
-                    SDL_RenderDrawLine(app.ren, buttonRect.x, y, buttonRect.x + buttonRect.w, y);
-                }
+                        if (static_cast<int>(i) == cur_dim) {
+                            gradStart = {0, 0, 255, 255};  
+                            gradEnd = {0, 0, 139, 255};    
+                        } else {
+                            gradStart = {192, 192, 192, 255}; 
+                            gradEnd = {128, 128, 128, 255};   
+                        }
 
-                SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
-                SDL_RenderDrawRect(app.ren, &buttonRect);
+                        SDL_Rect buttonRect = {button_x, button_y, button_width, button_height};
 
-                SDL_Rect textRect = {button_x + 30, button_y + (button_height - text_height) / 2, text_width, text_height};
-                SDL_RenderCopy(app.ren, textTexture, nullptr, &textRect);
-                SDL_DestroyTexture(textTexture);
-                textRect.x -= 24;
-                textRect.y -= 2;
-                textRect.w = 20;
-                textRect.h = 20;
-                SDL_RenderCopy(app.ren, dim->icon == nullptr ? app.icon : dim->icon, nullptr, &textRect);
-                if (i == cur_dim && dim->mini_win.size() > 0 && showMinimizedMenu) {
-                    drawMinimizedMenu(app, button_x, button_y, button_width);
-                }
+                        for (int y = buttonRect.y; y < buttonRect.y + buttonRect.h; ++y) {
+                            float factor = static_cast<float>(y - buttonRect.y) / buttonRect.h;
+                            SDL_Color color;
+                            color.r = gradStart.r + static_cast<Uint8>(factor * (gradEnd.r - gradStart.r));
+                            color.g = gradStart.g + static_cast<Uint8>(factor * (gradEnd.g - gradStart.g));
+                            color.b = gradStart.b + static_cast<Uint8>(factor * (gradEnd.b - gradStart.b));
+                            color.a = 255;
 
-                if(dim->name != "Dashboard") {
-                    int square_size = 20;
-                    int square_x = button_x + button_width - square_size - 5;
-                    int square_y = button_y + (button_height - square_size) / 2;
+                            SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
+                            SDL_RenderDrawLine(app.ren, buttonRect.x, y, buttonRect.x + buttonRect.w, y);
+                        }
 
-                    SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 255);
-                    SDL_Rect closeButtonRect = {square_x, square_y, square_size, square_size};
-                    if (dim->hoveringX) {
-                        SDL_SetRenderDrawColor(app.ren, 0xBD, 0, 0, 255);  
-                        tcursor = true;
-                    } 
-                    SDL_RenderFillRect(app.ren, &closeButtonRect);
+                        SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
+                        SDL_RenderDrawRect(app.ren, &buttonRect);
 
-                    SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
-                    SDL_RenderDrawRect(app.ren, &closeButtonRect);
+                        SDL_Rect textRect = {button_x + 30, button_y + (button_height - text_height) / 2, text_width, text_height};
+                        SDL_RenderCopy(app.ren, textTexture, nullptr, &textRect);
+                        SDL_DestroyTexture(textTexture);
+                        textRect.x -= 24;
+                        textRect.y -= 2;
+                        textRect.w = 20;
+                        textRect.h = 20;
+                        SDL_RenderCopy(app.ren, dim->icon == nullptr ? app.icon : dim->icon, nullptr, &textRect);
+                        if (i == cur_dim && dim->mini_win.size() > 0 && showMinimizedMenu) {
+                            drawMinimizedMenu(app, button_x, button_y, button_width);
+                        }
 
-                    SDL_Color black = {0, 0, 0, 255};
-                    SDL_Surface* xSurface = TTF_RenderText_Blended(font, "X", black);
-                    if (xSurface != nullptr) {
-                        SDL_Texture* xTexture = SDL_CreateTextureFromSurface(app.ren, xSurface);
-                        int x_width = xSurface->w;
-                        int x_height = xSurface->h;
-                        SDL_FreeSurface(xSurface);
+                        if(dim->name != "Dashboard") {
+                            int square_size = 20;
+                            int square_x = button_x + button_width - square_size - 5;
+                            int square_y = button_y + (button_height - square_size) / 2;
 
-                        SDL_Rect xRect = {square_x + (square_size - x_width) / 2, square_y + (square_size - x_height) / 2, x_width, x_height};
-                        SDL_RenderCopy(app.ren, xTexture, nullptr, &xRect);
-                        SDL_DestroyTexture(xTexture);
+                            SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 255);
+                            SDL_Rect closeButtonRect = {square_x, square_y, square_size, square_size};
+                            if (dim->hoveringX) {
+                                SDL_SetRenderDrawColor(app.ren, 0xBD, 0, 0, 255);  
+                                tcursor = true;
+                            } 
+                            SDL_RenderFillRect(app.ren, &closeButtonRect);
+
+                            SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
+                            SDL_RenderDrawRect(app.ren, &closeButtonRect);
+
+                            SDL_Color black = {0, 0, 0, 255};
+                            SDL_Surface* xSurface = TTF_RenderText_Blended(font, "X", black);
+                            if (xSurface != nullptr) {
+                                SDL_Texture* xTexture = SDL_CreateTextureFromSurface(app.ren, xSurface);
+                                int x_width = xSurface->w;
+                                int x_height = xSurface->h;
+                                SDL_FreeSurface(xSurface);
+
+                                SDL_Rect xRect = {square_x + (square_size - x_width) / 2, square_y + (square_size - x_height) / 2, x_width, x_height};
+                                SDL_RenderCopy(app.ren, xTexture, nullptr, &xRect);
+                                SDL_DestroyTexture(xTexture);
+                            }
+                        }
                     }
                 }
+            
+            if (activeIndex > 0) {
+                int arrow_width = 15; 
+                int arrow_height = 30; 
+                int arrow_y = app.height - bar_height + (bar_height - arrow_height) / 2;
+                int left_arrow_x = 10 + activeIndex * (button_width + 10);
+                drawArrow(app.ren, left_arrow_x, arrow_y, arrow_width, arrow_height, "left");
+                int right_arrow_x = left_arrow_x + arrow_width + 10;
+                drawArrow(app.ren, right_arrow_x, arrow_y, arrow_width, arrow_height, "right");
+            }
+            if(tcursor == true) {
+                cursor_shown = true;
+            } 
+        }
+    }
+
+    void SystemBar::drawArrow(SDL_Renderer* ren, int x, int y, int width, int height, const std::string& direction) {
+        SDL_Color gradStart = {192, 192, 192, 255};  
+        SDL_Color gradEnd = {128, 128, 128, 255};   
+        for (int py = y; py < y + height; ++py) {
+            float factor = static_cast<float>(py - y) / height;
+            SDL_Color color = {
+                static_cast<Uint8>(gradStart.r+(factor * (gradEnd.r - gradStart.r))),
+                static_cast<Uint8>(gradStart.g+(factor * (gradEnd.g - gradStart.g))),
+                static_cast<Uint8>(gradStart.b+(factor * (gradEnd.b - gradStart.b))),
+                255
+            };
+            SDL_SetRenderDrawColor(ren, color.r, color.g, color.b, color.a);
+
+            if (direction == "left") {
+                SDL_RenderDrawLine(ren, x + width, py, x + (py - y) / 2, py);
+            } else if (direction == "right") {
+                SDL_RenderDrawLine(ren, x, py, x + width - (py - y) / 2, py);
             }
         }
-        if(tcursor == true) {
-            cursor_shown = true;
-        } 
+        SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+        SDL_Rect arrowRect = {x, y, width, height};
+        SDL_RenderDrawRect(ren, &arrowRect);
+        if(direction == "left")
+            arrowRectLeft = arrowRect;
+        else
+            arrowRectRight = arrowRect;
     }
-}
+
     void SystemBar::setCurrentDimension(int dim) {
         if(dim != cur_dim) {
             DimensionContainer *old, *setv;
@@ -411,6 +463,29 @@ namespace mx {
 
     bool SystemBar::event(mxApp &app, SDL_Event &e) {
 
+
+        if(e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+            SDL_Point p = {e.button.x, e.button.y};
+            if(SDL_PointInRect(&p, &arrowRectLeft)) {
+                if(bar_offset > 0) {
+                    bar_offset--;
+                }
+                return true;
+            }
+            if(SDL_PointInRect(&p, &arrowRectRight)) {
+                int button_width = 150;  
+                int button_spacing = 10; 
+                int arrow_width = 15;            
+                int available_width = app.width - (arrow_width * 2) - (button_spacing * 2);
+                int max_buttons = available_width / (button_width + button_spacing);
+
+                if ((bar_offset + max_buttons) < activeDimensionsStack.size()) {
+                    bar_offset++;  
+                }
+                return true;
+            }
+        }
+        
         DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](cur_dim).get());
         if (!con) {
             return false;  
@@ -422,6 +497,10 @@ namespace mx {
             if(i == cur_dim) break;
             dpos ++;
         }
+
+        
+       
+
 
         int button_width = 150;  
         int button_y = app.height - 50;  
