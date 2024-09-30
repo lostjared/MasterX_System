@@ -33,12 +33,12 @@ namespace mx {
         public:
                 Terminal(mxApp  &app);
                 virtual ~Terminal();
-                void draw(mxApp  &app);
-                bool event(mxApp &app, SDL_Event  &e);
+                void draw(mxApp  &app) override;
+                bool event(mxApp &app, SDL_Event  &e) override;
                 virtual void screenResize(int w, int h) override;
                 void print(const std::string &s);
                 void scroll();
-                void stateChanged(bool min, bool max, bool closed);
+                void stateChanged(bool min, bool max, bool closed) override;
                 void setWallpaper(SDL_Texture *tex);
                 void drawCursor(mxApp &, int, int, bool);
                 bool atBottom();
