@@ -71,16 +71,18 @@ void draw(mx::mxApp &app) {
 }
 
 void draw_loading(mx::mxApp &app) {
+    TTF_Font *fnt = app.loadFont("fonts/arial.ttf",36);
     SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
     SDL_RenderClear(app.ren);
     SDL_SetRenderTarget(app.ren, app.tex);
     SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
     SDL_RenderClear(app.ren);
     SDL_Color col = {255,255,255,255};
-    app.printText(25, 25, "Loading...", col);
+    app.font_printText(fnt, 25, 25, "Loading...", col);
     SDL_SetRenderTarget(app.ren, nullptr);
     SDL_RenderCopy(app.ren, app.tex, nullptr, nullptr);
     SDL_RenderPresent(app.ren);
+    TTF_CloseFont(fnt);
 }
 
  void eventProc() {
