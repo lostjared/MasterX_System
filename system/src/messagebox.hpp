@@ -3,6 +3,7 @@
 
 #include"window.hpp"
 #include"mx_window.hpp"
+#include<memory>
 
 
 namespace mx {
@@ -17,18 +18,22 @@ namespace mx {
         virtual ~MessageBox();
         virtual void draw(mxApp &app) override;
         virtual bool event(mxApp &app, SDL_Event &e) override;
+
+        void drawBox(mxApp &app);
+        bool eventBox(mxApp &app, SDL_Event &e);
+        
         void createControls(mxApp &app);
         void createControlsOkCancel(mxApp &app);
         void resizeControls();
         static void OkMessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string  &text);
         static void OkCancelMessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string &text, EventCallbackMsg event_cb);
-
     protected:
         std::string text;
         Button *ok = 0, *cancel = 0;
         EventCallbackMsg event_ = 0;
+        static std::vector<MessageBox *> boxes;
+        static MessageBox *box;
     };
-
 }
 
 
