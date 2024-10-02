@@ -48,6 +48,7 @@ namespace mx {
         std::string term_font;
         std::string matrix_font;
         TTF_Font *matrix_font_;
+        bool matrix_mode = false;
     };
 
     class Screen {

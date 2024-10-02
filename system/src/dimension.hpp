@@ -45,7 +45,7 @@ namespace mx {
         bool hoveringX = false;
         SDL_Texture *wallpaper, *nextWallpaper, *icon = nullptr;
         EventHandler events;
-        void setMatrix(SDL_Texture *t, bool m);
+        void setMatrix(mxApp &app, SDL_Texture *t, bool m);
         bool getMatrix() const;
         void setDimension(Dimension *d);
         SDL_Texture *matrix_tex = nullptr;
@@ -61,6 +61,7 @@ namespace mx {
         int transitionAlpha = 255;
         int transitionSpeed = 3;
         bool matrix_on = false;
+        int mx = 0, my = 0;
              
     };
     

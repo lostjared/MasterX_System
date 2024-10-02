@@ -701,7 +701,7 @@ namespace mx {
             return;
         
         if(command == "matrix") {
-            dim->setMatrix(dim->matrix_tex, !dim->getMatrix());
+            dim->setMatrix(app, dim->matrix_tex, !dim->getMatrix());
             print(command + "\nNeo..\n");
             command.clear();
         } else if(command == "exit") {

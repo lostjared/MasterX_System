@@ -96,9 +96,10 @@ namespace mx {
         }
     }
     
-    void DimensionContainer::setMatrix(SDL_Texture *t, bool m) {
+    void DimensionContainer::setMatrix(mxApp &app, SDL_Texture *t, bool m) {
         matrix_on = m;
         matrix_tex = t;
+        app.matrix_mode = m;
     }
     
     bool DimensionContainer::getMatrix() const {
@@ -130,7 +131,9 @@ namespace mx {
                 SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_NONE);
                 if(matrix_on == true && matrix_tex != nullptr) {
                     SDL_SetRenderTarget(app.ren, matrix_tex);
-                    mx::createMatrixRainTexture(app.ren, matrix_tex, app.matrix_font_, app.width, app.height);
+                    int textureWidth, textureHeight;
+                    SDL_QueryTexture(matrix_tex, NULL, NULL, &textureWidth, &textureHeight);
+                    mx::createMatrixRainTexture(app.ren, matrix_tex, app.matrix_font_, textureWidth, textureHeight);
                     SDL_SetRenderTarget(app.ren, app.tex);
                     SDL_RenderCopy(app.ren, matrix_tex, nullptr, nullptr);
                 }
@@ -231,14 +234,14 @@ namespace mx {
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
         SDL_RenderClear(app.ren);
         SDL_SetRenderTarget(app.ren, app.tex);
-        dash->setMatrix(matrix_texture, false);
+        dash->setMatrix(app, matrix_texture, false);
         settings_window = dash->createWindow(app);
         settings_window->create(dash, "Settings", 25, 25, 320, 240);   
         dash->events.addWindow(settings_window);
         Menu_ID res_menu = settings_window->menu.addHeader(create_header("Resolution"));
         settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("720p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if(app.full) {
-                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen");
+            if(app.full || app.matrix_mode) {
+                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
                 return true;
             }
             app.resize(1280,720);
@@ -246,8 +249,8 @@ namespace mx {
             return true;
         }));
         settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("1080p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if(app.full) {
-                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen");
+            if(app.full || app.matrix_mode) {
+                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
                 return true;
             }
             app.resize(1920,1080);
@@ -255,8 +258,8 @@ namespace mx {
             return true;
         }));
         settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("1440p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-             if(app.full) {
-                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen");
+             if(app.full || app.matrix_mode) {
+                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or matrix mode");
                 return true;
             }
             app.resize(2560,1440);
@@ -264,8 +267,8 @@ namespace mx {
             return true;
         }));
         settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("2160p (4K)", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-             if(app.full) {
-                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen");
+             if(app.full || app.matrix_mode) {
+                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
                 return true;
             }
             app.resize(3840,2160);
@@ -291,7 +294,7 @@ namespace mx {
         toggle_matrix->create(settings_window, "Toggle Matrix Mode", 25, 80, 150, 20);
         toggle_matrix->setShow(true);
         toggle_matrix->setCallback([&](mxApp &app, Window *parent, SDL_Event &e) -> bool {
-            dash->setMatrix(matrix_texture, !dash->getMatrix());
+            dash->setMatrix(app, matrix_texture, !dash->getMatrix());
             return true;
         });
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
@@ -404,7 +407,7 @@ namespace mx {
         Menu_ID term_file = termx->menu.addHeader(create_header("File"));
         Menu_ID term_edit = termx->menu.addHeader(create_header("Edit"));
         termx->menu.addItem(term_file, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")), create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            win->dim->setMatrix(win->dim->matrix_tex, !win->dim->getMatrix());
+            win->dim->setMatrix(app, win->dim->matrix_tex, !win->dim->getMatrix());
             return true;
         }));
         termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/clipboard.png")), create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
@@ -422,7 +425,7 @@ namespace mx {
             return true;
         }));
 
-        term->setMatrix(matrix_texture, false);
+        term->setMatrix(app, matrix_texture, false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
         SDL_Texture *rtex = loadTexture(app, "images/mp_dat/mp_wall.png");
