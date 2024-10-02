@@ -23,8 +23,7 @@ namespace mx {
             }
         }
     }
-    
-    
+  
     void MessageBox::draw(mxApp &app) {
         if(MessageBox::box != nullptr)
             MessageBox::box->drawBox(app);

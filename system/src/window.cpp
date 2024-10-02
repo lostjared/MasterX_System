@@ -25,6 +25,9 @@ namespace mx {
         version = config.itemAtKey("app", "version").value;
         system_font = config.itemAtKey("fonts", "system").value;
         term_font = config.itemAtKey("fonts", "term").value;
+        matrix_font = config.itemAtKey("fonts", "matrix").value;
+        
+        matrix_font_ = loadFont(matrix_font, 14);
 
         mx::system_out << "MasterX System v" << version << " Loading .... \n";
         mx::system_out << "written by Jared Bruni\n";
@@ -172,5 +175,6 @@ namespace mx {
     mxApp::~mxApp() {
         release();
         TTF_CloseFont(font);
+        TTF_CloseFont(matrix_font_);
     }
 }

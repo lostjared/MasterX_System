@@ -130,7 +130,7 @@ namespace mx {
                 SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_NONE);
                 if(matrix_on == true && matrix_tex != nullptr) {
                     SDL_SetRenderTarget(app.ren, matrix_tex);
-                    mx::createMatrixRainTexture(app.ren, matrix_tex, app.font, app.width, app.height);
+                    mx::createMatrixRainTexture(app.ren, matrix_tex, app.matrix_font_, app.width, app.height);
                     SDL_SetRenderTarget(app.ren, app.tex);
                     SDL_RenderCopy(app.ren, matrix_tex, nullptr, nullptr);
                 }
