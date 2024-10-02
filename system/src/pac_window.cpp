@@ -483,7 +483,7 @@ namespace mx {
         pac_window->menu.addItem(game_id, pac_window->menu.addIcon(loadTexture(app, "images/ghost.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             static PacWindow *p = nullptr;
             p = dynamic_cast<PacWindow *>(win);
-            MessageBox::OkCancelMessageBox(app, win->dim, "Start a new game?", "Start a new game?", [&](mxApp &app, Window *win, int ok) -> bool {
+            MX_MessageBox::OkCancelMX_MessageBox(app, win->dim, "Start a new game?", "Start a new game?", [&](mxApp &app, Window *win, int ok) -> bool {
                 p->lives = 3;
                 p->level = 1;
                 p->newGame();
@@ -493,7 +493,7 @@ namespace mx {
         }));
         Menu_ID help_id = pac_window->menu.addHeader(create_header("Help"));
         pac_window->menu.addItem(help_id, pac_window->menu.addIcon(loadTexture(app, "images/ghost.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MessageBox::OkMessageBox(app, win->dim, "About PacAttack", "PacAttack created by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About PacAttack", "PacAttack created by Jared Bruni");
             return true;
         }));
         pac_window->show(true);

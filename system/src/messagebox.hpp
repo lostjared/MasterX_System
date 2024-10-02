@@ -12,10 +12,10 @@ namespace mx {
 
     using EventCallbackMsg = std::function<bool(mxApp &app, Window *window, int button)>;
 
-    class MessageBox : public Window {
+    class MX_MessageBox : public Window {
     public:
-        MessageBox(mxApp &app);
-        virtual ~MessageBox();
+        MX_MessageBox(mxApp &app);
+        virtual ~MX_MessageBox();
         virtual void draw(mxApp &app) override;
         virtual bool event(mxApp &app, SDL_Event &e) override;
 
@@ -25,14 +25,14 @@ namespace mx {
         void createControls(mxApp &app);
         void createControlsOkCancel(mxApp &app);
         void resizeControls();
-        static void OkMessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string  &text);
-        static void OkCancelMessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string &text, EventCallbackMsg event_cb);
+        static void OkMX_MessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string  &text);
+        static void OkCancelMX_MessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string &text, EventCallbackMsg event_cb);
     protected:
         std::string text;
         Button *ok = 0, *cancel = 0;
         EventCallbackMsg event_ = 0;
-        static std::vector<MessageBox *> boxes;
-        static MessageBox *box;
+        static std::vector<MX_MessageBox *> boxes;
+        static MX_MessageBox *box;
     };
 }
 

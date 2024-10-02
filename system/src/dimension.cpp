@@ -241,7 +241,7 @@ namespace mx {
         Menu_ID res_menu = settings_window->menu.addHeader(create_header("Resolution"));
         settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("720p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
             if(app.full || app.matrix_mode) {
-                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
+                MX_MessageBox::OkMX_MessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
                 return true;
             }
             app.resize(1280,720);
@@ -250,7 +250,7 @@ namespace mx {
         }));
         settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("1080p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
             if(app.full || app.matrix_mode) {
-                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
+                MX_MessageBox::OkMX_MessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
                 return true;
             }
             app.resize(1920,1080);
@@ -259,7 +259,7 @@ namespace mx {
         }));
         settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("1440p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
              if(app.full || app.matrix_mode) {
-                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or matrix mode");
+                MX_MessageBox::OkMX_MessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or matrix mode");
                 return true;
             }
             app.resize(2560,1440);
@@ -268,7 +268,7 @@ namespace mx {
         }));
         settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("2160p (4K)", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
              if(app.full || app.matrix_mode) {
-                MessageBox::OkMessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
+                MX_MessageBox::OkMX_MessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
                 return true;
             }
             app.resize(3840,2160);
@@ -421,7 +421,7 @@ namespace mx {
 
         Menu_ID hlp_hte_menu = termx->menu.addHeader(create_header("Help"));
         termx->menu.addItem(hlp_hte_menu,termx->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MessageBox::OkMessageBox(app, win->dim, "About Terminal", "(C) 2024 LostSideDead Software written by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Terminal", "(C) 2024 LostSideDead Software written by Jared Bruni");
             return true;
         }));
 
@@ -451,7 +451,7 @@ namespace mx {
         piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_yellow.png")), create_menu_item("Options", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->setScreen(3);
-            MessageBox::OkMessageBox(app, og_piece->dim, "No Options", "There are no Options at the time");
+            MX_MessageBox::OkMX_MessageBox(app, og_piece->dim, "No Options", "There are no Options at the time");
             return true;
         }));
         piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_green.png")), create_menu_item("Credits", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
@@ -462,7 +462,7 @@ namespace mx {
 
         Menu_ID hlp_menu = piece->menu.addHeader(create_header("Help"));
         piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_pink.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MessageBox::OkMessageBox(app, win->dim, "About MasterPiece", "(C) 2024 LostSideDead Software written by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About MasterPiece", "(C) 2024 LostSideDead Software written by Jared Bruni");
             return true;
         }));
 
@@ -492,7 +492,7 @@ namespace mx {
         })); 
         Menu_ID hlp_amenu = asteroid_window->menu.addHeader(create_header("Help"));
         asteroid_window->menu.addItem(hlp_amenu,asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MessageBox::OkMessageBox(app, win->dim, "About Asteroids", "(C) 2024 LostSideDead Software writen by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Asteroids", "(C) 2024 LostSideDead Software writen by Jared Bruni");
             return true;
         }));
 
@@ -516,7 +516,7 @@ namespace mx {
         tetris_window->setIcon(loadTexture(app, "images/tetrisicon.png"));
         Menu_ID t_ = tetris_window->menu.addHeader(create_header("Game"));
         tetris_window->menu.addItem(t_, tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("New Game", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MessageBox::OkCancelMessageBox(app, win->dim, "New Game?", "Do you wish to start a new game?", [&](mxApp &app, Window *win, int button) ->  bool {
+            MX_MessageBox::OkCancelMX_MessageBox(app, win->dim, "New Game?", "Do you wish to start a new game?", [&](mxApp &app, Window *win, int button) ->  bool {
                 switch(button) {
                     case 1: {
                         tetris_window->resetGame();
@@ -529,7 +529,7 @@ namespace mx {
         }));
         Menu_ID hlp_hamenu = tetris_window->menu.addHeader(create_header("Help"));
         tetris_window->menu.addItem(hlp_hamenu,tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MessageBox::OkMessageBox(app, win->dim, "About Tetris", "(C) 2024 LostSideDead Software written by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Tetris", "(C) 2024 LostSideDead Software written by Jared Bruni");
             return true;
         }));
 
