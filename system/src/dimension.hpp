@@ -76,6 +76,7 @@ namespace mx {
     public:
         Dimension(mxApp &app);
         virtual ~Dimension();
+        DimensionContainer *createDimension(mxApp &app, const std::string &name, bool active, bool visible, SDL_Texture *wallpaper, SDL_Texture *icon);
         void setCurrentDimension(int dim);
         int  getCurrentDimension() const;
         virtual void draw(mxApp &app) override;

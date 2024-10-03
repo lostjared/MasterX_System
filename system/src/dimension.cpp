@@ -209,12 +209,32 @@ namespace mx {
         }
     }
 
+    DimensionContainer *Dimension::createDimension(mxApp &app, const std::string &name, bool active, bool visible, SDL_Texture *wallpaper, SDL_Texture *icon) {
+        dimensions.push_back(std::make_unique<DimensionContainer>(app));
+        if(auto cont = dynamic_cast<DimensionContainer *>(getDimension())) {
+            cont->init(this->system_bar, name, wallpaper);
+            cont->setActive(active);
+            cont->setVisible(visible);
+            cont->setIcon(icon);
+            return cont;
+        }
+        mx::system_err << "MasterX System: Bad cast..\n";
+        mx::system_err.flush();
+        exit(EXIT_FAILURE);
+        return nullptr;
+    }
+
     Dimension::Dimension(mxApp &app) {
         cursor_x = (app.width/2) - (32/2);
         cursor_y = (app.height/2) - (32/2);
         wallpaper = loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value);
         objects.push_back(std::make_unique<SystemBar>(app));
         system_bar = dynamic_cast<SystemBar *>(objects[0].get());
+        if(!system_bar) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         std::vector<std::string> logos = app.config.splitByComma(app.config.itemAtKey("desktop", "backgrounds").value);
         std::random_device rd;
         std::mt19937 gen(rd());
