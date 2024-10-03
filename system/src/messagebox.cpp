@@ -65,8 +65,18 @@ namespace mx {
     void MX_MessageBox::createControlsOkCancel(mxApp &app) {
         children.push_back(std::make_unique<Button>(app));
         ok = dynamic_cast<Button *>(getControl());
+        if(!ok) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         children.push_back(std::make_unique<Button>(app));
         cancel = dynamic_cast<Button *>(getControl());
+        if(!cancel) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         SDL_Rect drawRect;
         Window::getDrawRect(drawRect);
         int totalButtonWidth = 200; 
@@ -78,12 +88,22 @@ namespace mx {
         cancel->create(this, "Cancel", xCenter + 100 + gap, yCenter, 100, 25);
         ok->setCallback([](mxApp &app, Window *win, SDL_Event   &e) -> bool {
             MX_MessageBox *msg = dynamic_cast<MX_MessageBox *>(win);
+            if(!msg) {
+                mx::system_err << "MasterX System: Bad cast..\n";
+                mx::system_err.flush();
+                exit(EXIT_FAILURE);
+            }
             msg->event_(app, win, 1);
             msg->destroyWindow();
             return true;
         });
         cancel->setCallback([](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MX_MessageBox *msg = dynamic_cast<MX_MessageBox *>(win);
+            if(!msg) {
+                mx::system_err << "MasterX System: Bad cast..\n";
+                mx::system_err.flush();
+                exit(EXIT_FAILURE);
+            }
             msg->event_(app, win, 2);
             msg->destroyWindow();
             return true;
@@ -93,6 +113,11 @@ namespace mx {
     void MX_MessageBox::createControls(mxApp &app) {
         children.push_back(std::make_unique<Button>(app));
         ok = dynamic_cast<Button *>(getControl());
+        if(!ok) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         SDL_Rect drawRect;
         Window::getDrawRect(drawRect);
         int buttonWidth = 100;
@@ -101,6 +126,11 @@ namespace mx {
         ok->create(this, "Ok", xCenter, yCenter, buttonWidth, 25);
         ok->setCallback([](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MX_MessageBox *box = dynamic_cast<MX_MessageBox *>(win);
+            if(!box) {
+                mx::system_err << "MasterX System: Bad cast..\n";
+                mx::system_err.flush();
+                exit(EXIT_FAILURE);
+            }
             box->destroyWindow();
             return true;
         });
@@ -113,6 +143,11 @@ namespace mx {
     void MX_MessageBox::OkMX_MessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string  &text) {
         dim->objects.push_back(std::make_unique<MX_MessageBox>(app));
         MX_MessageBox *msgbox = dynamic_cast<MX_MessageBox *>(dim->objects[dim->objects.size()-1].get());
+        if(!msgbox) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         int box_w = 400;
         int box_h = 175;
         msgbox->create(dim, title, (app.width/2) - (box_w/2), (app.height/2) - (box_h/2), box_w, box_h);
@@ -131,6 +166,11 @@ namespace mx {
     void MX_MessageBox::OkCancelMX_MessageBox(mxApp &app, DimensionContainer *dim, const std::string &title, const std::string &text, EventCallbackMsg event_cb) {
         dim->objects.push_back(std::make_unique<MX_MessageBox>(app));
         MX_MessageBox *msgbox = dynamic_cast<MX_MessageBox *>(dim->objects[dim->objects.size()-1].get());
+        if(!msgbox) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         int box_w = 400;
         int box_h = 175;
         msgbox->create(dim, title, (app.width/2) - (box_w/2), (app.height/2) - (box_h/2), box_w, box_h);

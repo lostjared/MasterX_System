@@ -456,12 +456,22 @@ namespace mx {
     void PacWindow::main(mxApp &app, Dimension *dim) {
         dim->dimensions.push_back(std::make_unique<DimensionContainer>(app));
         dim_c = dynamic_cast<DimensionContainer *>(dim->dimensions[dim->dimensions.size()-1].get());
+        if(!dim_c) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         dim_c->init(dim->system_bar, "PacAttack", loadTexture(app, "images/pacwall.png"));
         dim_c->setActive(false);
         dim_c->setVisible(false);
         dim_c->setIcon(loadTexture(app, "images/ghost.png"));
         dim_c->objects.push_back(std::make_unique<PacWindow>(app));
         pac_window = dynamic_cast<PacWindow *>(dim_c->objects[dim_c->objects.size()-1].get());
+        if(!pac_window) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         const int baseWidth = 1280;
         const int baseHeight = 720;
         int screenWidth = app.width;
@@ -483,6 +493,11 @@ namespace mx {
         pac_window->menu.addItem(game_id, pac_window->menu.addIcon(loadTexture(app, "images/ghost.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             static PacWindow *p = nullptr;
             p = dynamic_cast<PacWindow *>(win);
+            if(!p) {
+                mx::system_err << "MasterX System: Bad cast..\n";
+                mx::system_err.flush();
+                exit(EXIT_FAILURE);
+            }
             MX_MessageBox::OkCancelMX_MessageBox(app, win->dim, "Start a new game?", "Start a new game?", [&](mxApp &app, Window *win, int ok) -> bool {
                 p->lives = 3;
                 p->level = 1;

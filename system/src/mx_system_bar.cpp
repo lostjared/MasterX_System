@@ -15,6 +15,11 @@ namespace mx {
         }
         objects.push_back(std::make_unique<MenuBar>(app));
         menu = dynamic_cast<MenuBar *>(objects[0].get());
+        if(!menu) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         menu->menuOpen = false;
         animationComplete = false;
         yPos = 0;
@@ -303,7 +308,17 @@ namespace mx {
         if(dim != cur_dim) {
             DimensionContainer *old, *setv;
             old = dynamic_cast<DimensionContainer *>(dimensions->operator[](cur_dim).get());
+            if(!old) {
+                mx::system_err << "MasterX System: Bad cast..\n";
+                mx::system_err.flush();
+                exit(EXIT_FAILURE);
+            }
             setv = dynamic_cast<DimensionContainer *>(dimensions->operator[](dim).get());
+            if(!setv) {
+                mx::system_err << "MasterX System: Bad cast..\n";
+                mx::system_err.flush();
+                exit(EXIT_FAILURE);
+            }
             prev_dim = cur_dim;
             cur_dim = dim;
             if (setv) {
@@ -339,6 +354,11 @@ namespace mx {
 
             animationComplete = true;
             DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](cur_dim).get());
+            if(!con) {
+                mx::system_err << "MasterX System: Bad cast..\n";
+                mx::system_err.flush();
+                exit(EXIT_FAILURE);
+            }
             con->setVisible(true);
         }
         lastTime = currentTime;
@@ -629,6 +649,11 @@ namespace mx {
                     for (size_t j = 0; j < activeDimensionsStack.size(); ++j) {
                         int i = activeDimensionsStack[j];
                         DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](i).get());
+                        if(!con) {
+                            mx::system_err << "MasterX System: Bad cast..\n";
+                            mx::system_err.flush();
+                            exit(EXIT_FAILURE);
+                        }
                         if (con->isActive()) {
                             int button_x = 10 + activeIndex * (button_width + 10);
                             activeIndex++;
@@ -712,6 +737,11 @@ namespace mx {
                 for (size_t j = 0; j < activeDimensionsStack.size(); ++j) {
                     int i = activeDimensionsStack[j];
                     DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](i).get());
+                    if(!con) {
+                       mx::system_err << "MasterX System: Bad cast..\n";
+                       mx::system_err.flush();
+                       exit(EXIT_FAILURE);
+                    }
                     if(con->isActive()) {
                         int button_x = 10 + activeIndex * (button_width + 10);
                         activeIndex++;
@@ -777,6 +807,11 @@ namespace mx {
 
     void SystemBar::loadDimension(int id) {
         DimensionContainer *dim = dynamic_cast<DimensionContainer *>(dimensions->operator[](id).get());
+        if(!dim) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         if(std::find(activeDimensionsStack.begin(), activeDimensionsStack.end(), id) == activeDimensionsStack.end()) {
             dim->setActive(true);
             setCurrentDimension(id);

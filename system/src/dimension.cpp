@@ -240,6 +240,11 @@ namespace mx {
         std::mt19937 gen(rd());
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         dash = dynamic_cast<DimensionContainer *>(getDimension());
+        if(!dash) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         dash->init(system_bar, "Dashboard", loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value));
         dash->setActive(true);
         dash->setVisible(false);
@@ -303,6 +308,11 @@ namespace mx {
         settings_window->removeAtClose(true);
         settings_window->children.push_back(std::make_unique<Button>(app));
         toggle_fullscreen = dynamic_cast<Button *>(settings_window->getControl());
+        if(!toggle_fullscreen) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         toggle_fullscreen->create(settings_window, "Toggle Fullscreen", 25, 50, 150, 20);
         toggle_fullscreen->setShow(true);
         toggle_fullscreen->setCallback([](mxApp &app, Window *parent, SDL_Event &e) -> bool {
@@ -311,6 +321,11 @@ namespace mx {
         });
         settings_window->children.push_back(std::make_unique<Button>(app));
         toggle_matrix = dynamic_cast<Button *>(settings_window->getControl());
+        if(!toggle_matrix) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         toggle_matrix->create(settings_window, "Toggle Matrix Mode", 25, 80, 150, 20);
         toggle_matrix->setShow(true);
         toggle_matrix->setCallback([&](mxApp &app, Window *parent, SDL_Event &e) -> bool {
@@ -319,6 +334,11 @@ namespace mx {
         });
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         welcome = dynamic_cast<DimensionContainer *>(getDimension());
+        if(!welcome) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         welcome->init(system_bar, "Welcome", loadTexture(app, selectRandomImage(logos, gen)));
         welcome->setActive(false);
         welcome->setVisible(false);
@@ -368,6 +388,11 @@ namespace mx {
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         about = dynamic_cast<DimensionContainer *>(getDimension());
+        if(!about) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         about->init(system_bar, "About", loadTexture(app, selectRandomImage(logos, gen)));
         about->setActive(false);
         about->setVisible(false);
@@ -401,6 +426,11 @@ namespace mx {
         about_window->setCanResize(false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         term = dynamic_cast<DimensionContainer *>(getDimension());
+        if(!term) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         SDL_Texture *term_tex = loadTexture(app, selectRandomImage(logos, gen));
         term->init(system_bar, "Terminal", term_tex);
         term->setActive(false);
@@ -409,6 +439,11 @@ namespace mx {
         system_bar->activateDimension(0);
         term->objects.push_back(std::make_unique<Terminal>(app)); 
         termx = dynamic_cast<Terminal*>(term->objects[0].get());
+        if(!termx) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         const int baseWidth = 1280;
         const int baseHeight = 720;
         int screenWidth = app.width;
@@ -448,12 +483,22 @@ namespace mx {
         term->setMatrix(app, matrix_texture, false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
+        if(!piece_cont) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         SDL_Texture *rtex = loadTexture(app, "images/mp_dat/mp_wall.png");
         piece_cont->init(system_bar, "MastePiece", rtex);
         piece_cont->setActive(false);
         piece_cont->setVisible(false);
         piece_cont->objects.push_back(std::make_unique<MasterPiece>(app));
         piece = dynamic_cast<MasterPiece *>(piece_cont->objects[0].get());
+        if(!piece) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         piece_cont->events.addWindow(piece);
         piece_cont->setIcon(loadTexture(app, "images/mp_dat/block_red.png"));
         windowWidth = static_cast<int>(640 * scaleX);
@@ -492,13 +537,22 @@ namespace mx {
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         asteroid = dynamic_cast<DimensionContainer *>(getDimension());
+        if(!asteroid) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         asteroid->init(system_bar, "Asteroids", loadTexture(app, "images/spacebg.png"));
         asteroid->setActive(false);
         asteroid->setVisible(false);
         asteroid->setIcon(loadTexture(app, "images/ship.png"));
         asteroid->objects.push_back(std::make_unique<AsteroidsWindow>(app));
         asteroid_window = dynamic_cast<AsteroidsWindow *>(asteroid->objects[0].get());
-
+        if(!asteroid_window) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         asteroid_window->create(asteroid, "Asteroids", windowPosX, windowPosY, windowWidth, windowHeight);
         asteroid->events.addWindow(asteroid_window);
         asteroid_window->show(true);
@@ -519,12 +573,22 @@ namespace mx {
 
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         tetris = dynamic_cast<DimensionContainer *>(getDimension());
+        if(!tetris) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         tetris->init(system_bar, "Tetris", loadTexture(app, "images/tetrisbg.png"));
         tetris->setActive(false);
         tetris->setVisible(false);
         tetris->setIcon(loadTexture(app, "images/tetrisicon.png"));
         tetris->objects.push_back(std::make_unique<TetrisWindow>(app));
         tetris_window = dynamic_cast<TetrisWindow *>(tetris->objects[0].get());
+        if(!tetris_window) {
+            mx::system_err << "MasterX System: Bad cast..\n";
+            mx::system_err.flush();
+            exit(EXIT_FAILURE);
+        }
         windowWidth = static_cast<int>(300 * scaleX);
         windowHeight = static_cast<int>(630 * scaleY);
         windowPosX = (screenWidth - windowWidth) / 2;
@@ -661,6 +725,11 @@ namespace mx {
 
         for (size_t i = 1; i < this->dimensions.size(); ++i) {
             DimensionContainer* con = dynamic_cast<DimensionContainer*>(dimensions[i].get());
+            if(!con) {
+                mx::system_err << "MasterX System: Bad cast..\n";
+                mx::system_err.flush();
+                exit(EXIT_FAILURE);
+            }
             con->icon_rect.x = currentX;
             con->icon_rect.y = currentY;
             con->icon_rect.w = 64;
@@ -729,6 +798,11 @@ namespace mx {
             if(getCurrentDimension() == 0) {
                 for(size_t i = 1;  i < dimensions.size(); ++i) {
                     DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions[i].get());
+                    if(!con) {
+                        mx::system_err << "MasterX System: Bad cast..\n";
+                        mx::system_err.flush();
+                        exit(EXIT_FAILURE);
+                    }
                     SDL_Point p = {e.motion.x, e.motion.y};
                     if(SDL_PointInRect(&p, &con->icon_rect)) {
                         con->underline = true;
@@ -741,6 +815,11 @@ namespace mx {
              if(getCurrentDimension() == 0) {
                 for(size_t i = 1;  i < dimensions.size(); ++i) {
                     DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions[i].get());
+                    if(!con) {
+                        mx::system_err << "MasterX System: Bad cast..\n";
+                        mx::system_err.flush();
+                        exit(EXIT_FAILURE);
+                    }
                     SDL_Point p = {e.button.x, e.button.y};
                     if(SDL_PointInRect(&p, &con->icon_rect)) {
                         system_bar->loadDimension(i);
