@@ -954,8 +954,8 @@ namespace mx {
             std::string output;
             std::string pwdOutput;
             while (terminal->active) {
-                ssize_t count;
-                while ((count = read(terminal->master_fd, buffer, sizeof(buffer) - 1)) > 0) {
+                ssize_t count = 0;
+                while (terminal->active && (count = read(terminal->master_fd, buffer, sizeof(buffer) - 1)) > 0) {
                        buffer[count] = '\0';
                        std::lock_guard<std::mutex> lock(terminal->outputMutex);
                        terminal->new_data += buffer;    
