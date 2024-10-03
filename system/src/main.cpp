@@ -4,6 +4,8 @@
     (C) 2024 LostSideDead Software
     https://lostsidedead.biz
 
+    demo: https://lostsidedead.biz/MasterX
+
 */
 
 #include"SDL.h"
