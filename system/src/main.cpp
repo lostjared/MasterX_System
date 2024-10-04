@@ -187,7 +187,6 @@ int main(int argc, char **argv) {
     .addOptionDouble('F',"fullscreen", "set fullscreen")
     .addOptionSingleValue('r', "resolution ex 1280x720")
     .addOptionDoubleValue('R', "resolution", "resolution ex: 1280x720");
-    
     std::string path;
     bool full = false;
     int value = 0;
