@@ -22,11 +22,32 @@ namespace mx {
         static PongWindow *pong_window;
 
         void newGame();
+        void resetGame();
 
     private:
         SDL_Texture *draw_tex = nullptr;
         void drawGame(mxApp &app);
-        int score = 0;
+        int ballX = 0;
+        int ballY = 0;
+        int ballVelX = 0; 
+        int ballVelY = 0;
+        int ballSpeed = 5;
+        int playerPaddleX = 0;
+        int playerPaddleY = 0;
+        int aiPaddleX = 0;
+        int aiPaddleY = 0;
+        int paddleWidth = 10;
+        int paddleHeight = 100;
+        int paddleSpeed = 5;
+        int aiPaddleSpeed = 4;
+        int playerScore = 0;
+        int aiScore = 0;
+        int windowWidth = 640;  
+        int windowHeight = 480;
+        int ballSize = 5;
+
+        Uint32 lastTime = 0, currentTime = 0;
+        float deltaTime = 0.0f;
     };
 }
 

@@ -11,6 +11,17 @@ namespace mx {
                 mx::system_err.flush();
                 exit(EXIT_FAILURE);
             }
+
+            playerPaddleX = 50;  
+            playerPaddleY = (windowHeight / 2) - (paddleHeight / 2);  
+            aiPaddleX = windowWidth - 50 - paddleWidth;  
+            aiPaddleY = (windowHeight / 2) - (paddleHeight / 2); 
+            ballX = windowWidth / 2;
+            ballY = windowHeight / 2;
+            ballVelX = (rand() % 2 == 0) ? -ballSpeed : ballSpeed;
+            ballVelY = (rand() % 2 == 0) ? -ballSpeed : ballSpeed;
+            playerScore = 0;
+            aiScore = 0;
         }
 
         PongWindow::~PongWindow() {
@@ -39,16 +50,88 @@ namespace mx {
         }
 
         void PongWindow::drawGame(mxApp &app) {
-            app.printText(25, 25, "Score: " + std::to_string(score), {255,255,255,255});
+            currentTime = SDL_GetTicks();
+            deltaTime = (currentTime - lastTime) / 1000.0f;  
+            lastTime = currentTime;
+ 
+            // scale deltaTime
+            deltaTime = deltaTime * 40.0f;
+
+        
+            SDL_Rect playerPaddle = {playerPaddleX, playerPaddleY, paddleWidth, paddleHeight};
+            SDL_Rect aiPaddle = {aiPaddleX, aiPaddleY, paddleWidth, paddleHeight};
+            SDL_Rect ball = {ballX, ballY, ballSize, ballSize};
+
+            SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255); 
+            SDL_RenderFillRect(app.ren, &playerPaddle); 
+            SDL_RenderFillRect(app.ren, &aiPaddle);    
+            SDL_RenderFillRect(app.ren, &ball);        
+
+            ballX += static_cast<int>(ballVelX * deltaTime);
+            ballY += static_cast<int>(ballVelY * deltaTime);
+
+            if (ballY <= 0 || ballY >= windowHeight - ballSize) {
+                ballVelY = -ballVelY;
+            }
+
+            if (ballVelX < 0 &&  
+            ballX <= playerPaddleX + paddleWidth &&  
+            ballX + ballSize >= playerPaddleX &&     
+            ballY + ballSize >= playerPaddleY &&     
+            ballY <= playerPaddleY + paddleHeight) { 
+                ballVelX = -ballVelX;  
+                ballX = playerPaddleX + paddleWidth;
+            }
+
+            if (ballVelX > 0 &&  
+            ballX + ballSize >= aiPaddleX &&  
+            ballX <= aiPaddleX + paddleWidth &&  
+            ballY + ballSize >= aiPaddleY &&     
+            ballY <= aiPaddleY + paddleHeight) { 
+                ballVelX = -ballVelX;  
+                ballX = aiPaddleX - ballSize;
+            }
+            
+            if (ballX <= 0) {
+                aiScore++;
+                resetGame();
+            } else if (ballX >= windowWidth) {
+                playerScore++;
+                resetGame();
+            }
+
+            const Uint8* state = SDL_GetKeyboardState(NULL);
+            if (state[SDL_SCANCODE_UP] && playerPaddleY > 0) {
+                playerPaddleY -= static_cast<int>(paddleSpeed * deltaTime);
+            } else if (state[SDL_SCANCODE_DOWN] && playerPaddleY < windowHeight - paddleHeight) {
+                playerPaddleY += static_cast<int>(paddleSpeed * deltaTime);
+            }
+
+            if (ballY < aiPaddleY && aiPaddleY > 0) {
+                aiPaddleY -= static_cast<int>(aiPaddleSpeed * deltaTime);
+            } else if (ballY > aiPaddleY + paddleHeight && aiPaddleY < windowHeight - paddleHeight) {
+                aiPaddleY += static_cast<int>(aiPaddleSpeed * deltaTime);
+            }
+
+            app.printText(125, 25, "Player Score: " + std::to_string(playerScore), {255,255,255,255});
+            app.printText(350, 25, "AI Score: " + std::to_string(aiScore), {255,255,255,255});
+      
         }
 
         void PongWindow::newGame() {
-            score = 0;
+            playerScore = 0;
+            aiScore = 0;
+            resetGame();
+        }
+
+        void PongWindow::resetGame() {
+            ballX = 640 / 2;
+            ballY = 480 / 2;
+            ballVelX = (rand() % 2 == 0) ? -ballSpeed : ballSpeed; 
+            ballVelY = (rand() % 2 == 0) ? -ballSpeed : ballSpeed;
         }
 
         bool PongWindow::event(mxApp &app, SDL_Event &e) {
-
-
             return Window::event(app, e);
         }
 
@@ -72,7 +155,7 @@ namespace mx {
         PongWindow *PongWindow::pong_window = nullptr;
 
         void PongWindow::main(mxApp &app, Dimension *dim) {
-            dim_c = dim->createDimension(app, "Pong", false, false, loadTexture(app, "images/alienchip.png"), loadTexture(app, "images/xicon.png"));
+            dim_c = dim->createDimension(app, "Pong", false, false, loadTexture(app, "images/pong.png"), loadTexture(app, "images/xicon.png"));
             if(!dim_c) {
                 mx::system_err << "MasterX: Failed to create dimension.\n";
                 mx::system_err.flush();
@@ -112,9 +195,7 @@ namespace mx {
                     exit(EXIT_FAILURE);
                 }
                 MX_MessageBox::OkCancelMX_MessageBox(app, win->dim, "Start a new game?", "Start a new game?", [&](mxApp &app, Window *win, int ok) -> bool {
-                   // p->lives = 3;
-                   // p->level = 1;
-                   // p->newGame();
+                    p->newGame();
                     return true;
                 });
                 return true;

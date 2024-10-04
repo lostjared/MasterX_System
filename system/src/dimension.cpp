@@ -15,6 +15,8 @@
 #include"matrix.hpp"
 #include"messagebox.hpp"
 #include"pac_window.hpp"
+#include"pong_window.hpp"
+
 
 namespace mx {
 
@@ -628,6 +630,7 @@ namespace mx {
         termx->setSystemBar(system_bar);
 
         PacWindow::main(app, this);
+        PongWindow::main(app, this);
 
         setCurrentDimension(1);
         system_bar->activateDimension(1);
