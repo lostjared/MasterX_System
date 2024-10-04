@@ -155,7 +155,7 @@ namespace mx {
         PongWindow *PongWindow::pong_window = nullptr;
 
         void PongWindow::main(mxApp &app, Dimension *dim) {
-            dim_c = dim->createDimension(app, "Pong", false, false, loadTexture(app, "images/pong.png"), loadTexture(app, "images/xicon.png"));
+            dim_c = dim->createDimension(app, "Pong", false, false, loadTexture(app, "images/pong.png"), loadTexture(app, "images/pongico.png"));
             if(!dim_c) {
                 mx::system_err << "MasterX: Failed to create dimension.\n";
                 mx::system_err.flush();
@@ -180,13 +180,13 @@ namespace mx {
             int windowPosY = (screenHeight - windowHeight) / 2;
             pong_window->create(dim_c, "Pong", windowPosX, windowPosY-50, windowWidth, windowHeight);
             dim_c->events.addWindow(pong_window);
-            pong_window->setIcon(loadTexture(app, "images/xicon.png"));
+            pong_window->setIcon(loadTexture(app, "images/pongico.png"));
             pong_window->setSystemBar(dim->system_bar);
             pong_window->setReload(true);
             pong_window->setCanResize(false);
 
             Menu_ID game_id = pong_window->menu.addHeader(create_header("Game"));
-            pong_window->menu.addItem(game_id, pong_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            pong_window->menu.addItem(game_id, pong_window->menu.addIcon(loadTexture(app, "images/pongico.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
                 static PongWindow *p = nullptr;
                 p = dynamic_cast<PongWindow *>(win);
                 if(!p) {
@@ -201,7 +201,7 @@ namespace mx {
                 return true;
             }));
             Menu_ID help_id = pong_window->menu.addHeader(create_header("Help"));
-            pong_window->menu.addItem(help_id, pong_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            pong_window->menu.addItem(help_id, pong_window->menu.addIcon(loadTexture(app, "images/pongico.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
                 MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Pong", "Pong created by Jared Bruni");
                 return true;
             }));
