@@ -86,57 +86,63 @@ proc init() {
 
     sdl_destroytex(start_tex);
     let bg = sdl_loadtex("bg.bmp");
-
+    let prev_time = sdl_getticks();
+    
     while(sdl_pump() && active == 1) {
         sdl_setcolor(0, 0, 0, 255);
         sdl_clear();   
         sdl_copytex(bg, 0, 0, 640, 480);
-        ball_x = ball_x + ball_vx;
-        ball_y = ball_y + ball_vy;
+        let current_time = sdl_getticks();
+        if ((current_time - prev_time) >= 15) {
+            prev_time = current_time; 
+    
+            ball_x = ball_x + ball_vx;
+            ball_y = ball_y + ball_vy;
 
-        if (ball_x <= 0 || ball_x + ball_size >= 640) {
-            ball_vx = -ball_vx;
-        }
-        if (ball_y <= 0) {
-            ball_vy = -ball_vy;
-        }
-        if (ball_y + ball_size >= 380 && ball_y + ball_size <= 380 + paddle_height && 
-            ball_x >= paddle_x && ball_x <= paddle_x + paddle_width) {
-            ball_vy = -ball_vy;
-        }
-
-        if (check_collision_with_bricks(grid, ball_x, ball_y, ball_size) == 1) {
-            ball_vy = -ball_vy; 
-            score = score + 100;
-        }
-
-        if(check_if_clear(grid) == 1) {
-            ball_x = rand()%(640-10);
-            ball_y = 220;
-            ball_vx = 2;
-            ball_vy = 2;
-            memclr(grid, GRID_SIZE);
-        }
-
-        if (ball_y + ball_size > 480) {
-            ball_x = rand()%(640-10);
-            ball_y = 220;
-            ball_vx = 2;
-            ball_vy = 2;
-            lives = lives - 1;
-            if(lives <= 0) {
-                active = 0;
+            if (ball_x <= 0 || ball_x + ball_size >= 640) {
+                ball_vx = -ball_vx;
             }
-        } else {
-            if(sdl_keydown(79)) {
-                if(paddle_x < 640-100) {
-                    paddle_x = paddle_x + 5;
+            if (ball_y <= 0) {
+                ball_vy = -ball_vy;
+            }
+            if (ball_y + ball_size >= 380 && ball_y + ball_size <= 380 + paddle_height && 
+                ball_x >= paddle_x && ball_x <= paddle_x + paddle_width) {
+                ball_vy = -ball_vy;
+            }
+
+            if (check_collision_with_bricks(grid, ball_x, ball_y, ball_size) == 1) {
+                ball_vy = -ball_vy; 
+                score = score + 100;
+            }
+
+            if(check_if_clear(grid) == 1) {
+                ball_x = rand()%(640-10);
+                ball_y = 220;
+                ball_vx = 2;
+                ball_vy = 2;
+                memclr(grid, GRID_SIZE);
+            }
+
+            if (ball_y + ball_size > 480) {
+                ball_x = rand()%(640-10);
+                ball_y = 220;
+                ball_vx = 2;
+                ball_vy = 2;
+                lives = lives - 1;
+                if(lives <= 0) {
+                    active = 0;
                 }
-            }
-            
-            if(sdl_keydown(80)) {
-                if(paddle_x > 0) {
-                    paddle_x = paddle_x - 5;
+            } else {
+                if(sdl_keydown(79)) {
+                    if(paddle_x < 640-100) {
+                        paddle_x = paddle_x + 5;
+                    }
+                }
+                
+                if(sdl_keydown(80)) {
+                    if(paddle_x > 0) {
+                        paddle_x = paddle_x - 5;
+                    }
                 }
             }
         }
@@ -149,7 +155,6 @@ proc init() {
         sdl_printtext(10, 400, "Lives: " + str(lives));
         sdl_printtext(10, 425, "Score: " + str(score));
         sdl_flip();
-        sdl_delay(1000/60);
     }
     sdl_destroytex(bg);
     let game_over = sdl_loadtex("gameover.bmp");
