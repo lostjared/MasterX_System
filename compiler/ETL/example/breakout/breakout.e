@@ -18,7 +18,7 @@ proc draw_grid(@grid) {
             if(mematl(grid, index) == 0) {
                 sdl_setstartcolor(150, 0, 0, 255);
                 sdl_setendcolor(255, 0, 0, 255);
-                sdl_draw_gradient(x*32, y*16, 32, 16);
+                sdl_draw_gradient(x*32, y*16, 30, 14);
             }
         }
     }
@@ -85,10 +85,12 @@ proc init() {
     }
 
     sdl_destroytex(start_tex);
+    let bg = sdl_loadtex("bg.bmp");
 
     while(sdl_pump() && active == 1) {
         sdl_setcolor(0, 0, 0, 255);
         sdl_clear();   
+        sdl_copytex(bg, 0, 0, 640, 480);
         ball_x = ball_x + ball_vx;
         ball_y = ball_y + ball_vy;
 
@@ -149,6 +151,7 @@ proc init() {
         sdl_flip();
         sdl_delay(1000/60);
     }
+    sdl_destroytex(bg);
     let game_over = sdl_loadtex("gameover.bmp");
     while(sdl_pump() && active_gameover == 1) {
         sdl_setcolor(0, 0, 0, 255);
