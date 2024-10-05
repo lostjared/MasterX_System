@@ -45,9 +45,6 @@ namespace mx {
         int windowWidth = 640;  
         int windowHeight = 480;
         int ballSize = 5;
-
-        Uint32 lastTime = 0, currentTime = 0;
-        float deltaTime = 0.0f;
     };
 }
 

@@ -50,12 +50,6 @@ namespace mx {
         }
 
         void PongWindow::drawGame(mxApp &app) {
-            currentTime = SDL_GetTicks();
-            deltaTime = (currentTime - lastTime) / 1000.0f;  
-            lastTime = currentTime;
- 
-            // scale deltaTime
-            deltaTime = deltaTime * 40.0f;
 
         
             SDL_Rect playerPaddle = {playerPaddleX, playerPaddleY, paddleWidth, paddleHeight};
@@ -67,50 +61,55 @@ namespace mx {
             SDL_RenderFillRect(app.ren, &aiPaddle);    
             SDL_RenderFillRect(app.ren, &ball);        
 
-            ballX += static_cast<int>(ballVelX * deltaTime);
-            ballY += static_cast<int>(ballVelY * deltaTime);
+            static Uint32 last = SDL_GetTicks();
+            Uint32 current = SDL_GetTicks();
+            if(current-last >= 25) {
+                ballX += ballVelX;
+                ballY += ballVelY;
 
-            if (ballY <= 0 || ballY >= windowHeight - ballSize) {
-                ballVelY = -ballVelY;
-            }
+                if (ballY <= 0 || ballY >= windowHeight - ballSize) {
+                    ballVelY = -ballVelY;
+                }
 
-            if (ballVelX < 0 &&  
-            ballX <= playerPaddleX + paddleWidth &&  
-            ballX + ballSize >= playerPaddleX &&     
-            ballY + ballSize >= playerPaddleY &&     
-            ballY <= playerPaddleY + paddleHeight) { 
-                ballVelX = -ballVelX;  
-                ballX = playerPaddleX + paddleWidth;
-            }
+                if (ballVelX < 0 &&  
+                ballX <= playerPaddleX + paddleWidth &&  
+                ballX + ballSize >= playerPaddleX &&     
+                ballY + ballSize >= playerPaddleY &&     
+                ballY <= playerPaddleY + paddleHeight) { 
+                    ballVelX = -ballVelX;  
+                    ballX = playerPaddleX + paddleWidth;
+                }
 
-            if (ballVelX > 0 &&  
-            ballX + ballSize >= aiPaddleX &&  
-            ballX <= aiPaddleX + paddleWidth &&  
-            ballY + ballSize >= aiPaddleY &&     
-            ballY <= aiPaddleY + paddleHeight) { 
-                ballVelX = -ballVelX;  
-                ballX = aiPaddleX - ballSize;
-            }
-            
-            if (ballX <= 0) {
-                aiScore++;
-                resetGame();
-            } else if (ballX >= windowWidth) {
-                playerScore++;
-                resetGame();
-            }
+                if (ballVelX > 0 &&  
+                ballX + ballSize >= aiPaddleX &&  
+                ballX <= aiPaddleX + paddleWidth &&  
+                ballY + ballSize >= aiPaddleY &&     
+                ballY <= aiPaddleY + paddleHeight) { 
+                    ballVelX = -ballVelX;  
+                    ballX = aiPaddleX - ballSize;
+                }
+                
+                if (ballX <= 0) {
+                    aiScore++;
+                    resetGame();
+                } else if (ballX >= windowWidth) {
+                    playerScore++;
+                    resetGame();
+                }
 
-            const Uint8* state = SDL_GetKeyboardState(NULL);
-            if (state[SDL_SCANCODE_UP] && playerPaddleY > 0) {
-                playerPaddleY -= static_cast<int>(paddleSpeed * deltaTime);
-            } else if (state[SDL_SCANCODE_DOWN] && playerPaddleY < windowHeight - paddleHeight) {
-                playerPaddleY += static_cast<int>(paddleSpeed * deltaTime);
-            }
+                const Uint8* state = SDL_GetKeyboardState(NULL);
+                if (state[SDL_SCANCODE_UP] && playerPaddleY > 0) {
+                    playerPaddleY -= paddleSpeed;
+                } else if (state[SDL_SCANCODE_DOWN] && playerPaddleY < windowHeight - paddleHeight) {
+                    playerPaddleY += paddleSpeed;
+                }
 
-            if (ballY < aiPaddleY && aiPaddleY > 0) {
-                aiPaddleY -= static_cast<int>(aiPaddleSpeed * deltaTime);
-            } else if (ballY > aiPaddleY + paddleHeight && aiPaddleY < windowHeight - paddleHeight) {
-                aiPaddleY += static_cast<int>(aiPaddleSpeed * deltaTime);
+                if (ballY < aiPaddleY && aiPaddleY > 0) {
+                    aiPaddleY -= aiPaddleSpeed;
+                } else if (ballY > aiPaddleY + paddleHeight && aiPaddleY < windowHeight - paddleHeight) {
+                    aiPaddleY += aiPaddleSpeed;
+                }
+                last = current;
             }
 
             app.printText(125, 25, "Player Score: " + std::to_string(playerScore), {255,255,255,255});
