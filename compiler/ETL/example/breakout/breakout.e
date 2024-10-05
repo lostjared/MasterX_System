@@ -55,6 +55,24 @@ proc init() {
     let active = 1;
     let score = 0;
     let active_gameover = 1;
+    let active_intro = 1;
+    let start_tex = sdl_loadtex("start.bmp");
+
+    while(sdl_pump() && active_intro == 1) {
+        sdl_setcolor(0, 0, 0, 255);
+        sdl_clear();
+        sdl_copytex(start_tex, 0, 0, 640, 480);
+        for(let key = 0; key < 127; key = key + 1) {
+            if(sdl_keydown(key)) {
+                active_intro = 0;
+            }
+        }
+        sdl_settextcolor(255, 255, 255, 255);
+        sdl_printtext(25, 25, "Press any Key to play");
+        sdl_flip();
+    }
+
+    sdl_destroytex(start_tex);
 
     while(sdl_pump() && active == 1) {
         sdl_setcolor(0, 0, 0, 255);
