@@ -6,8 +6,8 @@
 #define GRID_SIZE ((BLOCK_WIDTH * BLOCK_HEIGHT) * 8)
 
 proc @allocate_grid() {
-    let grid = malloc(GRID_SIZE);
-    memclr(grid, 0);
+    let grid = malloc(GRID_SIZE+1);
+    memclr(grid, GRID_SIZE);
     return grid;
 }
 
