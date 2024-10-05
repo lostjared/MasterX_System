@@ -39,6 +39,7 @@ proc check_collision_with_bricks(@grid, ball_x, ball_y, ball_size) {
 }
 
 proc init() {
+    srand(time(0));
     sdl_init();
     sdl_create("Breakout", 640, 480, 960, 720);
     let grid = allocate_grid();
@@ -57,8 +58,7 @@ proc init() {
 
     while(sdl_pump() && active == 1) {
         sdl_setcolor(0, 0, 0, 255);
-        sdl_clear();
-        
+        sdl_clear();   
         ball_x = ball_x + ball_vx;
         ball_y = ball_y + ball_vy;
 
@@ -79,8 +79,8 @@ proc init() {
         }
 
         if (ball_y + ball_size > 480) {
-            ball_x = (640-10)/2;
-            ball_y = 300;
+            ball_x = rand()%((640-10));
+            ball_y = 220;
             ball_vx = 2;
             ball_vy = 2;
             lives = lives - 1;
@@ -123,6 +123,7 @@ proc init() {
             }
         }
         sdl_flip();
+        sdl_delay(1000/60);
     }
     sdl_destroytex(game_over);
     free(grid);
