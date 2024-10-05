@@ -38,6 +38,18 @@ proc check_collision_with_bricks(@grid, ball_x, ball_y, ball_size) {
     return 0;
 }
 
+proc check_if_clear(@grid) {
+    for(let x = 0;  x < BLOCK_WIDTH; x = x + 1) {
+        for(let y = 0; y < BLOCK_HEIGHT; y = y + 1) {
+            let index = y * BLOCK_WIDTH + x;
+            if(mematl(grid, index) == 0) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 proc init() {
     srand(time(0));
     sdl_init();
@@ -96,8 +108,16 @@ proc init() {
             score = score + 100;
         }
 
+        if(check_if_clear(grid) == 1) {
+            ball_x = rand()%(640-10);
+            ball_y = 220;
+            ball_vx = 2;
+            ball_vy = 2;
+            memclr(grid, GRID_SIZE);
+        }
+
         if (ball_y + ball_size > 480) {
-            ball_x = rand()%((640-10));
+            ball_x = rand()%(640-10);
             ball_y = 220;
             ball_vx = 2;
             ball_vy = 2;
@@ -124,7 +144,8 @@ proc init() {
         sdl_setendcolor(255,255,255,255);
         sdl_draw_gradient(paddle_x, 380, paddle_width, paddle_height);
         sdl_draw_gradient(ball_x, ball_y, ball_size, ball_size);
-        sdl_printtext(10, 400, "Lives: " + str(lives) + " Score: " + str(score));
+        sdl_printtext(10, 400, "Lives: " + str(lives));
+        sdl_printtext(10, 425, "Score: " + str(score));
         sdl_flip();
         sdl_delay(1000/60);
     }
@@ -134,11 +155,9 @@ proc init() {
         sdl_clear();
         sdl_copytex(game_over, 0, 0, 640, 480);
         sdl_settextcolor(255, 255, 255, 255);
-        sdl_printtext(100, 400, "Press Any Key to Quit  [ Game Over Score: " + str(score) + " ] ");
-        for(let k = 0; k < 127; k = k + 1) {
-            if(sdl_keydown(k)) {
-                active_gameover = 0;
-            }
+        sdl_printtext(100, 400, "Press Enter to Quit  [ Game Over Score: " + str(score) + " ] ");
+        if(sdl_keydown(40)) {
+            active_gameover = 0;
         }
         sdl_flip();
         sdl_delay(1000/60);
