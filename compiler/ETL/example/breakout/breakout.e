@@ -116,8 +116,7 @@ proc init() {
         sdl_clear();
         sdl_copytex(game_over, 0, 0, 640, 480);
         sdl_settextcolor(255, 255, 255, 255);
-        sdl_printtext(100, 400, "Press Any Key to Quit  [ Game Over 
-Score: " + str(score) + " ] ");
+        sdl_printtext(100, 400, "Press Any Key to Quit  [ Game Over Score: " + str(score) + " ] ");
         sdl_flip();
 
 	for(let k = 0; k < 127; k = k + 1) {
