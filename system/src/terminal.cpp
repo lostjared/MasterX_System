@@ -955,7 +955,11 @@ namespace mx {
             std::string pwdOutput;
             while (terminal->active) {
                 ssize_t count = 0;
+#ifdef __linux__
                 while (terminal->active && (count = read(terminal->master_fd, buffer, sizeof(buffer) - 1)) > 0) {
+#elif defined(__APPLE__)
+                while ((count = read(terminal->master_fd, buffer, sizeof(buffer) - 1)) > 0) {
+#endif
                        buffer[count] = '\0';
                        std::lock_guard<std::mutex> lock(terminal->outputMutex);
                        terminal->new_data += buffer;    
