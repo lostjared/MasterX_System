@@ -16,8 +16,9 @@ proc draw_grid(@grid) {
         for(let y = 0;  y < BLOCK_HEIGHT; y = y + 1) {
             let index = y * BLOCK_WIDTH + x;
             if(mematl(grid, index) == 0) {
-                sdl_setcolor(255, 0, 0, 255);
-                sdl_fillrect(x*32, y*16, 32, 16);
+                sdl_setstartcolor(150, 0, 0, 255);
+                sdl_setendcolor(255, 0, 0, 255);
+                sdl_draw_gradient(x*32, y*16, 32, 16);
             }
         }
     }
@@ -27,7 +28,6 @@ proc draw_grid(@grid) {
 proc check_collision_with_bricks(@grid, ball_x, ball_y, ball_size) {
     let grid_x = ball_x / 32;
     let grid_y = ball_y / 16;
-    
     if (grid_x >= 0 && grid_x < BLOCK_WIDTH && grid_y >= 0 && grid_y < BLOCK_HEIGHT) {
         let index = grid_y * BLOCK_WIDTH + grid_x;
         if (mematl(grid, index) == 0) {
@@ -40,7 +40,7 @@ proc check_collision_with_bricks(@grid, ball_x, ball_y, ball_size) {
 
 proc init() {
     sdl_init();
-    sdl_create("Breakout", 640, 480, 640, 480);
+    sdl_create("Breakout", 640, 480, 960, 720);
     let grid = allocate_grid();
     let paddle_x = (640-100)/2;
     let ball_x = (640-10)/2;
@@ -50,8 +50,11 @@ proc init() {
     let paddle_width = 100;
     let paddle_height = 10;
     let ball_size = 5;
+    let lives = 3;
+    let active = 1;
+    let score = 0;
 
-    while(sdl_pump()) {
+    while(sdl_pump() && active == 1) {
         sdl_setcolor(0, 0, 0, 255);
         sdl_clear();
         
@@ -71,6 +74,7 @@ proc init() {
 
         if (check_collision_with_bricks(grid, ball_x, ball_y, ball_size) == 1) {
             ball_vy = -ball_vy; 
+            score = score + 100;
         }
 
         if (ball_y + ball_size > 480) {
@@ -78,6 +82,10 @@ proc init() {
             ball_y = 300;
             ball_vx = 2;
             ball_vy = 2;
+            lives = lives - 1;
+            if(lives <= 0) {
+                active = 0;
+            }
         } else {
             if(sdl_keydown(79)) {
                 if(paddle_x < 640-100) {
@@ -93,12 +101,24 @@ proc init() {
         }
         draw_grid(grid);
         sdl_setcolor(255, 255, 255, 255);
-        sdl_fillrect(paddle_x, 380, paddle_width, paddle_height);
-        sdl_setcolor(255, 255, 255, 255);
-        sdl_fillrect(ball_x, ball_y, ball_size, ball_size);
+        sdl_setstartcolor(150, 150, 150, 255);
+        sdl_setendcolor(255,255,255,255);
+        sdl_draw_gradient(paddle_x, 380, paddle_width, paddle_height);
+        sdl_draw_gradient(ball_x, ball_y, ball_size, ball_size);
+        sdl_printtext(10, 400, "Lives: " + str(lives) + " Score: " + str(score));
         sdl_flip();
         sdl_delay(1000/60);
     }
+    let game_over = sdl_loadtex("gameover.bmp");
+    while(sdl_pump()) {
+        sdl_setcolor(0, 0, 0, 255);
+        sdl_clear();
+        sdl_copytex(game_over, 0, 0, 640, 480);
+        sdl_settextcolor(255, 255, 255, 255);
+        sdl_printtext(100, 400, "Press Escape to Quit  [ Game Over Score: " + str(score) + " ] ");
+        sdl_flip();
+    }
+    sdl_destroytex(game_over);
     free(grid);
     sdl_release();
     sdl_quit();
