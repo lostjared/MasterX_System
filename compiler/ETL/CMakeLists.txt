@@ -20,7 +20,7 @@ endif()
 option(WITH_SDL "Build with SDL support" OFF)
 
 # Add the core ETL library
-add_library(etl STATIC ${CMAKE_SOURCE_DIR}/libetl/libetl.c)
+add_library(etl STATIC ${CMAKE_SOURCE_DIR}/libetl/libetl.c ${CMAKE_SOURCE_DIR}/libetl/io.c)
 target_include_directories(etl PUBLIC ${CMAKE_SOURCE_DIR}/libetl)
 
 # Add the executable
@@ -51,7 +51,7 @@ endif()
 # Installation rules
 install(TARGETS ETL_C DESTINATION bin)
 install(TARGETS etl DESTINATION lib)
-install(FILES ${CMAKE_SOURCE_DIR}/libetl/etl.e DESTINATION include/libetl)
+install(FILES ${CMAKE_SOURCE_DIR}/libetl/etl.e ${CMAKE_SOURCE_DIR}/libetl/io.e DESTINATION include/libetl)
 install(PROGRAMS ${CMAKE_SOURCE_DIR}/etl DESTINATION bin)
 
 # Conditionally install SDL library if WITH_SDL is set
