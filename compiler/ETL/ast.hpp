@@ -1,3 +1,4 @@
+
 #ifndef AST_HPP
 #define AST_HPP
 
@@ -41,9 +42,12 @@ namespace ast {
         std::string name;
         VarType vtype;
         Identifier(const std::string &n) : name(n), vtype{} {}
-
         std::string text() const override {
             return name;  
+        }
+
+        std::unique_ptr<Identifier> copy() {
+            return std::make_unique<Identifier>(name);
         }
     };
 

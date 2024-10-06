@@ -1228,9 +1228,9 @@ output << ".section .data\n";
         void loadToRegister(std::ostringstream &output, const std::string &operand, const std::string &reg) {
             if (operand[0] == '$' || operand[0] == '%') {
                 output << "    movq " << operand << ", " << reg << " # " << operand << "," << reg << "\n";
-            } else if(operand[0] == isalpha(operand[0]) || isdigit(operand[0])) {
-                output << "    leaq " << operand << "%(rip), " << reg << " #" << operand << ", " << reg << "\n";
-                
+            } 
+            else if(isdigit(operand[0])) {
+                output << "    movq " << "$" << operand << ", " << reg << " # operand -> reg \n";
             } 
             else {
                 int offset = getVariableOffset(operand);

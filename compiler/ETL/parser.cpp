@@ -332,9 +332,18 @@ namespace parse {
     std::unique_ptr<ast::Assignment> Parser::parseAssignment(bool there, bool chk) {
         if (test(types::TokenType::TT_ID)) {
             auto lhs = parsePrimary();
-            if (test(types::OperatorType::OP_ASSIGN)) {
+            if (test(types::OperatorType::OP_ASSIGN) ||
+                test(types::OperatorType::OP_PLUS_ASSIGN) ||
+                test(types::OperatorType::OP_MINUS_ASSIGN) ||
+                test(types::OperatorType::OP_MUL_ASSIGN) ||
+                test(types::OperatorType::OP_DIV_ASSIGN) ||
+                test(types::OperatorType::OP_RSHIFT_ASSIGN) ||
+                test(types::OperatorType::OP_LSHIFT_ASSIGN)) {
+                
+                auto op = types::lookUp(scan->operator[](token_index).getTokenValue());
                 inc();
                 auto rhs = parseExpression();
+
                 if (auto literal = dynamic_cast<ast::Literal*>(rhs.get())) {
                     if (literal->type == types::TokenType::TT_STR) {
                         if (auto identifier = dynamic_cast<ast::Identifier*>(lhs.get())) {
@@ -365,13 +374,28 @@ namespace parse {
                         }
                     }
                 }
-                if(chk == false)
+
+                if (op != types::OperatorType::OP_ASSIGN) {
+                    auto binOpType = getBinaryOpForCompoundAssign(*op);
+                    auto binaryOp = std::make_unique<ast::BinaryOp>(binOpType, std::move(lhs), std::move(rhs));
+                    
+                    auto id = dynamic_cast<ast::Identifier *>(binaryOp->left.get());
+                    lhs = id->copy();
+                    rhs = std::move(binaryOp);
+
+                }
+
+                if (chk == false) {
                     match(types::OperatorType::OP_SEMICOLON);
+                }
+
                 return std::make_unique<ast::Assignment>(std::move(lhs), std::move(rhs), ast::VarType::NUMBER, there);
             }
         }
+
         std::ostringstream stream;
         auto pos = scan->operator[](token_index).get_pos();
+        stream << "Parse Error: Invalid assignment expression at Line: " << pos.first << ", Col: " << pos.second << "\n";
         throw ParseException(stream.str());
         return nullptr;
     }
@@ -497,7 +521,13 @@ namespace parse {
                 } else if (test(types::TokenType::TT_ID)) {
                     auto token = scan->operator[](token_index);
                     inc();
-                     if(test(types::OperatorType::OP_ASSIGN)) {
+                    if(test(types::OperatorType::OP_ASSIGN) ||
+                    test(types::OperatorType::OP_PLUS_ASSIGN) ||
+                    test(types::OperatorType::OP_MINUS_ASSIGN) ||
+                    test(types::OperatorType::OP_MUL_ASSIGN) ||
+                    test(types::OperatorType::OP_DIV_ASSIGN) ||
+                    test(types::OperatorType::OP_RSHIFT_ASSIGN) ||
+                    test(types::OperatorType::OP_LSHIFT_ASSIGN))  {
                         dec();
                         auto stmt = parseAssignment(true);
                         function->body.push_back(std::move(stmt));
@@ -566,8 +596,14 @@ namespace parse {
             } else if (test(types::TokenType::TT_ID)) {
                 auto token = scan->operator[](token_index);
                 inc();
-                 if(test(types::OperatorType::OP_ASSIGN)) {
-                        dec();
+                if(test(types::OperatorType::OP_ASSIGN) ||
+                    test(types::OperatorType::OP_PLUS_ASSIGN) ||
+                    test(types::OperatorType::OP_MINUS_ASSIGN) ||
+                    test(types::OperatorType::OP_MUL_ASSIGN) ||
+                    test(types::OperatorType::OP_DIV_ASSIGN) ||
+                    test(types::OperatorType::OP_RSHIFT_ASSIGN) ||
+                    test(types::OperatorType::OP_LSHIFT_ASSIGN))  {
+                            dec();
                         auto stmt = parseAssignment(true);
                         if_body.push_back(std::move(stmt));
                 } else {
@@ -621,7 +657,13 @@ namespace parse {
                     } else if (test(types::TokenType::TT_ID)) {
                         auto token = scan->operator[](token_index);
                         inc();
-                        if(test(types::OperatorType::OP_ASSIGN)) {
+                        if(test(types::OperatorType::OP_ASSIGN) ||
+                        test(types::OperatorType::OP_PLUS_ASSIGN) ||
+                        test(types::OperatorType::OP_MINUS_ASSIGN) ||
+                        test(types::OperatorType::OP_MUL_ASSIGN) ||
+                        test(types::OperatorType::OP_DIV_ASSIGN) ||
+                        test(types::OperatorType::OP_RSHIFT_ASSIGN) ||
+                        test(types::OperatorType::OP_LSHIFT_ASSIGN))  {
                             dec();
                             auto stmt = parseAssignment(true);
                             else_body.push_back(std::move(stmt));
@@ -678,7 +720,13 @@ namespace parse {
             } else if (test(types::TokenType::TT_ID)) {
                 auto token = scan->operator[](token_index);
                 inc(); 
-                 if(test(types::OperatorType::OP_ASSIGN)) {
+                if(test(types::OperatorType::OP_ASSIGN) ||
+                    test(types::OperatorType::OP_PLUS_ASSIGN) ||
+                    test(types::OperatorType::OP_MINUS_ASSIGN) ||
+                    test(types::OperatorType::OP_MUL_ASSIGN) ||
+                    test(types::OperatorType::OP_DIV_ASSIGN) ||
+                    test(types::OperatorType::OP_RSHIFT_ASSIGN) ||
+                    test(types::OperatorType::OP_LSHIFT_ASSIGN))  {
                     dec();
                      auto stmt = parseAssignment(true);
                     body.push_back(std::move(stmt));
@@ -747,7 +795,13 @@ namespace parse {
             } else if (test(types::TokenType::TT_ID)) {
                 auto token = scan->operator[](token_index);
                 inc();
-                if (test(types::OperatorType::OP_ASSIGN)) {
+                if (test(types::OperatorType::OP_ASSIGN) ||
+                    test(types::OperatorType::OP_PLUS_ASSIGN) ||
+                    test(types::OperatorType::OP_MINUS_ASSIGN) ||
+                    test(types::OperatorType::OP_MUL_ASSIGN) ||
+                    test(types::OperatorType::OP_DIV_ASSIGN) ||
+                    test(types::OperatorType::OP_RSHIFT_ASSIGN) ||
+                    test(types::OperatorType::OP_LSHIFT_ASSIGN))  {
                     dec();
                     auto stmt = parseAssignment(true);
                     body.push_back(std::move(stmt));
@@ -772,5 +826,20 @@ namespace parse {
             std::move(post),
             std::move(body)
         );
+    }
+
+    types::OperatorType Parser::getBinaryOpForCompoundAssign(types::OperatorType op) {
+        switch (op) {
+            case types::OperatorType::OP_PLUS_ASSIGN: return types::OperatorType::OP_PLUS;
+            case types::OperatorType::OP_MINUS_ASSIGN: return types::OperatorType::OP_MINUS;
+            case types::OperatorType::OP_MUL_ASSIGN: return types::OperatorType::OP_MUL;
+            case types::OperatorType::OP_DIV_ASSIGN: return types::OperatorType::OP_DIV;
+            case types::OperatorType::OP_RSHIFT_ASSIGN: return types::OperatorType::OP_RSHIFT;
+            case types::OperatorType::OP_LSHIFT_ASSIGN: return types::OperatorType::OP_LSHIFT;
+            default:
+                std::cerr << "Unsupported compound assignment operator.\n";
+                exit(EXIT_FAILURE);
+        }
+        
     }
 }

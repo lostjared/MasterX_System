@@ -65,6 +65,8 @@ namespace parse {
         std::unique_ptr<ast::IfStatement> parseIfStatement();
         std::unique_ptr<ast::WhileStatement> parseWhileStatement();
         std::unique_ptr<ast::ForStatement> parseForStatement();
+
+        types::OperatorType getBinaryOpForCompoundAssign(types::OperatorType op);
     };
 }
 
