@@ -13,7 +13,7 @@ export LIBGL_ALWAYS_SOFTWARE=1
  Otherwise if Using a native Windows EXE with a pipe to WSL2 this step is unnecessary
  
 
-it will then  use the default software-based render driver for WSL2 on Ubutnu 24.04 LTS, amd Arch. On Arch you have to install and configure an X server. 
+it will then  use the default software-based render driver for WSL2 on Ubutnu 24.04 LTS, and Arch. On Arch you have to install and configure an X server. 
 
 ## How to Compile
 
