@@ -378,11 +378,10 @@ namespace parse {
                 if (op != types::OperatorType::OP_ASSIGN) {
                     auto binOpType = getBinaryOpForCompoundAssign(*op);
                     auto binaryOp = std::make_unique<ast::BinaryOp>(binOpType, std::move(lhs), std::move(rhs));
-                    
-                    auto id = dynamic_cast<ast::Identifier *>(binaryOp->left.get());
-                    lhs = id->copy();
-                    rhs = std::move(binaryOp);
-
+                    if(auto id = dynamic_cast<ast::Identifier *>(binaryOp->left.get())) {
+                        lhs = id->copy();
+                        rhs = std::move(binaryOp);
+                    }
                 }
 
                 if (chk == false) {
