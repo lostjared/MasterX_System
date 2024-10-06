@@ -48,8 +48,8 @@ proc draw_grid(@grid, @block) {
     let block_size_h = 16 * 4;
     let offset_left = 20;
     let offset_top = 30;
-    for(let x = 0; x < 11; x = x + 1) {
-        for(let y = 0; y < 16; y = y + 1) {
+    for(let x = 0; x < 11; x += 1) {
+        for(let y = 0; y < 16; y += 1) {
             let grid_x = (x*block_size_w)+offset_left;
             let grid_y = (y*block_size_h)+offset_top;
             let color = mematb(grid, x * 16 + y);
@@ -68,8 +68,8 @@ proc draw_grid(@grid, @block) {
 proc check_blocks(@grid, @score) {
     let bx = 0;
     let by = 0;
-    for(let x = 0; x < 11; x = x + 1) {
-        for(let y = 0; y < 14; y = y + 1) {
+    for(let x = 0; x < 11; x += 1) {
+        for(let y = 0; y < 14; y += 1) {
             bx = x;
             by = y;
             let color1 = mematb(grid, bx * 16 + by);
@@ -90,8 +90,8 @@ proc check_blocks(@grid, @score) {
     let color2x = 0;
     let color3x = 0;
 
-    for(y1 = 0;  y1 < 16; y1 = y1 + 1) {
-        for(x1 = 0; x1 < 9; x1 = x1 + 1) {    
+    for(y1 = 0;  y1 < 16; y1 += 1) {
+        for(x1 = 0; x1 < 9; x1 += 1) {    
             bx = x1;
             by = y1;
             color1x = mematb(grid, bx * 16 + by);
@@ -107,8 +107,8 @@ proc check_blocks(@grid, @score) {
         }
     }
 
-    for (y1 = 0; y1 < 14; y1 = y1 + 1) {
-        for (x1 = 0; x1 < 7; x1 = x1 + 1) {
+    for (y1 = 0; y1 < 14; y1 += 1) {
+        for (x1 = 0; x1 < 7; x1 +=  1) {
             color1x = mematb(grid, x1 * 16 + y1);
             color2x = mematb(grid, (x1 + 1) * 16 + (y1 + 1));
             color3x = mematb(grid, (x1 + 2) * 16 + (y1 + 2));
@@ -122,8 +122,8 @@ proc check_blocks(@grid, @score) {
         }
     }
 
-    for (y1 = 0; y1 < 14; y1 = y1 + 1) {
-        for (x1 = 2; x1 < 9; x1 = x1 + 1) {
+    for (y1 = 0; y1 < 14; y1 += 1) {
+        for (x1 = 2; x1 < 9; x1 += 1) {
             color1x = mematb(grid, x1 * 16 + y1);
             color2x = mematb(grid, (x1 - 1) * 16 + (y1 + 1));
             color3x = mematb(grid, (x1 - 2) * 16 + (y1 + 2));
@@ -140,8 +140,8 @@ proc check_blocks(@grid, @score) {
 }
 
 proc move_blocks(@grid) {
-    for(let x = 0; x < 11; x = x + 1) {
-        for(let y = 0; y < 15; y = y + 1) {
+    for(let x = 0; x < 11; x += 1) {
+        for(let y = 0; y < 15; y += 1) {
             let color1 = mematb(grid, x * 16 + y);
             let color2 = mematb(grid, x * 16 + (y+1));
 
@@ -262,7 +262,7 @@ proc init() {
             wait_key = 1;
         }
 
-        for(let key = 0; key < 127; key = key + 1) {
+        for(let key = 0; key < 127; key += 1) {
             if(sdl_keydown(key)) {
                 wait_key = 1;
                 break;
