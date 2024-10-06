@@ -12,8 +12,8 @@ proc @allocate_grid() {
 }
 
 proc draw_grid(@grid) {
-    for(let x = 0; x < BLOCK_WIDTH; x = x + 1) {
-        for(let y = 0;  y < BLOCK_HEIGHT; y = y + 1) {
+    for(let x = 0; x < BLOCK_WIDTH; x += 1) {
+        for(let y = 0;  y < BLOCK_HEIGHT; y += 1) {
             let index = y * BLOCK_WIDTH + x;
             if(mematl(grid, index) == 0) {
                 sdl_setstartcolor(150, 0, 0, 255);
@@ -39,8 +39,8 @@ proc check_collision_with_bricks(@grid, ball_x, ball_y, ball_size) {
 }
 
 proc check_if_clear(@grid) {
-    for(let x = 0;  x < BLOCK_WIDTH; x = x + 1) {
-        for(let y = 0; y < BLOCK_HEIGHT; y = y + 1) {
+    for(let x = 0;  x < BLOCK_WIDTH; x += 1) {
+        for(let y = 0; y < BLOCK_HEIGHT; y += 1) {
             let index = y * BLOCK_WIDTH + x;
             if(mematl(grid, index) == 0) {
                 return 0;
@@ -97,8 +97,8 @@ proc init() {
         if ((current_time - prev_time) >= 15) {
             prev_time = current_time; 
     
-            ball_x = ball_x + ball_vx;
-            ball_y = ball_y + ball_vy;
+            ball_x += ball_vx;
+            ball_y += ball_vy;
 
             if (ball_x <= 0 || ball_x + ball_size >= 640) {
                 ball_vx = -ball_vx;
@@ -113,7 +113,7 @@ proc init() {
 
             if (check_collision_with_bricks(grid, ball_x, ball_y, ball_size) == 1) {
                 ball_vy = -ball_vy; 
-                score = score + 100;
+                score += 100;
             }
 
             if(check_if_clear(grid) == 1) {
@@ -129,20 +129,20 @@ proc init() {
                 ball_y = 220;
                 ball_vx = 2;
                 ball_vy = 2;
-                lives = lives - 1;
+                lives -= 1;
                 if(lives <= 0) {
                     active = 0;
                 }
             } else {
                 if(sdl_keydown(79)) {
                     if(paddle_x < 640-100) {
-                        paddle_x = paddle_x + 5;
+                        paddle_x += 5;
                     }
                 }
                 
                 if(sdl_keydown(80)) {
                     if(paddle_x > 0) {
-                        paddle_x = paddle_x - 5;
+                        paddle_x -= 5;
                     }
                 }
             }
@@ -167,7 +167,7 @@ proc init() {
         sdl_clear();
         sdl_copytex(game_over, 0, 0, 640, 480);
         sdl_settextcolor(255, 255, 255, 255);
-        sdl_printtext(100, 400, "Game Over Press Enter to Quit");
+        sdl_printtext(175, 400, "Game Over Press Enter to Quit");
         sdl_flip();
     }
     sdl_destroytex(game_over);
