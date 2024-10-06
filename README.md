@@ -4,8 +4,6 @@
 
 ![image](https://github.com/user-attachments/assets/c0f745cc-cd90-40d4-b467-0531131ed902)
 
-![image](https://github.com/user-attachments/assets/bd83c864-e15e-478f-bd5b-9f2c58d96852)
-
 ![image](https://github.com/user-attachments/assets/5f40ce93-134e-4c53-9fc3-f4e86c43c263)
 
 MasterX System is an application featuring a custom-built compiler designed for Linux/macOS for ETL (Easy Toy Language), accompanied by a virtual playground for testing and exploration. This project is a personal endeavor in its early stages, aimed at enhancing my learning through practical application. 
@@ -42,7 +40,7 @@ To install, you must compile the compiler from the source code by first compilin
 
 ![image](https://github.com/user-attachments/assets/1266f28c-d4fc-4ddd-9a7f-7f48c57603f5)
 
-![image](https://github.com/user-attachments/assets/aa286ef3-caf6-4065-ae2e-6628e5a0c1cd)
+![breakout_new02](https://github.com/user-attachments/assets/8aabbc4b-0931-441f-a204-c7cf1615b91a)
 
 ![image](https://github.com/user-attachments/assets/75feb52b-231a-4435-8f58-f4b68763a550)
 
