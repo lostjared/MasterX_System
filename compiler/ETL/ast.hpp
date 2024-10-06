@@ -42,12 +42,13 @@ namespace ast {
         std::string name;
         VarType vtype;
         Identifier(const std::string &n) : name(n), vtype{} {}
+        Identifier(const std::string &n, VarType v) : name{n}, vtype{v} {}
         std::string text() const override {
             return name;  
         }
 
         std::unique_ptr<Identifier> copy() {
-            return std::make_unique<Identifier>(name);
+            return std::make_unique<Identifier>(name, vtype);
         }
     };
 
