@@ -6,7 +6,7 @@
 #define GRID_SIZE ((BLOCK_WIDTH * BLOCK_HEIGHT) * 8)
 
 proc @allocate_grid() {
-    let grid = malloc(GRID_SIZE+1);
+    let grid = malloc(GRID_SIZE+25);
     memclr(grid, GRID_SIZE);
     return grid;
 }
@@ -63,12 +63,14 @@ proc init() {
     let paddle_width = 100;
     let paddle_height = 10;
     let ball_size = 5;
+    let score = 0;
     let lives = 3;
     let active = 1;
-    let score = 0;
     let active_gameover = 1;
     let active_intro = 1;
-    let start_tex = sdl_loadtex("start.bmp");
+    let start_tex = sdl_loadtex("img/start.bmp");
+    let bg = sdl_loadtex("img/bg.bmp");
+    let game_over = sdl_loadtex("img/gameover.bmp");
 
     while(sdl_pump() && active_intro == 1) {
         sdl_setcolor(0, 0, 0, 255);
@@ -84,8 +86,7 @@ proc init() {
         sdl_flip();
     }
 
-    sdl_destroytex(start_tex);
-    let bg = sdl_loadtex("bg.bmp");
+    
     let prev_time = sdl_getticks();
     
     while(sdl_pump() && active == 1) {
@@ -146,6 +147,7 @@ proc init() {
                 }
             }
         }
+
         draw_grid(grid);
         sdl_setcolor(255, 255, 255, 255);
         sdl_setstartcolor(150, 150, 150, 255);
@@ -156,21 +158,21 @@ proc init() {
         sdl_printtext(10, 425, "Score: " + str(score));
         sdl_flip();
     }
-    sdl_destroytex(bg);
-    let game_over = sdl_loadtex("gameover.bmp");
+
     while(sdl_pump() && active_gameover == 1) {
+        if(sdl_keydown(40)) {
+            active_gameover = 0;
+        }
         sdl_setcolor(0, 0, 0, 255);
         sdl_clear();
         sdl_copytex(game_over, 0, 0, 640, 480);
         sdl_settextcolor(255, 255, 255, 255);
-        sdl_printtext(100, 400, "Press Enter to Quit  [ Game Over Score: " + str(score) + " ] ");
-        if(sdl_keydown(40)) {
-            active_gameover = 0;
-        }
+        sdl_printtext(100, 400, "Game Over Press Enter to Quit");
         sdl_flip();
-        sdl_delay(1000/60);
     }
     sdl_destroytex(game_over);
+    sdl_destroytex(bg);
+    sdl_destroytex(start_tex);  
     free(grid);
     sdl_release();
     sdl_quit();
