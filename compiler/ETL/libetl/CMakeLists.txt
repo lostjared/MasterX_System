@@ -19,12 +19,13 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2")
 include_directories(${SDL2_INCLUDE_DIRS})
 
 # Add source files
-add_library(etl STATIC libetl.c)
+add_library(etl STATIC libetl.c io.c)
 add_library(etl_sdl STATIC sdl.c)
 
 # Specify install paths
 install(FILES etl.e DESTINATION ${ETL_PATH}/include/libetl/)
 install(FILES sdl.e DESTINATION ${ETL_PATH}/include/libetl/)
+install(FILES io.e DESTINATION $(ETL_PATH)/incldue/libetl/)
 install(TARGETS etl etl_sdl DESTINATION ${ETL_PATH}/lib)
 
 # Clean up command (optional, typically not necessary in CMake)
