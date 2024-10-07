@@ -142,3 +142,17 @@ long len(void *ptr) {
     return strlen((char*)ptr);
 }
 
+char *charAt(const char *src, long index) {
+    char *buf = malloc(2);
+    buf[0] = src[index];
+    buf[1] = 0;
+    return buf;
+}
+
+void *ptr(const char *s) {
+    return (void*)s;
+}
+
+char *string(void *s) {
+    return (char*)s;
+}
