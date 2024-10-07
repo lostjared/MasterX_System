@@ -294,6 +294,9 @@ namespace parse {
             }
             code.emplace_back(ir::InstructionType::SUB_LABEL, endLabel);
         }
+
+        std::unordered_map<std::string, std::string> string_const;
+
         void generateAssignment(const ast::Assignment *assign, ir::IRCode &code) {
             auto lhs = dynamic_cast<const ast::Identifier*>(assign->left.get());
             if (lhs) {
@@ -315,8 +318,12 @@ namespace parse {
                         else if(rhsLiteral->type == types::TokenType::TT_STR)
                             e->vtype = ast::VarType::STRING;
                     }
+
+                    std::string vname = getNextTempVar();
+                    string_const[lhs->name] = vname;
+
                     if(assign->there == false)
-                        code.emplace_back(ir::InstructionType::LOAD_CONST, lhs->name, rhsLiteral->value);
+                        code.emplace_back(ir::InstructionType::LOAD_CONST, vname, rhsLiteral->value);
                     else
                         code.emplace_back(ir::InstructionType::SET_CONST, lhs->name, rhsLiteral->value);
 
@@ -605,11 +612,17 @@ namespace parse {
                         vx->vtype = cpx.value()->vtype;
                     } else {
                         std::ostringstream stream;
-                        stream << "Error variable: " << identifier->name << " not defind but used.\n";
+                        stream << "Error variable: " << identifier->name << " not defined but used.\n";
                         throw ir::IRException(stream.str());
                     }
                 }
-                code.emplace_back(ir::InstructionType::LOAD_VAR, tempVar, identifier->name);
+
+                std::string id = identifier->name;
+                if(string_const.find(id) != string_const.end()) {
+                    id = string_const[id];
+                }
+
+                code.emplace_back(ir::InstructionType::LOAD_VAR, tempVar, id);
                 lastComputedValue["result"] = tempVar;
             }
         }
