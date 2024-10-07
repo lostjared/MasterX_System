@@ -161,18 +161,23 @@ namespace codegen {
             }
         }
 
+
+        std::unordered_map<std::string, std::string> string_const;
+
         void emitDataSection(std::ostringstream &output) {
 #ifdef __APPLE__
 output << ".section __TEXT,__cstring\n";
 #else
 output << ".section .data\n";
 #endif
+
             for(auto &func : variableInfo) {
                 for(const auto &v : func.second) {
                     if(v.second.type == VariableType::NUMERIC_CONST) {
                         //output << v.second.vname << ": .quad " << v.second.text << "\n";
                     } else if(v.second.type == VariableType::STRING_CONST) {
-                        output << v.second.vname << ": .asciz " << ir::escapeString(v.second.text) << "\n";
+                        output << func.first + "_" + v.second.vname << ": .asciz " << ir::escapeString(v.second.text) << "\n";
+                        string_const[v.second.vname] = func.first + "_" + v.second.vname;
                     }
                 }
             }
@@ -403,6 +408,9 @@ output << ".section .data\n";
             auto loc = table.lookup(instr.dest);
             if (instr.op1[0] == '\"') {
                 std::string label = stringLiterals[curFunction][instr.op1];
+                if(string_const.find(label) != string_const.end()) {
+                    label = string_const[label];
+                }
                 variableInfo[curFunction][instr.dest].type = VariableType::STRING_CONST;
                 if(loc.has_value()) {
                     loc.value()->vtype = ast::VarType::STRING;
@@ -818,7 +826,10 @@ output << ".section .data\n";
 
 
             if (instr.op1[0] == '\"') {
-                std::string label = stringLiterals[curFunction][instr.op1];
+                std::string label = stringLiterals[curFunction][instr.op1]; 
+                if(string_const.find(label) != string_const.end())
+                    label = string_const[label];
+                       
                 output << "    leaq " << label << "(%rip), %rax\n";
                 variableInfo[curFunction][instr.dest].type = VariableType::STRING_CONST;
                 if(loc.has_value()) {
