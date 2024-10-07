@@ -278,14 +278,11 @@ namespace scan {
                 }
             }
 
-            if (!tok_value.empty()) {
-                token.set_pos(pos);
-                token.set_filename(filename);
-                token.setToken(types::TokenType::TT_STR, tok_value);
-                return token;
-            }
-
-            return std::nullopt;
+    
+            token.set_pos(pos);
+            token.set_filename(filename);
+            token.setToken(types::TokenType::TT_STR, tok_value);
+            return token;
         }
 
         std::optional<TToken> Scanner::grabSingle() {
@@ -315,25 +312,19 @@ namespace scan {
                             tok_value += '\\';
                             tok_value += *next_ch;
                             break;
-                    }
+                }
             } else if (*ch == '\'') {
                     break;
-                } else {
-                    tok_value += *ch;
-                }
+            } else {
+                tok_value += *ch;
             }
-
-           if (!tok_value.empty()) {
-                token.set_pos(pos);
-                token.set_filename(filename);
-                token.setToken(types::TokenType::TT_STR, tok_value);
-                return token;
-            }
-
-            return std::nullopt;
         }
 
-    
+        token.set_pos(pos);
+        token.set_filename(filename);
+        token.setToken(types::TokenType::TT_STR, tok_value);
+        return token;
+    }
 
     TToken &Scanner::operator[](size_t index) {         
         if(index < size()) return tokens[index];
