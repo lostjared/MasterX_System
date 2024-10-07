@@ -829,7 +829,7 @@ output << ".section .data\n";
                 std::string label = stringLiterals[curFunction][instr.op1]; 
                 if(string_const.find(label) != string_const.end())
                     label = string_const[label];
-                       
+
                 output << "    leaq " << label << "(%rip), %rax\n";
                 variableInfo[curFunction][instr.dest].type = VariableType::STRING_CONST;
                 if(loc.has_value()) {
@@ -859,33 +859,44 @@ output << ".section .data\n";
             output  << "    movq $0, %rcx\n";
             storeToTemp(output, "counter", "%rcx");
 
-            if (variableInfo[curFunction][instr.op1].type == VariableType::STRING_CONST) {
-                if(!variableInfo[curFunction][instr.op1].text.empty()  && variableInfo[curFunction][instr.op1].text[0] == '\"') {
-                    auto len = variableInfo[curFunction][instr.op1].text.length()+1;
+            std::string op1 = instr.op1;
+            std::string op2 = instr.op2;
+
+            if(string_const.find(instr.op1) != string_const.end()){
+                op1 = string_const[instr.op1];
+            }
+
+            if(string_const.find(instr.op2) != string_const.end()){
+                op2 = string_const[instr.op2];
+            }
+
+            if (variableInfo[curFunction][op1].type == VariableType::STRING_CONST) {
+                if(!variableInfo[curFunction][op1].text.empty()  && variableInfo[curFunction][op1].text[0] == '\"') {
+                    auto len = variableInfo[curFunction][op1].text.length()+1;
                     output << "    addq $" << len << ", " << getOperand("counter") << "\n";
                 } else {
-                    loadToRegister(output, instr.op1, "%rdi");
-                    output << "    call " << prefix << "strlen #" << instr.op1 << "\n";
+                    loadToRegister(output, op1, "%rdi");
+                    output << "    call " << prefix << "strlen #" << op1 << "\n";
                     output << "    addq  %rax, " << getOperand("counter") << "\n";
                 }
-            } else if(variableInfo[curFunction][instr.op1].type == VariableType::VAR_STRING || op1_it.has_value()   && op1_it.value()->vtype == ast::VarType::STRING) {
-                loadToRegister(output, instr.op1, "%rdi");
-                output << "    call " << prefix << "strlen # " << instr.op1 <<"\n";
+            } else if(variableInfo[curFunction][op1].type == VariableType::VAR_STRING || op1_it.has_value()   && op1_it.value()->vtype == ast::VarType::STRING) {
+                loadToRegister(output, op1, "%rdi");
+                output << "    call " << prefix << "strlen # " << op1 <<"\n";
                 output << "    addq %rax, " << getOperand("counter") << "\n";
             } 
 
-            if (variableInfo[curFunction][instr.op2].type == VariableType::STRING_CONST) {
-                if(!variableInfo[curFunction][instr.op2].text.empty()  && variableInfo[curFunction][instr.op2].text[0] == '\"') {
-                    auto len = variableInfo[curFunction][instr.op2].text.length()+1;
+            if (variableInfo[curFunction][op2].type == VariableType::STRING_CONST) {
+                if(!variableInfo[curFunction][op2].text.empty()  && variableInfo[curFunction][op2].text[0] == '\"') {
+                    auto len = variableInfo[curFunction][op2].text.length()+1;
                     output << "    addq $" << len << ", " << getOperand("counter") << "\n";
                 } else {
-                    loadToRegister(output, instr.op2, "%rdi");
-                    output << "    call " << prefix << "strlen # " << instr.op2 << "\n";
+                    loadToRegister(output, op2, "%rdi");
+                    output << "    call " << prefix << "strlen # " << op2 << "\n";
                     output << "    addq %rax, "  << getOperand("counter") << "\n";
                 }
-            } else if (variableInfo[curFunction][instr.op2].type == VariableType::VAR_STRING   && op2_it.has_value()  && op2_it.value()->vtype == ast::VarType::STRING) {
-                loadToRegister(output, instr.op2, "%rdi");
-                output << "    call " << prefix << "strlen # " << instr.op2 << "\n";
+            } else if (variableInfo[curFunction][op2].type == VariableType::VAR_STRING   && op2_it.has_value()  && op2_it.value()->vtype == ast::VarType::STRING) {
+                loadToRegister(output, op2, "%rdi");
+                output << "    call " << prefix << "strlen # " << op2 << "\n";
                 output << "    addq %rax, " << getOperand("counter") << "\n";
             } 
 
@@ -896,9 +907,9 @@ output << ".section .data\n";
             output << "    call " << prefix << "calloc\n";
             output << "    movq %rax, %rdi\n";
             storeToTemp(output, instr.dest, "%rdi");
-            loadToRegister(output,instr.op1,"%rsi");
+            loadToRegister(output,op1,"%rsi");
             output << "    call " << prefix << "strcpy\n";
-            loadToRegister(output,instr.op2,"%rsi");
+            loadToRegister(output,op2,"%rsi");
             output << "    call " << prefix << "strcat\n";
             allocatedMemory[curFunction].insert(instr.dest);  
             variableInfo[curFunction][instr.dest].type = VariableType::VAR_STRING;
