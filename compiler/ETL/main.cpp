@@ -17,14 +17,14 @@ int main(int argc, char **argv)  {
     .addOptionSingleValue('o', "output file")
     .addOptionSingle('h', "help")
     .addOptionSingle('v', "help")
-    .addOptionSingle('d', "Output HTML debug info")
+    .addOptionSingle('d', "Output Debug info")
     .addOptionSingle('q', "Quiet mode");
 
     std::string in_file, out_file;
     int value = 0;
     Argument<std::string> arg;
     bool debug_info = false;
-    bool quiet_mode = false;
+    bool quiet_mode = true;
 
     try {
         while((value = argz.proc(arg)) != -1) {
@@ -43,6 +43,7 @@ int main(int argc, char **argv)  {
                     break;
                 case 'd':
                     debug_info = true;
+                    quiet_mode = false;
                     break;
                 case 'q':
                     quiet_mode = true;
