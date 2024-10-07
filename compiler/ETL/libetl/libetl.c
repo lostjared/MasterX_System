@@ -141,3 +141,4 @@ long len(void *ptr) {
     }
     return strlen((char*)ptr);
 }
+
