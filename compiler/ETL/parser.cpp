@@ -351,6 +351,9 @@ namespace parse {
                     if (literal->type == types::TokenType::TT_STR) {
                         if (auto identifier = dynamic_cast<ast::Identifier*>(lhs.get())) {
                             identifier->vtype = ast::VarType::STRING;
+                            if(literal->value == "\"\"")
+                                identifier->zero_value = true;
+                            
                         }
                     } else if (literal->type == types::TokenType::TT_NUM) {
                         if (auto identifier = dynamic_cast<ast::Identifier*>(lhs.get())) {

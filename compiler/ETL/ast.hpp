@@ -41,14 +41,15 @@ namespace ast {
     struct Identifier : Expression {
         std::string name;
         VarType vtype;
-        Identifier(const std::string &n) : name(n), vtype{} {}
-        Identifier(const std::string &n, VarType v) : name{n}, vtype{v} {}
+        bool zero_value;
+        Identifier(const std::string &n) : name(n), vtype{}, zero_value{false} {}
+        Identifier(const std::string &n, VarType v, bool z) : name{n}, vtype{v}, zero_value{z} {}
         std::string text() const override {
             return name;  
         }
 
         std::unique_ptr<Identifier> copy() {
-            return std::make_unique<Identifier>(name, vtype);
+            return std::make_unique<Identifier>(name, vtype, zero_value);
         }
     };
 
