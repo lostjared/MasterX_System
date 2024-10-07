@@ -153,6 +153,7 @@ namespace ir {
 
 namespace parse {
 
+
     class IRGenerator {
     public:
         symbol::SymbolTable table;
@@ -175,6 +176,14 @@ namespace parse {
         std::string getNextTempVar() {
             return "t" + std::to_string(tempVarCounter++);
         }
+
+
+        std::string prefixIdentifier(const std::string &name) {
+            return currentFunctionName + "_" + name;
+        }
+
+        std::unordered_map<std::string, std::string> orig_names;
+        std::unordered_map<std::string, std::string> prefix_names;
 
         void generate(const ast::ASTNode *node, ir::IRCode &code) {
             if (auto program = dynamic_cast<const ast::Program*>(node)) {
@@ -297,38 +306,43 @@ namespace parse {
         void generateAssignment(const ast::Assignment *assign, ir::IRCode &code) {
             auto lhs = dynamic_cast<const ast::Identifier*>(assign->left.get());
             if (lhs) {
+                std::string LHS_name = prefixIdentifier(lhs->name);
+                orig_names[LHS_name] = lhs->name;
+                prefix_names[lhs->name] = LHS_name;
+
                 auto rhsLiteral = dynamic_cast<const ast::Literal*>(assign->right.get());
                 if (rhsLiteral) {
-                    if(assign->there == false && table.is_there(lhs->name)) {
+
+                    if(assign->there == false && table.is_there(LHS_name)) {
                         std::ostringstream stream;
                         stream << " Variable: " << lhs->name << " already defined in constant assignment.\n";
                         throw ir::IRException(stream.str());
                     }
-                    table.enter(lhs->name);
-                    auto entry = table.lookup(lhs->name);
+                    table.enter(LHS_name);
+                    auto entry = table.lookup(LHS_name);
                     if(entry.has_value()) {
                         symbol::Symbol *e = entry.value();
-                        e->name = lhs->name;
+                        e->name = LHS_name;
                         e->value = rhsLiteral->value;      
                         if(rhsLiteral->type == types::TokenType::TT_NUM)
                             e->vtype = ast::VarType::NUMBER;
                         else if(rhsLiteral->type == types::TokenType::TT_STR)
                             e->vtype = ast::VarType::STRING;
                     }
-                    if(assign->there == false)
-                        code.emplace_back(ir::InstructionType::LOAD_CONST, lhs->name, rhsLiteral->value);
+                    if(assign->there == false) 
+                        code.emplace_back(ir::InstructionType::LOAD_CONST, LHS_name, rhsLiteral->value);
                     else
-                        code.emplace_back(ir::InstructionType::SET_CONST, lhs->name, rhsLiteral->value);
+                        code.emplace_back(ir::InstructionType::SET_CONST, LHS_name, rhsLiteral->value);
 
 
                 } else {
                     generate(assign->right.get(), code);
                     std::string rhs = lastComputedValue["result"];
-                    if (lastComputedValue[rhs] == lhs->name) {
-                        lastComputedValue[lhs->name] = rhs;
+                    if (lastComputedValue[rhs] == LHS_name) {
+                        lastComputedValue[LHS_name] = rhs;
                     } else {
-                        table.enter(lhs->name);
-                        auto it = table.lookup(lhs->name);
+                        table.enter(LHS_name);
+                        auto it = table.lookup(LHS_name);
                         if(it.has_value()) {
                             symbol::Symbol *s = it.value();
                             table.enter(rhs);
@@ -338,11 +352,11 @@ namespace parse {
                             }
                         }
                         if(assign->there == false)
-                            code.emplace_back(ir::InstructionType::ASSIGN, lhs->name, rhs);
+                            code.emplace_back(ir::InstructionType::ASSIGN, LHS_name, rhs);
                         else
-                            code.emplace_back(ir::InstructionType::SET, lhs->name, rhs);
+                            code.emplace_back(ir::InstructionType::SET, LHS_name, rhs);
 
-                        lastComputedValue[lhs->name] = lhs->name;
+                        lastComputedValue[LHS_name] = LHS_name;
                     }
                 }
             } else {
@@ -514,18 +528,24 @@ namespace parse {
             table.enterScope(func->name);
 
             for (const auto &param : func->parameters) {
-                table.enter(param.first);  
-                auto p = table.lookup(param.first);
+
+
+                std::string unique_name = prefixIdentifier(param.first);
+                orig_names[unique_name] = param.first;
+                prefix_names[param.first] = unique_name;
+
+                table.enter(unique_name);  
+                auto p = table.lookup(unique_name);
                 if(p.has_value()) {
                     symbol::Symbol *s = p.value();
                     s->vtype = param.second;
                 }
                 if(param.second == ast::VarType::STRING) {
-                    code.emplace_back(ir::InstructionType::PARAM_STRING, param.first, "");  
+                    code.emplace_back(ir::InstructionType::PARAM_STRING, unique_name, "");  
                 } else if(param.second == ast::VarType::NUMBER) {
-                    code.emplace_back(ir::InstructionType::PARAM, param.first, "");  
+                    code.emplace_back(ir::InstructionType::PARAM, unique_name, "");  
                 } else if(param.second == ast::VarType::POINTER){
-                    code.emplace_back(ir::InstructionType::PARAM_POINTER, param.first, "");
+                    code.emplace_back(ir::InstructionType::PARAM_POINTER, unique_name, "");
                 }
             }
             std::vector<ast::VarType> paramTypes;
@@ -545,18 +565,21 @@ namespace parse {
             code.emplace_back(ir::InstructionType::DEFINE, func->name, "");
             table.enterScope(func->name);
             for (const auto &param : func->parameters) {
-                table.enter(param.first);  
-                auto p = table.lookup(param.first);
+                std::string unique_name = func->name + "_" + param.first;
+                orig_names[unique_name] = param.first;
+                prefix_names[param.first] = unique_name;
+                table.enter(unique_name);  
+                auto p = table.lookup(unique_name);
                 if(p.has_value()) {
                     symbol::Symbol *s = p.value();
                     s->vtype = param.second;
                 }
                 if(param.second == ast::VarType::STRING) {
-                    code.emplace_back(ir::InstructionType::DEF_PARAM_STRING, param.first, "");  
+                    code.emplace_back(ir::InstructionType::DEF_PARAM_STRING, unique_name, "");  
                 } else if(param.second == ast::VarType::NUMBER) {
-                    code.emplace_back(ir::InstructionType::DEF_PARAM, param.first, "");  
+                    code.emplace_back(ir::InstructionType::DEF_PARAM, unique_name, "");  
                 } else if(param.second == ast::VarType::POINTER) {
-                    code.emplace_back(ir::InstructionType::DEF_PARAM_POINTER, param.first, "");
+                    code.emplace_back(ir::InstructionType::DEF_PARAM_POINTER, unique_name, "");
                 }
             }
 
@@ -589,7 +612,7 @@ namespace parse {
 
         void generateIdentifier(const ast::Identifier *identifier, ir::IRCode &code) {
             if (lastComputedValue.find(identifier->name) != lastComputedValue.end()) {
-                lastComputedValue["result"] = lastComputedValue[identifier->name];
+                lastComputedValue["result"] = lastComputedValue[prefix_names[identifier->name]];
             } else {
                 std::string tempVar = getNextTempVar();
 
@@ -599,17 +622,17 @@ namespace parse {
                     symbol::Symbol *vx = v.value();
                     vx->name = tempVar;
                     vx->vtype = identifier->vtype;
-                    auto cpx = table.lookup(identifier->name);
+                    auto cpx = table.lookup(prefix_names[identifier->name]);
                     if(cpx.has_value()) {
                         vx->value = cpx.value()->value;
                         vx->vtype = cpx.value()->vtype;
                     } else {
                         std::ostringstream stream;
-                        stream << "Error variable: " << identifier->name << " not defind but used.\n";
+                        stream << "Error variable: " << identifier->name << " not defined but used.\n";
                         throw ir::IRException(stream.str());
                     }
                 }
-                code.emplace_back(ir::InstructionType::LOAD_VAR, tempVar, identifier->name);
+                code.emplace_back(ir::InstructionType::LOAD_VAR, tempVar, prefix_names[identifier->name]);
                 lastComputedValue["result"] = tempVar;
             }
         }
