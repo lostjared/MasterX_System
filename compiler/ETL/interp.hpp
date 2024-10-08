@@ -17,6 +17,14 @@
 #include "clib.hpp"
 
 namespace interp {
+    
+    class Exception {
+    public:
+        Exception(const std::string &text) : data{text} {}
+        std::string why () const { return data; }
+    private:
+        std::string data;
+    };
 
     class Interpreter {
     public:
@@ -31,6 +39,8 @@ namespace interp {
 
         void executeAdd(const ir::IRInstruction &instr);
         void executeSub(const ir::IRInstruction &instr);
+        void executeMul(const ir::IRInstruction &instr);
+        void executeDiv(const ir::IRInstruction &instr);
         void executeJump(const ir::IRInstruction &instr);
 
 

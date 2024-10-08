@@ -21,6 +21,12 @@ namespace interp {
                 case ir::InstructionType::JUMP:
                     executeJump(instr);
                     break;
+                case ir::InstructionType::MUL:
+                    executeMul(instr);
+                    break;
+                case ir::InstructionType::DIV:
+                    executeDiv(instr);
+                    break;
                 default:
                     std::cerr << "Unsupported instruction: " << instr.toString() << std::endl;
                     break;
@@ -45,6 +51,21 @@ namespace interp {
         numeric_variables[instr.dest] = val1 - val2;
     }
 
+    void Interpreter::executeMul(const ir::IRInstruction &instr) {
+        int val1 = getIntegerValue(instr.op1);
+        int val2 = getIntegerValue(instr.op2);
+        numeric_variables[instr.dest] = val1 * val2;
+    }
+
+    void Interpreter::executeDiv(const ir::IRInstruction &instr) {
+        int val1 = getIntegerValue(instr.op1);
+        int val2 = getIntegerValue(instr.op2);
+        if(val2 == 0) {
+            throw Exception("Divison By Zero");
+        }
+        numeric_variables[instr.dest] = val1 / val2;
+    }
+        
     void Interpreter::executeJump(const ir::IRInstruction &instr) {
         if (numeric_variables[instr.op1] != 0) {
             

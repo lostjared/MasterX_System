@@ -35,7 +35,14 @@ void test_execute(const std::string &filename, bool debug_info) {
                             ir::IROptimizer opt;
                             irContext.instructions = std::move(opt.optimize(irContext.instructions));
                             interp::Interpreter interp_(irContext.table);
-                            exit(interp_.execute(irContext.instructions));
+                            try {
+                                exit(interp_.execute(irContext.instructions));
+                            } catch(const interp::Exception  &e) {
+                                std::cerr << "Exception: " << e.why() << "\n";
+                            } catch(...) {
+                                std::cerr << "Unknown Exception\n";
+                            }
+                            exit(EXIT_FAILURE);
                 }
             } else {
                 std::cerr << "ETL: Parsing failed...\n";
