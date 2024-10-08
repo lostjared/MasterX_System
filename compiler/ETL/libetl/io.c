@@ -1,8 +1,13 @@
 #include<stdio.h>
-
+#include<stdlib.h>
 
 void *file_open(const char *src, const char *op) {
-    return (void*)fopen(src, op);
+    FILE *fptr = fopen(src, op);
+    if(!fptr) {
+        fprintf(stderr, "Error openining file: %s\n", src);
+        exit(EXIT_FAILURE);
+    }
+    return (void*)fptr;
 }
 
 void file_print(void *f, const char *data) {
