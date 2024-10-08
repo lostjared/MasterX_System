@@ -25,3 +25,9 @@ void file_close(void *f) {
     fclose((FILE*)f);
 }
 
+long file_size(void *f) {
+    fseek((FILE*)f, 0, SEEK_END);
+    long len = ftell((FILE*)f);
+    rewind((FILE*)f);
+    return len;
+}

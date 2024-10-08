@@ -6,4 +6,6 @@ define file_write(@file, @data, size);
 define file_read(@file, @data, size);
 define file_seek(@file, offset, origin);
 define file_close(@file);
+define file_size(@file);
 #endif
+ 
