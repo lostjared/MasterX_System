@@ -30,21 +30,25 @@ namespace interp {
     public:
         Interpreter(symbol::SymbolTable &table);
         int execute(ir::IRCode &code);
+        void outputDebugInfo(std::ostream &out);
 
     private:
         symbol::SymbolTable &sym_tab;
         long ip = 0;
-        std::unordered_map<std::string, long> numeric_variables;
-        std::unordered_map<std::string, std::string> string_variables;
+        std::string curFunction;
+        std::unordered_map<std::string, std::unordered_map<std::string, long>> numeric_variables;
+        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> string_variables;
 
         void executeAdd(const ir::IRInstruction &instr);
         void executeSub(const ir::IRInstruction &instr);
         void executeMul(const ir::IRInstruction &instr);
         void executeDiv(const ir::IRInstruction &instr);
         void executeJump(const ir::IRInstruction &instr);
-
-
+        void executeLoadConst(const ir::IRInstruction &instr);
+        void executeLabel(const ir::IRInstruction &instr);
         long getIntegerValue(const std::string &operand);
+
+
 
     };
 }

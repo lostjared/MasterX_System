@@ -11,6 +11,13 @@ namespace interp {
         ip = 0;
         while(ip < static_cast<long>(code.size())) {
             const auto instr = code[ip];
+
+            if(instr.type == ir::InstructionType::LABEL) {
+                    executeLabel(instr);
+                    ip++;
+                    continue;
+            }
+
             switch (instr.type) {
                 case ir::InstructionType::ADD:
                     executeAdd(instr);
@@ -27,6 +34,9 @@ namespace interp {
                 case ir::InstructionType::DIV:
                     executeDiv(instr);
                     break;
+                case ir::InstructionType::LOAD_CONST:
+                    executeLoadConst(instr);
+                    break;
                 default:
                     std::cerr << "Unsupported instruction: " << instr.toString() << std::endl;
                     break;
@@ -35,26 +45,41 @@ namespace interp {
             ip ++;
         }
 
-
+        outputDebugInfo(std::cout);
         return EXIT_SUCCESS;
     }
-    
+
+    void Interpreter::outputDebugInfo(std::ostream &out) {
+        out << "Variales [ strings ]\n";
+        for(auto &i : string_variables) {
+            for(auto &x : i.second) {
+                out << i.first << " [ " << x.first << ", " << x.second << "]\n";
+            }
+        }
+        out << "Variales [ numbers ]\n";
+        for(auto &i : numeric_variables) {
+            for(auto &x : i.second) {
+                out << i.first << " [ " << x.first << ", " << x.second << "]\n";
+            }
+        }
+    }
+
     void Interpreter::executeAdd(const ir::IRInstruction &instr) {
         int val1 = getIntegerValue(instr.op1);
         int val2 = getIntegerValue(instr.op2);
-        numeric_variables[instr.dest] = val1 + val2;
+        numeric_variables[curFunction][instr.dest] = val1 + val2;
     }
 
     void Interpreter::executeSub(const ir::IRInstruction &instr) {
         int val1 = getIntegerValue(instr.op1);
         int val2 = getIntegerValue(instr.op2);
-        numeric_variables[instr.dest] = val1 - val2;
+        numeric_variables[curFunction][instr.dest] = val1 - val2;
     }
 
     void Interpreter::executeMul(const ir::IRInstruction &instr) {
         int val1 = getIntegerValue(instr.op1);
         int val2 = getIntegerValue(instr.op2);
-        numeric_variables[instr.dest] = val1 * val2;
+        numeric_variables[curFunction][instr.dest] = val1 * val2;
     }
 
     void Interpreter::executeDiv(const ir::IRInstruction &instr) {
@@ -63,11 +88,38 @@ namespace interp {
         if(val2 == 0) {
             throw Exception("Divison By Zero");
         }
-        numeric_variables[instr.dest] = val1 / val2;
+        numeric_variables[curFunction][instr.dest] = val1 / val2;
     }
-        
+
+    void Interpreter::executeLabel(const ir::IRInstruction &instr) {
+        curFunction = instr.dest;
+    }
+
+    void Interpreter::executeLoadConst(const ir::IRInstruction &instr) {
+        if(instr.op1[0] == '\"') {
+            sym_tab.enter(instr.dest);
+            auto it = sym_tab.lookup(instr.dest);
+            if(it.has_value()) {
+                symbol::Symbol *s = it.value();
+                s->name = instr.dest;
+                s->value = instr.op1;
+                s->vtype = ast::VarType::STRING;
+                string_variables[curFunction][s->name] = s->value;
+            }
+        } else {
+            sym_tab.enter(instr.dest);
+            auto it = sym_tab.lookup(instr.dest);
+            if(it.has_value()) {
+               symbol::Symbol *s = it.value();
+               s->name = instr.dest;
+               s->value = instr.op1;
+               s->vtype = ast::VarType::NUMBER;
+               numeric_variables[curFunction][s->name] = std::stol(instr.op1);
+            }
+        }
+    }
     void Interpreter::executeJump(const ir::IRInstruction &instr) {
-        if (numeric_variables[instr.op1] != 0) {
+        if (numeric_variables[curFunction][instr.op1] != 0) {
             
         }
     }
@@ -76,7 +128,7 @@ namespace interp {
         if(isdigit(operand[0])) {
             return std::stol(operand);
         }
-        return numeric_variables[operand];
+        return numeric_variables[curFunction][operand];
     }
 
 }
