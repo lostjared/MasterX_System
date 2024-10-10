@@ -8,6 +8,7 @@ namespace interp {
     }
 
     int Interpreter::execute(ir::IRCode &code) {
+        collectLabels(code);
         ip = 0;
         while(ip < static_cast<long>(code.size())) {
             const auto instr = code[ip];
@@ -49,6 +50,20 @@ namespace interp {
         return EXIT_SUCCESS;
     }
 
+    void Interpreter::collectLabels(const ir::IRCode &code) {
+        int ip_id = 0;
+        while(ip_id < code.size()) {
+            const auto instr = code[ip_id];
+            if(instr.type == ir::InstructionType::LABEL) {
+                    label_pos[instr.dest] = ip_id;
+                    ip_id++;
+                    continue;
+            } else {
+                ip_id ++;
+            }
+        }
+    }
+
     void Interpreter::outputDebugInfo(std::ostream &out) {
         out << "Variales [ strings ]\n";
         for(auto &i : string_variables) {
@@ -61,6 +76,10 @@ namespace interp {
             for(auto &x : i.second) {
                 out << i.first << " [ " << x.first << ", " << x.second << "]\n";
             }
+
+        }
+        for(auto &i : label_pos) {
+            out << i.second << " = " << i.first << "\n";
         }
     }
 
@@ -118,6 +137,16 @@ namespace interp {
             }
         }
     }
+
+    void Interpreter::executeSetConst(const ir::IRInstruction &instr) {
+        auto loc = sym_tab.lookup(instr.dest);
+        if(instr.op1[0] == '\"') {
+            string_variables[curFunction][instr.dest] = instr.op1;
+        } else {
+            numeric_variables[curFunction][instr.dest] = std::stol(instr.op1);
+        }
+    }
+
     void Interpreter::executeJump(const ir::IRInstruction &instr) {
         if (numeric_variables[curFunction][instr.op1] != 0) {
             
