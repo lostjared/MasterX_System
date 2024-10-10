@@ -49,6 +49,10 @@ namespace interp {
         void executeJump(const ir::IRInstruction &instr);
         void executeLoadConst(const ir::IRInstruction &instr);
         void executeSetConst(const ir::IRInstruction &instr);
+        void executeAssignment(const ir::IRInstruction &instr);
+        void executeLoadVar(const ir::IRInstruction &instr);
+        void executeSet(const ir::IRInstruction &instr);
+        void executeReturn(const ir::IRInstruction &instr);
         void executeLabel(const ir::IRInstruction &instr);
         long getIntegerValue(const std::string &operand);
 

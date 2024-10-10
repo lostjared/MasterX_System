@@ -12,6 +12,7 @@ namespace interp {
         ip = 0;
         while(ip < static_cast<long>(code.size())) {
             const auto instr = code[ip];
+            std::cout << instr.toString() << "\n";
 
             if(instr.type == ir::InstructionType::LABEL) {
                     executeLabel(instr);
@@ -37,6 +38,18 @@ namespace interp {
                     break;
                 case ir::InstructionType::LOAD_CONST:
                     executeLoadConst(instr);
+                    break;
+                case ir::InstructionType::LOAD_VAR:
+                    executeLoadVar(instr);
+                    break;
+                case ir::InstructionType::SET:
+                    executeSet(instr);
+                    break;
+                case ir::InstructionType::SET_CONST:
+                    executeSetConst(instr);
+                    break;
+                case ir::InstructionType::ASSIGN:
+                    executeAssignment(instr);
                     break;
                 default:
                     std::cerr << "Unsupported instruction: " << instr.toString() << std::endl;
@@ -145,6 +158,39 @@ namespace interp {
         } else {
             numeric_variables[curFunction][instr.dest] = std::stol(instr.op1);
         }
+    }
+
+    void Interpreter::executeAssignment(const ir::IRInstruction &instr) {
+
+    }
+    
+    void Interpreter::executeLoadVar(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.op1);
+        sym_tab.enter(instr.dest);
+
+        auto loc_dest = sym_tab.lookup(instr.dest);
+        auto loc_op1 = sym_tab.lookup(instr.op1);
+
+        if(loc_dest.has_value()) {
+            if(loc_op1.value()->vtype == ast::VarType::STRING) {
+                string_variables[curFunction][instr.dest] = string_variables[curFunction][instr.op1];
+            } else {
+                numeric_variables[curFunction][instr.dest] = numeric_variables[curFunction][instr.op1];
+            }
+        }
+    }
+    void Interpreter::executeSet(const ir::IRInstruction &instr) {
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value()) {
+            if(loc.value()->vtype == ast::VarType::STRING) {
+                string_variables[curFunction][instr.dest] = string_variables[curFunction][instr.op1];
+            } if(loc.value()->vtype == ast::VarType::NUMBER) {
+                numeric_variables[curFunction][instr.dest] = numeric_variables[curFunction][instr.op1];
+            }
+        }
+    }
+    void Interpreter::executeReturn(const ir::IRInstruction &instr) {
+
     }
 
     void Interpreter::executeJump(const ir::IRInstruction &instr) {
