@@ -51,6 +51,9 @@ namespace interp {
                 case ir::InstructionType::ASSIGN:
                     executeAssignment(instr);
                     break;
+                case ir::InstructionType::NEG:
+                    executeNeg(instr);
+                    break;
                 default:
                     std::cerr << "Unsupported instruction: " << instr.toString() << std::endl;
                     break;
@@ -161,7 +164,16 @@ namespace interp {
     }
 
     void Interpreter::executeAssignment(const ir::IRInstruction &instr) {
-
+        sym_tab.enter(instr.dest);
+        auto loc_src = sym_tab.lookup(instr.op1);
+        auto loc_dst = sym_tab.lookup(instr.dest);
+        if(loc_src.has_value()) {
+            if(loc_src.value()->vtype == ast::VarType::STRING) {
+                string_variables[curFunction][instr.dest] = string_variables[curFunction][instr.op1];
+            } else if(loc_src.value()->vtype == ast::VarType::NUMBER) {
+                numeric_variables[curFunction][instr.dest] = numeric_variables[curFunction][instr.op1];
+            } // POIMTER
+        }
     }
     
     void Interpreter::executeLoadVar(const ir::IRInstruction &instr) {
@@ -189,8 +201,19 @@ namespace interp {
             }
         }
     }
+
     void Interpreter::executeReturn(const ir::IRInstruction &instr) {
 
+    }
+
+    void Interpreter::executeNeg(const ir::IRInstruction  &instr) {
+        sym_tab.enter(instr.dest);      
+        auto loc_dest = sym_tab.lookup(instr.dest);
+        auto loc_src = sym_tab.lookup(instr.op1);
+        if(loc_dest.has_value() && loc_src.has_value()) {
+            numeric_variables[curFunction][instr.dest] = -numeric_variables[curFunction][instr.op1];
+            loc_dest.value()->vtype = ast::VarType::NUMBER;
+        }
     }
 
     void Interpreter::executeJump(const ir::IRInstruction &instr) {

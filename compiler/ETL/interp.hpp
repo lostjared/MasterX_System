@@ -54,7 +54,9 @@ namespace interp {
         void executeSet(const ir::IRInstruction &instr);
         void executeReturn(const ir::IRInstruction &instr);
         void executeLabel(const ir::IRInstruction &instr);
+        void executeNeg(const ir::IRInstruction &instr);
         long getIntegerValue(const std::string &operand);
+        
 
 
 
