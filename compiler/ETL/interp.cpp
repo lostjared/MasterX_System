@@ -9,7 +9,10 @@ namespace interp {
 
     int Interpreter::execute(ir::IRCode &code) {
         collectLabels(code);
-        ip = 0;
+        if(label_pos.find("init") == label_pos.end()) {
+            throw Exception("Error could not find init entry point.\n");
+        }
+        ip = label_pos["init"];
         while(ip < static_cast<long>(code.size())) {
             const auto instr = code[ip];
             std::cout << instr.toString() << "\n";
@@ -54,6 +57,29 @@ namespace interp {
                 case ir::InstructionType::NEG:
                     executeNeg(instr);
                     break;
+                case ir::InstructionType::RETURN: {
+                    if(call_stack.empty()) {
+                        auto loc = sym_tab.lookup(instr.dest);
+                        if(loc.has_value()) {
+                            if(loc.value()->vtype == ast::VarType::NUMBER) {
+                                return numeric_variables[curFunction][instr.dest];
+                            }
+                        }
+                    } else {
+                        auto loc = sym_tab.lookup(instr.dest);
+                        if(loc.has_value()) {
+                            long pos = call_stack.back();
+                            call_stack.pop_back();
+                            ip = pos;
+                            if(loc.value()->vtype == ast::VarType::NUMBER) {
+                                rt_val = numeric_variables[curFunction][instr.dest];
+                            } else if(loc.value()->vtype == ast::VarType::STRING) {
+                                rt_str = string_variables[curFunction][instr.dest];
+                            }
+                        }
+                    }
+                }
+                break;
                 default:
                     std::cerr << "Unsupported instruction: " << instr.toString() << std::endl;
                     break;
@@ -61,8 +87,6 @@ namespace interp {
 
             ip ++;
         }
-
-        outputDebugInfo(std::cout);
         return EXIT_SUCCESS;
     }
 

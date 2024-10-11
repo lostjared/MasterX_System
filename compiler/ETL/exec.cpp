@@ -36,7 +36,10 @@ void test_execute(const std::string &filename, bool debug_info) {
                             irContext.instructions = std::move(opt.optimize(irContext.instructions));
                             interp::Interpreter interp_(irContext.table);
                             try {
-                                exit(interp_.execute(irContext.instructions));
+                                int rt_exit = interp_.execute(irContext.instructions);
+                                interp_.outputDebugInfo(std::cout);
+                                std::cout << "exited: " << rt_exit << "\n";
+                                exit(rt_exit);
                             } catch(const interp::Exception  &e) {
                                 std::cerr << "Exception: " << e.why() << "\n";
                             } catch(...) {

@@ -35,10 +35,14 @@ namespace interp {
     private:
         symbol::SymbolTable &sym_tab;
         long ip = 0;
+        long rt_val = 0;
+        std::string rt_str = "";
+        
         std::string curFunction;
         std::unordered_map<std::string, std::unordered_map<std::string, long>> numeric_variables;
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> string_variables;
         std::unordered_map<std::string, long> label_pos;
+        std::vector<long> call_stack;
 
         void collectLabels(const ir::IRCode &code);
 
