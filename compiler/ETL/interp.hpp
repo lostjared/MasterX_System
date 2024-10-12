@@ -26,6 +26,14 @@ namespace interp {
         std::string data;
     };
 
+    class Exit_Exception {
+    public:
+        Exit_Exception(int status) : code{status} {}
+        int status() const { return code; }
+    private:
+        int code = 0;
+    };
+
     class Interpreter {
     public:
         Interpreter(symbol::SymbolTable &table);
@@ -56,9 +64,10 @@ namespace interp {
         void executeAssignment(const ir::IRInstruction &instr);
         void executeLoadVar(const ir::IRInstruction &instr);
         void executeSet(const ir::IRInstruction &instr);
-        void executeReturn(const ir::IRInstruction &instr);
         void executeLabel(const ir::IRInstruction &instr);
         void executeNeg(const ir::IRInstruction &instr);
+        void executeCall(const ir::IRInstruction &instr);
+        void executeReturn(const ir::IRInstruction &instr);
         long getIntegerValue(const std::string &operand);
         
 

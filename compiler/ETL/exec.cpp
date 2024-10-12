@@ -42,7 +42,12 @@ void test_execute(const std::string &filename, bool debug_info) {
                                 exit(rt_exit);
                             } catch(const interp::Exception  &e) {
                                 std::cerr << "Exception: " << e.why() << "\n";
-                            } catch(...) {
+                            } catch(const interp::Exit_Exception &e) {
+                                interp_.outputDebugInfo(std::cout);
+                                std::cout << "exited: " << e.status() <<"\n";
+                                exit(e.status());
+                            }    
+                            catch (...) {
                                 std::cerr << "Unknown Exception\n";
                             }
                             exit(EXIT_FAILURE);

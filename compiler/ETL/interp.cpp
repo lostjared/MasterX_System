@@ -58,26 +58,11 @@ namespace interp {
                     executeNeg(instr);
                     break;
                 case ir::InstructionType::RETURN: {
-                    if(call_stack.empty()) {
-                        auto loc = sym_tab.lookup(instr.dest);
-                        if(loc.has_value()) {
-                            if(loc.value()->vtype == ast::VarType::NUMBER) {
-                                return numeric_variables[curFunction][instr.dest];
-                            }
-                        }
-                    } else {
-                        auto loc = sym_tab.lookup(instr.dest);
-                        if(loc.has_value()) {
-                            long pos = call_stack.back();
-                            call_stack.pop_back();
-                            ip = pos;
-                            if(loc.value()->vtype == ast::VarType::NUMBER) {
-                                rt_val = numeric_variables[curFunction][instr.dest];
-                            } else if(loc.value()->vtype == ast::VarType::STRING) {
-                                rt_str = string_variables[curFunction][instr.dest];
-                            }
-                        }
-                    }
+                    
+                }
+                break;
+                case ir::InstructionType::CALL: {
+                    executeCall(instr);
                 }
                 break;
                 default:
@@ -225,11 +210,7 @@ namespace interp {
             }
         }
     }
-
-    void Interpreter::executeReturn(const ir::IRInstruction &instr) {
-
-    }
-
+    
     void Interpreter::executeNeg(const ir::IRInstruction  &instr) {
         sym_tab.enter(instr.dest);      
         auto loc_dest = sym_tab.lookup(instr.dest);
@@ -240,6 +221,33 @@ namespace interp {
         }
     }
 
+    void Interpreter::executeCall(const ir::IRInstruction &instr) {
+
+    }
+    
+    void Interpreter::executeReturn(const ir::IRInstruction &instr) {
+        if(call_stack.empty()) {
+                auto loc = sym_tab.lookup(instr.dest);
+                if(loc.has_value()) {
+                    if(loc.value()->vtype == ast::VarType::NUMBER) {
+                        throw Exit_Exception(numeric_variables[curFunction][instr.dest]);
+                    }
+                    
+                }
+            } else {
+                auto loc = sym_tab.lookup(instr.dest);
+                if(loc.has_value()) {
+                    long pos = call_stack.back();
+                    call_stack.pop_back();
+                    ip = pos;
+                    if(loc.value()->vtype == ast::VarType::NUMBER) {
+                        rt_val = numeric_variables[curFunction][instr.dest];
+                    } else if(loc.value()->vtype == ast::VarType::STRING) {
+                        rt_str = string_variables[curFunction][instr.dest];
+                    }
+                }
+        }
+    }
     void Interpreter::executeJump(const ir::IRInstruction &instr) {
         if (numeric_variables[curFunction][instr.op1] != 0) {
             
