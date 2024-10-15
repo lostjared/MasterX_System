@@ -232,7 +232,7 @@ namespace interp {
         auto loc_dest = sym_tab.lookup(instr.dest);
         auto loc_src = sym_tab.lookup(instr.op1);
         if(loc_dest.has_value() && loc_src.has_value()) {
-            numeric_variables[curFunction][instr.dest] = !numeric_variables[curFunction][instr.op1];
+            numeric_variables[curFunction][instr.dest] = ~numeric_variables[curFunction][instr.op1];
             loc_dest.value()->vtype = ast::VarType::NUMBER;
         }
     }
