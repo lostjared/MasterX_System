@@ -193,22 +193,24 @@ namespace interp {
                 string_variables[curFunction][instr.dest] = string_variables[curFunction][instr.op1];
             } else if(loc_src.value()->vtype == ast::VarType::NUMBER) {
                 numeric_variables[curFunction][instr.dest] = numeric_variables[curFunction][instr.op1];
-            } // POIMTER
+            } else if(loc_src.value()->vtype == ast::VarType::POINTER) {
+                pointer_variables[curFunction][instr.dest] =  pointer_variables[curFunction][instr.op1];   
+            }
         }
     }
     
     void Interpreter::executeLoadVar(const ir::IRInstruction &instr) {
         sym_tab.enter(instr.op1);
         sym_tab.enter(instr.dest);
-
         auto loc_dest = sym_tab.lookup(instr.dest);
         auto loc_op1 = sym_tab.lookup(instr.op1);
-
         if(loc_dest.has_value()) {
             if(loc_op1.value()->vtype == ast::VarType::STRING) {
                 string_variables[curFunction][instr.dest] = string_variables[curFunction][instr.op1];
-            } else {
+            } else if(loc_op1.value()->vtype == ast::VarType::NUMBER) {
                 numeric_variables[curFunction][instr.dest] = numeric_variables[curFunction][instr.op1];
+            } else if(loc_op1.value()->vtype == ast::VarType::POINTER) {
+                pointer_variables[curFunction][instr.dest] = pointer_variables[curFunction][instr.op1];
             }
         }
     }
@@ -217,8 +219,10 @@ namespace interp {
         if(loc.has_value()) {
             if(loc.value()->vtype == ast::VarType::STRING) {
                 string_variables[curFunction][instr.dest] = string_variables[curFunction][instr.op1];
-            } if(loc.value()->vtype == ast::VarType::NUMBER) {
+            } else if(loc.value()->vtype == ast::VarType::NUMBER) {
                 numeric_variables[curFunction][instr.dest] = numeric_variables[curFunction][instr.op1];
+            } else if(loc.value()->vtype == ast::VarType::POINTER) {
+                pointer_variables[curFunction][instr.dest] = pointer_variables[curFunction][instr.op1];
             }
         }
     }
@@ -227,9 +231,13 @@ namespace interp {
         sym_tab.enter(instr.dest);      
         auto loc_dest = sym_tab.lookup(instr.dest);
         auto loc_src = sym_tab.lookup(instr.op1);
-        if(loc_dest.has_value() && loc_src.has_value()) {
+        if(loc_dest.has_value() && loc_src.has_value() && loc_src.value()->vtype == ast::VarType::NUMBER) {
             numeric_variables[curFunction][instr.dest] = -numeric_variables[curFunction][instr.op1];
             loc_dest.value()->vtype = ast::VarType::NUMBER;
+        } else {
+            std::ostringstream stream;
+            stream << "Exception: Neg Requires NUMBER variable: " << instr.op1 << "\n";
+            throw Exception(stream.str());
         }
     }
 
@@ -237,9 +245,13 @@ namespace interp {
         sym_tab.enter(instr.dest);      
         auto loc_dest = sym_tab.lookup(instr.dest);
         auto loc_src = sym_tab.lookup(instr.op1);
-        if(loc_dest.has_value() && loc_src.has_value()) {
+        if(loc_dest.has_value() && loc_src.has_value() && loc_src.value()->vtype == ast::VarType::NUMBER) {
             numeric_variables[curFunction][instr.dest] = ~numeric_variables[curFunction][instr.op1];
             loc_dest.value()->vtype = ast::VarType::NUMBER;
+        } else {
+            std::ostringstream stream;
+            stream << "Exception: Not Requires NUMBER variable: " << instr.op1 << "\n";
+            throw Exception(stream.str());
         }
     }
 
@@ -320,6 +332,8 @@ namespace interp {
                         rt_val = numeric_variables[curFunction][instr.dest];
                     } else if(loc.value()->vtype == ast::VarType::STRING) {
                         rt_str = string_variables[curFunction][instr.dest];
+                    } else if(loc.value()->vtype == ast::VarType::POINTER) {
+                        rt_ptr = pointer_variables[curFunction][instr.dest];
                     }
                 }
         }

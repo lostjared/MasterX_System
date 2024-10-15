@@ -44,10 +44,12 @@ namespace interp {
         long ip = 0;
         long rt_val = 0;
         std::string rt_str = "";
+        void *rt_ptr = nullptr;
         
         std::string curFunction;
         std::unordered_map<std::string, std::unordered_map<std::string, long>> numeric_variables;
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> string_variables;
+        std::unordered_map<std::string, std::unordered_map<std::string, void *>> pointer_variables;
         std::unordered_map<std::string, long> label_pos;
         std::vector<long> call_stack;
 
