@@ -63,6 +63,12 @@ namespace interp {
                 case ir::InstructionType::LOGICAL_NOT:
                     executeLogicalNot(instr);
                     break;
+                case ir::InstructionType::LOGICAL_AND:
+                    executeLogicalAnd(instr);
+                    break;
+                case ir::InstructionType::LOGICAL_OR:
+                    executeLogicalOr(instr);
+                    break;
                 case ir::InstructionType::RETURN: {
                     
                 }
@@ -245,6 +251,51 @@ namespace interp {
             numeric_variables[curFunction][instr.dest] = !numeric_variables[curFunction][instr.op1];
         }
     }
+
+    void Interpreter::executeLogicalAnd(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc_dest = sym_tab.lookup(instr.dest);
+        auto loc_op1 = sym_tab.lookup(instr.op1);
+        auto loc_op2 = sym_tab.lookup(instr.op2);
+
+        if(loc_op1.has_value() && loc_op2.has_value()) {
+            if(loc_op1.value()->vtype == ast::VarType::NUMBER && loc_op2.value()->vtype == ast::VarType::NUMBER)
+                numeric_variables[curFunction][instr.dest] = numeric_variables[curFunction][instr.op1] && numeric_variables[curFunction][instr.op2];
+            else {
+                std::ostringstream stream;
+                stream << "Incorrect Variable type for Logical And &&: " << instr.op1 << " && " << instr.op2 << "\n";
+                throw Exception(stream.str());    
+            }
+
+        } else {
+            std::ostringstream stream;
+            stream << "Undefined variable in " << instr.op1 << " && " << instr.op2;
+            throw Exception(stream.str());
+        }
+    }
+    void Interpreter::executeLogicalOr(const ir::IRInstruction &instr) {
+       sym_tab.enter(instr.dest);
+        auto loc_dest = sym_tab.lookup(instr.dest);
+        auto loc_op1 = sym_tab.lookup(instr.op1);
+        auto loc_op2 = sym_tab.lookup(instr.op2);
+
+        if(loc_op1.has_value() && loc_op2.has_value()) {
+
+            if(loc_op1.value()->vtype == ast::VarType::NUMBER && loc_op2.value()->vtype == ast::VarType::NUMBER)
+                numeric_variables[curFunction][instr.dest] = numeric_variables[curFunction][instr.op1] || numeric_variables[curFunction][instr.op2];
+            else {
+                std::ostringstream stream;
+                stream << "Incorrect Variable type for Logical Or ||: " << instr.op1 << " || " << instr.op2 << "\n";
+                throw Exception(stream.str());
+            }
+
+        } else {
+            std::ostringstream stream;
+            stream << "Undefined variable in " << instr.op1 << " || " << instr.op2;
+            throw Exception(stream.str());
+        }
+    }
+        
 
     void Interpreter::executeCall(const ir::IRInstruction &instr) {
 

@@ -67,6 +67,8 @@ namespace interp {
         void executeNeg(const ir::IRInstruction &instr);
         void executeNot(const ir::IRInstruction &instr);
         void executeLogicalNot(const ir::IRInstruction &instr);
+        void executeLogicalAnd(const ir::IRInstruction &instr);
+        void executeLogicalOr(const ir::IRInstruction &instr);
         void executeCall(const ir::IRInstruction &instr);
         void executeReturn(const ir::IRInstruction &instr);
         long getIntegerValue(const std::string &operand);
