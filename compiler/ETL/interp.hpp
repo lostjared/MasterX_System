@@ -34,6 +34,23 @@ namespace interp {
         int code = 0;
     };
 
+    struct Function {
+        std::string functionName;
+        std::vector<std::string> arg_names;
+        std::vector<ast::VarType> arg_types;
+        ast::VarType return_type;
+    };
+
+    class FunctionTable {
+    public:
+        void enterFunction(const std::string &name);
+        void addParam(const std::string &name, ast::VarType type);
+        Function &getFunction(const std::string &name);
+    private:
+        std::string curFunction;
+        std::unordered_map<std::string, Function> func;
+    };
+
     class Interpreter {
     public:
         Interpreter(symbol::SymbolTable &table);
@@ -41,17 +58,15 @@ namespace interp {
         void outputDebugInfo(std::ostream &out);
     private:
         symbol::SymbolTable &sym_tab;
+        FunctionTable ftable;
         long ip = 0;
-        long rt_val = 0;
-        std::string rt_str = "";
-        void *rt_ptr = nullptr;
 
         std::string curFunction;
         std::unordered_map<std::string, std::unordered_map<std::string, long>> numeric_variables;
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> string_variables;
         std::unordered_map<std::string, std::unordered_map<std::string, void *>> pointer_variables;
         std::unordered_map<std::string, long> label_pos;
-        std::vector<long> call_stack;
+        std::vector<std::pair<std::string, long>> call_stack;
 
         void collectLabels(const ir::IRCode &code);
 

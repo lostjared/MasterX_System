@@ -90,8 +90,13 @@ namespace interp {
                 case ir::InstructionType::CONCAT:
                     executeConcat(instr);
                     break;
+                case ir::InstructionType::PARAM:
+                case ir::InstructionType::PARAM_STRING:
+                case ir::InstructionType::PARAM_POINTER:
+                    break;
+                
                 case ir::InstructionType::RETURN: {
-                    
+                    executeReturn(instr);   
                 }
                 break;
                 case ir::InstructionType::CALL: {
@@ -110,15 +115,23 @@ namespace interp {
 
     void Interpreter::collectLabels(const ir::IRCode &code) {
         int ip_id = 0;
+        std::string curFunc;
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
             if(instr.type == ir::InstructionType::LABEL) {
                     label_pos[instr.dest] = ip_id;
+                    curFunc = instr.dest;
+                    ftable.enterFunction(curFunc);
                     ip_id++;
                     continue;
-            } else {
-                ip_id ++;
+            } else if(instr.type == ir::InstructionType::PARAM) {
+                ftable.addParam(instr.dest, ast::VarType::NUMBER);
+            } else if(instr.type == ir::InstructionType::PARAM_STRING) {
+                ftable.addParam(instr.dest, ast::VarType::STRING);
+            } else if(instr.type == ir::InstructionType::PARAM_POINTER) {
+                ftable.addParam(instr.dest, ast::VarType::POINTER);
             }
+            ip_id ++;
         }
     }
 
@@ -368,7 +381,25 @@ namespace interp {
         
 
     void Interpreter::executeCall(const ir::IRInstruction &instr) {
-
+        Function &func = ftable.getFunction(instr.functionName);
+        sym_tab.enter(instr.dest);
+         for(size_t i = 0; i < func.arg_names.size(); ++i) {
+            sym_tab.enterScope(instr.functionName);
+            switch(func.arg_types[i]) {
+                case ast::VarType::NUMBER: {
+                    sym_tab.enter(func.arg_names[i]);
+                    auto loc = sym_tab.lookup(func.arg_names[i]);
+                    if(loc.has_value()) {
+                        loc.value()->vtype = ast::VarType::NUMBER;
+                        numeric_variables[func.functionName][func.arg_names[i]] = numeric_variables[curFunction][instr.args[i]];
+                    }
+                }
+                break;
+            }
+        }
+        long pos = label_pos[instr.functionName]-1;
+        call_stack.push_back(std::make_pair(curFunction, ip));
+        ip = pos;      
     }
     
     void Interpreter::executeReturn(const ir::IRInstruction &instr) {
@@ -378,23 +409,14 @@ namespace interp {
                     if(loc.value()->vtype == ast::VarType::NUMBER) {
                         throw Exit_Exception(numeric_variables[curFunction][instr.dest]);
                     }
-                    
                 }
             } else {
-                auto loc = sym_tab.lookup(instr.dest);
-                if(loc.has_value()) {
-                    long pos = call_stack.back();
-                    call_stack.pop_back();
-                    ip = pos;
-                    if(loc.value()->vtype == ast::VarType::NUMBER) {
-                        rt_val = numeric_variables[curFunction][instr.dest];
-                    } else if(loc.value()->vtype == ast::VarType::STRING) {
-                        rt_str = string_variables[curFunction][instr.dest];
-                    } else if(loc.value()->vtype == ast::VarType::POINTER) {
-                        rt_ptr = pointer_variables[curFunction][instr.dest];
-                    }
-                }
-        }
+                auto pos = call_stack.back();
+                call_stack.pop_back();
+                sym_tab.enterScope(pos.first);
+                sym_tab.enter(instr.dest);
+                ip = pos.second;
+           }
     }
     void Interpreter::executeJump(const ir::IRInstruction &instr) {
         if (numeric_variables[curFunction][instr.op1] != 0) {
@@ -428,4 +450,20 @@ namespace interp {
         }
         throw Exception("String without quotes: " + value);
     }
+
+
+    void FunctionTable::enterFunction(const std::string &name) {
+        curFunction = name;
+        func[curFunction].functionName = name;
+    }
+    
+    void FunctionTable::addParam(const std::string &name, ast::VarType type) {
+        func[curFunction].arg_names.push_back(name);
+        func[curFunction].arg_types.push_back(type);
+    }
+
+    Function &FunctionTable::getFunction(const std::string &name) {
+        return func[name];
+    }
+
 }
