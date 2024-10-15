@@ -39,6 +39,24 @@ namespace interp {
                 case ir::InstructionType::DIV:
                     executeDiv(instr);
                     break;
+                case ir::InstructionType::MOD:
+                    executeMod(instr);
+                    break;
+                case ir::InstructionType::AND:
+                    executeAnd(instr);
+                    break;
+                case ir::InstructionType::OR:
+                    executeOr(instr);
+                    break;
+                case ir::InstructionType::XOR:
+                    executeXor(instr);
+                    break;
+                case ir::InstructionType::LSHIFT:
+                    executeLShift(instr);
+                    break;
+                case ir::InstructionType::RSHIFT:
+                    executeRShift(instr);
+                    break;
                 case ir::InstructionType::LOAD_CONST:
                     executeLoadConst(instr);
                     break;
@@ -121,32 +139,69 @@ namespace interp {
     }
 
     void Interpreter::executeAdd(const ir::IRInstruction &instr) {
-        int val1 = getIntegerValue(instr.op1);
-        int val2 = getIntegerValue(instr.op2);
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 + val2;
     }
 
     void Interpreter::executeSub(const ir::IRInstruction &instr) {
-        int val1 = getIntegerValue(instr.op1);
-        int val2 = getIntegerValue(instr.op2);
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 - val2;
     }
 
     void Interpreter::executeMul(const ir::IRInstruction &instr) {
-        int val1 = getIntegerValue(instr.op1);
-        int val2 = getIntegerValue(instr.op2);
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 * val2;
     }
 
     void Interpreter::executeDiv(const ir::IRInstruction &instr) {
-        int val1 = getIntegerValue(instr.op1);
-        int val2 = getIntegerValue(instr.op2);
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
         if(val2 == 0) {
             throw Exception("Divison By Zero");
         }
         numeric_variables[curFunction][instr.dest] = val1 / val2;
     }
 
+    void Interpreter::executeMod(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 % val2;
+    }
+
+    void Interpreter::executeAnd(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 & val2;
+    
+    }
+
+    void Interpreter::executeOr(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 | val2;
+    }
+
+    void Interpreter::executeXor(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 ^ val2;
+    }
+
+    void Interpreter::executeLShift(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 << val2;
+    }
+
+    void Interpreter::executeRShift(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 >> val2;
+    }
+    
     void Interpreter::executeLabel(const ir::IRInstruction &instr) {
         curFunction = instr.dest;
     }

@@ -45,7 +45,7 @@ namespace interp {
         long rt_val = 0;
         std::string rt_str = "";
         void *rt_ptr = nullptr;
-        
+
         std::string curFunction;
         std::unordered_map<std::string, std::unordered_map<std::string, long>> numeric_variables;
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> string_variables;
@@ -59,6 +59,12 @@ namespace interp {
         void executeSub(const ir::IRInstruction &instr);
         void executeMul(const ir::IRInstruction &instr);
         void executeDiv(const ir::IRInstruction &instr);
+        void executeMod(const ir::IRInstruction &instr);
+        void executeAnd(const ir::IRInstruction &instr);
+        void executeOr(const ir::IRInstruction &instr);
+        void executeXor(const ir::IRInstruction &instr);
+        void executeLShift(const ir::IRInstruction &instr);
+        void executeRShift(const ir::IRInstruction &instr);
         void executeJump(const ir::IRInstruction &instr);
         void executeLoadConst(const ir::IRInstruction &instr);
         void executeSetConst(const ir::IRInstruction &instr);
