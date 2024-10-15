@@ -57,6 +57,12 @@ namespace interp {
                 case ir::InstructionType::NEG:
                     executeNeg(instr);
                     break;
+                case ir::InstructionType::NOT:
+                    executeNot(instr);
+                    break;
+                case ir::InstructionType::LOGICAL_NOT:
+                    executeLogicalNot(instr);
+                    break;
                 case ir::InstructionType::RETURN: {
                     
                 }
@@ -218,6 +224,25 @@ namespace interp {
         if(loc_dest.has_value() && loc_src.has_value()) {
             numeric_variables[curFunction][instr.dest] = -numeric_variables[curFunction][instr.op1];
             loc_dest.value()->vtype = ast::VarType::NUMBER;
+        }
+    }
+
+    void Interpreter::executeNot(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);      
+        auto loc_dest = sym_tab.lookup(instr.dest);
+        auto loc_src = sym_tab.lookup(instr.op1);
+        if(loc_dest.has_value() && loc_src.has_value()) {
+            numeric_variables[curFunction][instr.dest] = !numeric_variables[curFunction][instr.op1];
+            loc_dest.value()->vtype = ast::VarType::NUMBER;
+        }
+    }
+
+    void Interpreter::executeLogicalNot(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);      
+        auto loc_dest = sym_tab.lookup(instr.dest);
+        auto loc_src = sym_tab.lookup(instr.op1);
+        if(loc_dest.has_value() && loc_src.has_value()) {
+            numeric_variables[curFunction][instr.dest] = !numeric_variables[curFunction][instr.op1];
         }
     }
 

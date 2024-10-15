@@ -39,7 +39,6 @@ namespace interp {
         Interpreter(symbol::SymbolTable &table);
         int execute(ir::IRCode &code);
         void outputDebugInfo(std::ostream &out);
-
     private:
         symbol::SymbolTable &sym_tab;
         long ip = 0;
@@ -66,13 +65,11 @@ namespace interp {
         void executeSet(const ir::IRInstruction &instr);
         void executeLabel(const ir::IRInstruction &instr);
         void executeNeg(const ir::IRInstruction &instr);
+        void executeNot(const ir::IRInstruction &instr);
+        void executeLogicalNot(const ir::IRInstruction &instr);
         void executeCall(const ir::IRInstruction &instr);
         void executeReturn(const ir::IRInstruction &instr);
         long getIntegerValue(const std::string &operand);
-        
-
-
-
     };
 }
 
