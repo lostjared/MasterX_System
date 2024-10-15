@@ -32,6 +32,7 @@ namespace interp {
                     break;
                 case ir::InstructionType::JUMP:
                     executeJump(instr);
+                    continue;
                     break;
                 case ir::InstructionType::MUL:
                     executeMul(instr);
@@ -78,6 +79,24 @@ namespace interp {
                 case ir::InstructionType::NOT:
                     executeNot(instr);
                     break;
+                case ir::InstructionType::LT:
+                    executeLt(instr);
+                    break;
+                case ir::InstructionType::GT:
+                    executeGt(instr);
+                    break;
+                case ir::InstructionType::LE:
+                    executeLte(instr);
+                    break;
+                case ir::InstructionType::GE:
+                    executeGte(instr);
+                    break;
+                case ir::InstructionType::EQ:
+                    executeEq(instr);
+                    break;
+                case ir::InstructionType::NEQ:
+                    executeNeq(instr);
+                    break;
                 case ir::InstructionType::LOGICAL_NOT:
                     executeLogicalNot(instr);
                     break;
@@ -93,14 +112,17 @@ namespace interp {
                 case ir::InstructionType::PARAM:
                 case ir::InstructionType::PARAM_STRING:
                 case ir::InstructionType::PARAM_POINTER:
+                case ir::InstructionType::SUB_LABEL:
                     break;
                 
                 case ir::InstructionType::RETURN: {
-                    executeReturn(instr);   
+                    executeReturn(instr);
+                    continue;   
                 }
                 break;
                 case ir::InstructionType::CALL: {
                     executeCall(instr);
+                    continue;
                 }
                 break;
                 default:
@@ -118,12 +140,16 @@ namespace interp {
         std::string curFunc;
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
-            if(instr.type == ir::InstructionType::LABEL) {
-                    label_pos[instr.dest] = ip_id;
-                    curFunc = instr.dest;
-                    ftable.enterFunction(curFunc);
-                    ip_id++;
-                    continue;
+            if(instr.type == ir::InstructionType::SUB_LABEL) {
+                sub_labels[instr.dest] = ip_id;
+                ip_id++;
+                continue;
+            } else if(instr.type == ir::InstructionType::LABEL) {
+                label_pos[instr.dest] = ip_id;
+                curFunc = instr.dest;
+                ftable.enterFunction(curFunc);
+                ip_id++;
+                continue;
             } else if(instr.type == ir::InstructionType::PARAM) {
                 ftable.addParam(instr.dest, ast::VarType::NUMBER);
             } else if(instr.type == ir::InstructionType::PARAM_STRING) {
@@ -147,11 +173,17 @@ namespace interp {
             for(auto &x : i.second) {
                 out << i.first << " [ " << x.first << ", " << x.second << "]\n";
             }
-
         }
+        std::cout << "Labels: {\n";
         for(auto &i : label_pos) {
             out << i.second << " = " << i.first << "\n";
         }
+        std::cout << "}\n";
+        std::cout << "Sub Labels: {\n";
+        for(auto &s : sub_labels) {
+            out << s.second << " = " << s.first << "\n";
+        }
+        std::cout << "}\n";
     }
 
     void Interpreter::executeAdd(const ir::IRInstruction &instr) {
@@ -380,6 +412,7 @@ namespace interp {
     }
         
 
+
     void Interpreter::executeCall(const ir::IRInstruction &instr) {
         Function &func = ftable.getFunction(instr.functionName);
         sym_tab.enter(instr.dest);
@@ -415,7 +448,7 @@ namespace interp {
                 break;
             }
         }
-        long pos = label_pos[instr.functionName]-1;
+        long pos = label_pos[instr.functionName];
         call_stack.push_back({curFunction, instr.dest, ip});
         ip = pos;      
     }
@@ -460,8 +493,15 @@ namespace interp {
            }
     }
     void Interpreter::executeJump(const ir::IRInstruction &instr) {
-        if (numeric_variables[curFunction][instr.op1] != 0) {
-            
+        if(instr.op1.empty() && instr.op2.empty()) {
+            ip = sub_labels[instr.dest];
+            return;
+        }
+        long op1 = getIntegerValue(instr.op1);
+        if(op1 == 0) {
+            ip = sub_labels[instr.dest];
+        } else {
+            ip++;
         }
     }
 
@@ -483,6 +523,43 @@ namespace interp {
             string_variables[curFunction][instr.dest] = stream.str();
             loc_dest.value()->vtype = ast::VarType::STRING;
         }
+    }
+
+    
+    void Interpreter::executeLt(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 < val2;
+    }
+    
+    void Interpreter::executeGt(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 > val2;
+    }
+    
+    void Interpreter::executeLte(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 <= val2;
+    }
+    
+    void Interpreter::executeGte(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 >= val2;
+    }
+    
+    void Interpreter::executeEq(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 == val2;
+    }
+    
+    void Interpreter::executeNeq(const ir::IRInstruction &instr) {
+        long val1 = getIntegerValue(instr.op1);
+        long val2 = getIntegerValue(instr.op2);
+        numeric_variables[curFunction][instr.dest] = val1 != val2;
     }
 
     std::string Interpreter::stripQuotes(const std::string &value) {

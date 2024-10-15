@@ -66,7 +66,7 @@ namespace interp {
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> string_variables;
         std::unordered_map<std::string, std::unordered_map<std::string, void *>> pointer_variables;
         std::unordered_map<std::string, long> label_pos;
-
+        std::unordered_map<std::string, long> sub_labels;
         struct ReturnValue {
             std::string fname, rt_name;
             long pos;
@@ -95,6 +95,12 @@ namespace interp {
         void executeLabel(const ir::IRInstruction &instr);
         void executeNeg(const ir::IRInstruction &instr);
         void executeNot(const ir::IRInstruction &instr);
+        void executeLt(const ir::IRInstruction &instr);
+        void executeGt(const ir::IRInstruction &instr);
+        void executeLte(const ir::IRInstruction &instr);
+        void executeGte(const ir::IRInstruction &instr);
+        void executeEq(const ir::IRInstruction &instr);
+        void executeNeq(const ir::IRInstruction &instr);
         void executeLogicalNot(const ir::IRInstruction &instr);
         void executeLogicalAnd(const ir::IRInstruction &instr);
         void executeLogicalOr(const ir::IRInstruction &instr);
