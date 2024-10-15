@@ -80,6 +80,9 @@ namespace interp {
         void executeCall(const ir::IRInstruction &instr);
         void executeReturn(const ir::IRInstruction &instr);
         long getIntegerValue(const std::string &operand);
+        void executeConcat(const ir::IRInstruction &instr);
+
+        std::string stripQuotes(const std::string &value);
     };
 }
 

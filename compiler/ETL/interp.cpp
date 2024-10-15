@@ -87,6 +87,9 @@ namespace interp {
                 case ir::InstructionType::LOGICAL_OR:
                     executeLogicalOr(instr);
                     break;
+                case ir::InstructionType::CONCAT:
+                    executeConcat(instr);
+                    break;
                 case ir::InstructionType::RETURN: {
                     
                 }
@@ -291,7 +294,7 @@ namespace interp {
             loc_dest.value()->vtype = ast::VarType::NUMBER;
         } else {
             std::ostringstream stream;
-            stream << "Exception: Neg Requires NUMBER variable: " << instr.op1 << "\n";
+            stream << "Neg Requires NUMBER variable: " << instr.op1 << "\n";
             throw Exception(stream.str());
         }
     }
@@ -305,7 +308,7 @@ namespace interp {
             loc_dest.value()->vtype = ast::VarType::NUMBER;
         } else {
             std::ostringstream stream;
-            stream << "Exception: Not Requires NUMBER variable: " << instr.op1 << "\n";
+            stream << "Not Requires NUMBER variable: " << instr.op1 << "\n";
             throw Exception(stream.str());
         }
     }
@@ -406,4 +409,23 @@ namespace interp {
         return numeric_variables[curFunction][operand];
     }
 
+    void Interpreter::executeConcat(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc_dest = sym_tab.lookup(instr.dest);
+        auto loc_op1 = sym_tab.lookup(instr.op1);
+        auto loc_op2 = sym_tab.lookup(instr.op2);
+        if(loc_op1.has_value() && loc_op2.has_value() && loc_op1.value()->vtype == ast::VarType::STRING && loc_op2.value()->vtype == ast::VarType::STRING) {
+            std::ostringstream stream;
+            stream << '\"' << stripQuotes(string_variables[curFunction][instr.op1]) << stripQuotes(string_variables[curFunction][instr.op2]) << '\"';
+            string_variables[curFunction][instr.dest] = stream.str();
+            loc_dest.value()->vtype = ast::VarType::STRING;
+        }
+    }
+
+    std::string Interpreter::stripQuotes(const std::string &value) {
+        if(value[0] == '\"' && value.back() == '\"') {
+            return value.substr(1, value.length()-2);
+        }
+        throw Exception("String without quotes: " + value);
+    }
 }
