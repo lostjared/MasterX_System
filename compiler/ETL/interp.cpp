@@ -395,10 +395,28 @@ namespace interp {
                     }
                 }
                 break;
+                case ast::VarType::STRING: {
+                    sym_tab.enter(func.arg_names[i]);
+                    auto loc = sym_tab.lookup(func.arg_names[i]);
+                    if(loc.has_value()) {
+                        loc.value()->vtype = ast::VarType::STRING;
+                        string_variables[func.functionName][func.arg_names[i]] = string_variables[curFunction][instr.args[i]];
+                    }
+                }
+                break;
+                case ast::VarType::POINTER: {
+                    sym_tab.enter(func.arg_names[i]);
+                    auto loc = sym_tab.lookup(func.arg_names[i]);
+                    if(loc.has_value()) {
+                        loc.value()->vtype = ast::VarType::POINTER;
+                        pointer_variables[func.functionName][func.arg_names[i]] = pointer_variables[curFunction][instr.args[i]];
+                    }
+                }
+                break;
             }
         }
         long pos = label_pos[instr.functionName]-1;
-        call_stack.push_back(std::make_pair(curFunction, ip));
+        call_stack.push_back({curFunction, instr.dest, ip});
         ip = pos;      
     }
     
@@ -408,14 +426,37 @@ namespace interp {
                 if(loc.has_value()) {
                     if(loc.value()->vtype == ast::VarType::NUMBER) {
                         throw Exit_Exception(numeric_variables[curFunction][instr.dest]);
+                    } else {
+                        std::ostringstream stream;
+                        stream << "Final return should return a number for status " << instr.dest << "...\n";
+                        throw Exception(stream.str());
                     }
                 }
             } else {
                 auto pos = call_stack.back();
                 call_stack.pop_back();
-                sym_tab.enterScope(pos.first);
-                sym_tab.enter(instr.dest);
-                ip = pos.second;
+                std::string curScope = sym_tab.curScope();
+                auto rt_var = sym_tab.lookup(instr.dest);
+                if(rt_var.has_value()) {
+                    sym_tab.enterScope(pos.fname);
+                    sym_tab.enter(pos.rt_name);
+                    auto rt_dest = sym_tab.lookup(pos.rt_name);
+                    if(rt_dest.has_value()) {
+                        switch(rt_var.value()->vtype) {
+                            case ast::VarType::NUMBER:
+                                numeric_variables[pos.fname][pos.rt_name] = numeric_variables[curScope][instr.dest];
+                            break;
+                            case ast::VarType::STRING:
+                                string_variables[pos.fname][pos.rt_name] = string_variables[curScope][instr.dest];
+                            break;
+                            case ast::VarType::POINTER:
+                                pointer_variables[pos.fname][pos.rt_name] = pointer_variables[curScope][instr.dest];
+                            break;
+                        }
+                    }
+                }
+                ip = pos.pos;
+                curFunction = pos.fname;
            }
     }
     void Interpreter::executeJump(const ir::IRInstruction &instr) {

@@ -66,7 +66,13 @@ namespace interp {
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> string_variables;
         std::unordered_map<std::string, std::unordered_map<std::string, void *>> pointer_variables;
         std::unordered_map<std::string, long> label_pos;
-        std::vector<std::pair<std::string, long>> call_stack;
+
+        struct ReturnValue {
+            std::string fname, rt_name;
+            long pos;
+        };
+
+        std::vector<ReturnValue> call_stack;
 
         void collectLabels(const ir::IRCode &code);
 

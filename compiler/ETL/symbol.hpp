@@ -44,6 +44,10 @@ namespace symbol {
             cur_scope = &symbols["global"];  // Initialize cur_scope to point to the global scope
         }
 
+        std::string curScope() const {
+            return current_scope;
+        }
+
         bool is_there(const std::string &sym) {
             auto it = cur_scope->find(sym);
             return (it != cur_scope->end());
@@ -59,6 +63,7 @@ namespace symbol {
                 symbols[fname] = std::unordered_map<std::string, Symbol>();
             }
             cur_scope = &symbols[fname];
+            current_scope = fname;
         }
     
         void exitScope() {
@@ -114,6 +119,7 @@ namespace symbol {
         std::unordered_map<std::string, std::unordered_map<std::string, Symbol>> symbols;
         std::unordered_map<std::string, Function> func;
         std::unordered_map<std::string, Symbol> *cur_scope;  // Pointer to the current scope
+        std::string current_scope;
     };
 
 }
