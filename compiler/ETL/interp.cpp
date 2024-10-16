@@ -140,7 +140,6 @@ namespace interp {
         if(v.size() == 1 && v.at(0).type == ast::VarType::STRING) {
             std::cout << v.at(0).string_value;
         }
-        std::cout << "HERE@\n";
         return Var();
     }
 
@@ -494,6 +493,18 @@ namespace interp {
             std::vector<Var> v;
             for(size_t i = 0; i < f->int_vars.size(); ++i) {
                 v.push_back(Var(instr.args[i], f->int_vars[i].type));
+                size_t off = v.size()-1;
+                switch(v[off].type) {
+                    case ast::VarType::NUMBER:
+                    v[off].numeric_value = numeric_variables[curFunction][instr.args[i]];
+                    break;
+                    case ast::VarType::STRING:
+                    v[off].string_value = stripQuotes(string_variables[curFunction][instr.args[i]]);
+                    break;
+                    case ast::VarType::POINTER:
+                    v[off].ptr_value = pointer_variables[curFunction][instr.args[i]];
+                    break;
+                }
             }
             lf_table.callFunction(instr.functionName, v);
             ip++;
