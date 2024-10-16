@@ -46,9 +46,94 @@ namespace interp {
         void enterFunction(const std::string &name);
         void addParam(const std::string &name, ast::VarType type);
         Function &getFunction(const std::string &name);
+        bool isDefined(const std::string &f);
     private:
         std::string curFunction;
         std::unordered_map<std::string, Function> func;
+    };
+
+    struct Var {
+        Var() = default;
+        Var(const std::string &n, ast::VarType v) : name{n}, numeric_value{0}, ptr_value{nullptr}, type{v} {}
+        std::string name;
+        long numeric_value;
+        std::string string_value;
+        void *ptr_value;
+        ast::VarType type;
+    };
+
+    using FuncPtr =  Var(*)(const std::vector<Var> &vars);
+
+    class Functor {
+    public:
+        Functor() = default;
+        Functor(const std::string &n, FuncPtr fp) : name{n}, f_ptr{fp} {}
+        Functor(const Functor &f) : name{f.name}, f_ptr{f.f_ptr}, int_vars{f.int_vars} {}
+        Functor(Functor &&f) noexcept : name{std::move(f.name)}, f_ptr{f.f_ptr}, int_vars{std::move(f.int_vars)} {}
+
+        Functor &operator=(const Functor &f) {
+            name = f.name;
+            f_ptr = f.f_ptr;
+            int_vars = f.int_vars;
+            return *this;
+        }
+
+        Functor &operator=(Functor &&f) noexcept {
+            name = std::move(f.name);
+            f_ptr = f.f_ptr;
+            int_vars = std::move(f.int_vars);
+            return *this;
+        }
+
+        std::string name;
+        std::vector<Var> int_vars;
+
+        Var operator()(const std::vector<Var> &vars) {
+            if(f_ptr != nullptr)
+                return f_ptr(vars);
+
+            throw Exception("Function: " + name + " Not found!");
+        }   
+    private:
+        FuncPtr f_ptr = nullptr;
+    };
+
+    class LibraryFunctions {
+    public:
+        LibraryFunctions() = default;
+        template<typename F>
+        void addFunction(std::string name, F value) {
+            functions[name] = Functor(name, value);
+        }
+        void defineInteger(std::string fname, std::string iname) {
+            functions[fname].int_vars.push_back(Var(iname, ast::VarType::NUMBER));
+        }
+        void defineString(std::string fname, std::string sname) {
+            functions[fname].int_vars.push_back(Var(sname, ast::VarType::STRING));
+        }
+        void definePointer(std::string fname, std::string pname) {
+            functions[fname].int_vars.push_back(Var(pname, ast::VarType::POINTER));
+        }
+        Var callFunction(std::string name, const std::vector<Var> &v) {
+            return functions[name](v);
+        }
+        Functor *getFunction(const std::string &n) {
+            if(functions.find(n) != functions.end())
+                return &functions[n];
+            return nullptr;
+        }
+        void print(std::ostream &out) {
+            for(auto &f : functions) {
+                out << f.first << " [ ";
+                for(size_t i = 0; i < f.second.int_vars.size(); ++i) {
+                    out << f.second.int_vars[i].name << ":" << static_cast<int>(f.second.int_vars[i].type) << " ";
+                }
+                out << " ]\n";
+            }
+        }
+
+    private:
+        std::unordered_map<std::string, Functor> functions;
     };
 
     class Interpreter {
@@ -59,6 +144,7 @@ namespace interp {
     private:
         symbol::SymbolTable &sym_tab;
         FunctionTable ftable;
+        LibraryFunctions lf_table;
         long ip = 0;
 
         std::string curFunction;
@@ -106,9 +192,9 @@ namespace interp {
         void executeLogicalOr(const ir::IRInstruction &instr);
         void executeCall(const ir::IRInstruction &instr);
         void executeReturn(const ir::IRInstruction &instr);
-        long getIntegerValue(const std::string &operand);
         void executeConcat(const ir::IRInstruction &instr);
 
+        long getIntegerValue(const std::string &operand);
         std::string stripQuotes(const std::string &value);
     };
 }

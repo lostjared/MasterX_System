@@ -135,9 +135,23 @@ namespace interp {
         return EXIT_SUCCESS;
     }
 
+
+    Var func_print(const std::vector<Var> &v) {
+        if(v.size() == 1 && v.at(0).type == ast::VarType::STRING) {
+            std::cout << v.at(0).string_value;
+        }
+        std::cout << "HERE@\n";
+        return Var();
+    }
+
+    std::unordered_map<std::string, FuncPtr> func_table  { {"print", func_print} };
+
+
     void Interpreter::collectLabels(const ir::IRCode &code) {
         int ip_id = 0;
         std::string curFunc;
+        std::string curDefine;
+
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
             if(instr.type == ir::InstructionType::SUB_LABEL) {
@@ -156,6 +170,17 @@ namespace interp {
                 ftable.addParam(instr.dest, ast::VarType::STRING);
             } else if(instr.type == ir::InstructionType::PARAM_POINTER) {
                 ftable.addParam(instr.dest, ast::VarType::POINTER);
+            } else if(instr.type == ir::InstructionType::DEFINE) {
+                curDefine = instr.dest;
+                if(func_table.find(instr.dest) != func_table.end()) {
+                    lf_table.addFunction(instr.dest, func_table[instr.dest]);
+                }
+            } else if(instr.type == ir::InstructionType::DEF_PARAM) {
+                lf_table.defineInteger(curDefine, instr.dest);
+            } else if(instr.type == ir::InstructionType::DEF_PARAM_STRING) {
+                lf_table.defineString(curDefine, instr.dest);
+            } else if(instr.type == ir::InstructionType::DEF_PARAM_POINTER) {
+                lf_table.definePointer(curDefine, instr.dest);
             }
             ip_id ++;
         }
@@ -184,6 +209,7 @@ namespace interp {
             out << s.second << " = " << s.first << "\n";
         }
         std::cout << "}\n";
+        lf_table.print(std::cout);
     }
 
     void Interpreter::executeAdd(const ir::IRInstruction &instr) {
@@ -414,43 +440,64 @@ namespace interp {
 
 
     void Interpreter::executeCall(const ir::IRInstruction &instr) {
-        Function &func = ftable.getFunction(instr.functionName);
-        sym_tab.enter(instr.dest);
-         for(size_t i = 0; i < func.arg_names.size(); ++i) {
-            sym_tab.enterScope(instr.functionName);
-            switch(func.arg_types[i]) {
-                case ast::VarType::NUMBER: {
-                    sym_tab.enter(func.arg_names[i]);
-                    auto loc = sym_tab.lookup(func.arg_names[i]);
-                    if(loc.has_value()) {
-                        loc.value()->vtype = ast::VarType::NUMBER;
-                        numeric_variables[func.functionName][func.arg_names[i]] = numeric_variables[curFunction][instr.args[i]];
+        
+        if(ftable.isDefined(instr.functionName)) {        
+            Function &func = ftable.getFunction(instr.functionName);
+            sym_tab.enter(instr.dest);
+            for(size_t i = 0; i < func.arg_names.size(); ++i) {
+                sym_tab.enterScope(instr.functionName);
+                switch(func.arg_types[i]) {
+                    case ast::VarType::NUMBER: {
+                        sym_tab.enter(func.arg_names[i]);
+                        auto loc = sym_tab.lookup(func.arg_names[i]);
+                        if(loc.has_value()) {
+                            loc.value()->vtype = ast::VarType::NUMBER;
+                            numeric_variables[func.functionName][func.arg_names[i]] = numeric_variables[curFunction][instr.args[i]];
+                        }
                     }
-                }
-                break;
-                case ast::VarType::STRING: {
-                    sym_tab.enter(func.arg_names[i]);
-                    auto loc = sym_tab.lookup(func.arg_names[i]);
-                    if(loc.has_value()) {
-                        loc.value()->vtype = ast::VarType::STRING;
-                        string_variables[func.functionName][func.arg_names[i]] = string_variables[curFunction][instr.args[i]];
+                    break;
+                    case ast::VarType::STRING: {
+                        sym_tab.enter(func.arg_names[i]);
+                        auto loc = sym_tab.lookup(func.arg_names[i]);
+                        if(loc.has_value()) {
+                            loc.value()->vtype = ast::VarType::STRING;
+                            string_variables[func.functionName][func.arg_names[i]] = string_variables[curFunction][instr.args[i]];
+                        }
                     }
-                }
-                break;
-                case ast::VarType::POINTER: {
-                    sym_tab.enter(func.arg_names[i]);
-                    auto loc = sym_tab.lookup(func.arg_names[i]);
-                    if(loc.has_value()) {
-                        loc.value()->vtype = ast::VarType::POINTER;
-                        pointer_variables[func.functionName][func.arg_names[i]] = pointer_variables[curFunction][instr.args[i]];
+                    break;
+                    case ast::VarType::POINTER: {
+                        sym_tab.enter(func.arg_names[i]);
+                        auto loc = sym_tab.lookup(func.arg_names[i]);
+                        if(loc.has_value()) {
+                            loc.value()->vtype = ast::VarType::POINTER;
+                            pointer_variables[func.functionName][func.arg_names[i]] = pointer_variables[curFunction][instr.args[i]];
+                        }
                     }
+                    break;
                 }
-                break;
             }
+            long pos = label_pos[instr.functionName];
+            call_stack.push_back({curFunction, instr.dest, ip});
+            ip = pos;      
+        } else {
+            Functor *f = lf_table.getFunction(instr.functionName);
+            if(f == nullptr) {
+                std::ostringstream stream;
+                stream << "Function: " << instr.functionName << " not defined!\n";
+                throw Exception(stream.str());
+            }
+            if(f->int_vars.size() != instr.args.size()) {
+                std::ostringstream stream;
+                stream << "Function: " << instr.functionName << " requires: " << f->int_vars.size() << " arguments, found: " << instr.args.size();
+                throw Exception(stream.str());
+            }
+            std::vector<Var> v;
+            for(size_t i = 0; i < f->int_vars.size(); ++i) {
+                v.push_back(Var(instr.args[i], f->int_vars[i].type));
+            }
+            lf_table.callFunction(instr.functionName, v);
+            ip++;
         }
-        long pos = label_pos[instr.functionName];
-        call_stack.push_back({curFunction, instr.dest, ip});
-        ip = pos;      
     }
     
     void Interpreter::executeReturn(const ir::IRInstruction &instr) {
@@ -582,6 +629,10 @@ namespace interp {
 
     Function &FunctionTable::getFunction(const std::string &name) {
         return func[name];
+    }
+
+    bool FunctionTable::isDefined(const std::string &f) {
+        return func.find(f) != func.end();
     }
 
 }
