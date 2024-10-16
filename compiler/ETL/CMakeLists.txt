@@ -32,6 +32,7 @@ add_executable(ETL_C
     ${CMAKE_SOURCE_DIR}/debug.cpp
     ${CMAKE_SOURCE_DIR}/interp.cpp
     ${CMAKE_SOURCE_DIR}/exec.cpp
+    ${CMAKE_SOURCE_DIR}/embed_func.cpp
 )
 
 # Link scan_cxx library to ETL_C

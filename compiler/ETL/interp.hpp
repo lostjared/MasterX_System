@@ -55,10 +55,34 @@ namespace interp {
     struct Var {
         Var() = default;
         Var(const std::string &n, ast::VarType v) : name{n}, numeric_value{0}, ptr_value{nullptr}, type{v} {}
+        Var(const std::string &n, const std::string &value) : name{n}, string_value{value}, type{ast::VarType::STRING} {}
+        Var(const std::string &n, long value) : name{n}, numeric_value{value}, type{ast::VarType::NUMBER} {}
+        Var(const std::string &n, void *ptr) : name{n}, ptr_value{ptr}, type {ast::VarType::POINTER} {}
+        Var(const Var &v) : name{v.name}, numeric_value{v.numeric_value}, string_value{v.string_value}, ptr_value{v.ptr_value}, type{v.type} {}
+        Var(Var &&v) : name{std::move(v.name)}, numeric_value{v.numeric_value}, string_value{std::move(v.string_value)}, ptr_value{v.ptr_value}, type{v.type} {}
+
+        Var &operator=(const Var &v) {
+            name = v.name;
+            numeric_value = v.numeric_value;
+            string_value = v.string_value;
+            ptr_value = v.ptr_value;
+            type = v.type;
+            return *this;
+        }
+
+        Var &operator=(Var &&v) {
+            name = std::move(v.name);
+            numeric_value = v.numeric_value;
+            string_value = std::move(v.string_value);
+            ptr_value = v.ptr_value;
+            type = v.type;
+            return *this;
+        }
+
         std::string name;
-        long numeric_value;
+        long numeric_value = 0;
         std::string string_value;
-        void *ptr_value;
+        void *ptr_value = nullptr;
         ast::VarType type;
     };
 

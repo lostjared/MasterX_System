@@ -1,5 +1,5 @@
 #include"interp.hpp"
-
+#include"embed_func.hpp"
 
 namespace interp {
 
@@ -135,17 +135,6 @@ namespace interp {
         return EXIT_SUCCESS;
     }
 
-
-    Var func_print(const std::vector<Var> &v) {
-        if(v.size() == 1 && v.at(0).type == ast::VarType::STRING) {
-            std::cout << v.at(0).string_value;
-        }
-        return Var();
-    }
-
-    std::unordered_map<std::string, FuncPtr> func_table  { {"print", func_print} };
-
-
     void Interpreter::collectLabels(const ir::IRCode &code) {
         int ip_id = 0;
         std::string curFunc;
@@ -171,8 +160,8 @@ namespace interp {
                 ftable.addParam(instr.dest, ast::VarType::POINTER);
             } else if(instr.type == ir::InstructionType::DEFINE) {
                 curDefine = instr.dest;
-                if(func_table.find(instr.dest) != func_table.end()) {
-                    lf_table.addFunction(instr.dest, func_table[instr.dest]);
+                if(lib::func_table.find(instr.dest) != lib::func_table.end()) {
+                    lf_table.addFunction(instr.dest, lib::func_table[instr.dest]);
                 }
             } else if(instr.type == ir::InstructionType::DEF_PARAM) {
                 lf_table.defineInteger(curDefine, instr.dest);
@@ -506,7 +495,21 @@ namespace interp {
                     break;
                 }
             }
-            lf_table.callFunction(instr.functionName, v);
+            sym_tab.enter(instr.dest);
+            Var v_ = std::move(lf_table.callFunction(instr.functionName, v));
+            auto loc = sym_tab.lookup(instr.dest);
+            switch(v_.type) {
+                case ast::VarType::NUMBER:
+                numeric_variables[curFunction][instr.dest] = v_.numeric_value;
+                break;
+                case ast::VarType::STRING:
+                string_variables[curFunction][instr.dest] = v_.string_value;
+                break;
+                case ast::VarType::POINTER:
+                pointer_variables[curFunction][instr.dest] = v_.ptr_value;
+                break;
+            }
+            loc.value()->vtype = v_.type;
             ip++;
         }
     }
@@ -623,8 +626,8 @@ namespace interp {
     std::string Interpreter::stripQuotes(const std::string &value) {
         if(value[0] == '\"' && value.back() == '\"') {
             return value.substr(1, value.length()-2);
-        }
-        throw Exception("String without quotes: " + value);
+        } 
+        return value; // nothing to do
     }
 
 
