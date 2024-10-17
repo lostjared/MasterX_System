@@ -4,6 +4,7 @@
 #include<cstring>
 #include<ctime>
 #include<cstdlib>
+#include<dlfcn.h>
 
 namespace lib { 
 
@@ -229,4 +230,42 @@ namespace lib {
         {"printf", func_printf}
     };
 
+    std::vector<void *> shared_objects;
+
+    void addFunc(const char *src, void *ptr) {
+        func_table[std::string(src)] = (interp::FuncPtr)ptr;
+    }
+        
+     void initSharedObject(const std::string &n) {
+        void *obj = dlopen(n.c_str(), RTLD_NOW);
+        if(!obj) {
+            std::cerr << "ETL: Error opening shared library: " << n << "\n";
+            char *e = dlerror();
+            if(e) {
+                std::cerr << "Error: " << e << "\n";
+            }
+            std::cerr.flush();
+            exit(EXIT_FAILURE);
+        }
+        dlerror();
+        shared_objects.push_back(obj);
+        typedef void  (*addFunction)(const char *src, void *ptr);
+        typedef void (*initTable)(addFunction);
+        initTable table = (initTable)dlsym(obj, "initTable");
+        char *err = dlerror();
+        if(err) {
+            std::cerr << "ETL: Could not get Pointer to table function: " << err << "\n";
+            std::cerr.flush();
+            exit(EXIT_FAILURE);
+        }
+        std::cout << "ETL: Loaded Shared Library: " << n << "\n";
+        table(addFunc);
+    }
+
+    void releaseSharedObjects() {
+        for(auto &i : shared_objects) {
+            dlclose(i);
+        }
+    }
+    
 }

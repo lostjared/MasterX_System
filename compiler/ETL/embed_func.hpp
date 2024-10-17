@@ -5,6 +5,8 @@
 
 namespace lib {
     extern std::unordered_map<std::string, interp::FuncPtr> func_table;
+    void initSharedObject(const std::string &n);
+    void releaseSharedObjects();
 }
 
 #endif

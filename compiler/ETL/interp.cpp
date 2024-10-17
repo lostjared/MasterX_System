@@ -6,6 +6,10 @@ namespace interp {
     Interpreter::Interpreter(symbol::SymbolTable &table) : sym_tab{table}, ip{0} {
 
     }
+    
+    void Interpreter::release() {
+        lib::releaseSharedObjects();
+    }
 
     int Interpreter::execute(ir::IRCode &code, bool debug) {
         collectLabels(code);
@@ -142,7 +146,7 @@ namespace interp {
         std::string curDefine;
 
         lf_table.addFunction("printf", lib::func_table["printf"]);
-
+        lib::initSharedObject("/usr/local/lib/sdl.so");
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
             if(instr.type == ir::InstructionType::SUB_LABEL) {

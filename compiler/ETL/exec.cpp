@@ -39,13 +39,16 @@ void test_execute(const std::string &filename, bool debug_info) {
                                 int rt_exit = interp_.execute(irContext.instructions, debug_info);
                                 if(debug_info) interp_.outputDebugInfo(std::cout);
                                 std::cout << "\nexited: " << rt_exit << "\n";
+                                interp_.release();
                                 exit(rt_exit);
                             } catch(const interp::Exception  &e) {
                                 std::cerr << "\nException: " << e.why() << "\n";
                                 if(debug_info) interp_.outputDebugInfo(std::cout);
+                                interp_.release();
                             } catch(const interp::Exit_Exception &e) {
                                 if(debug_info) interp_.outputDebugInfo(std::cout);
                                 std::cout << "\nexited: " << e.status() <<"\n";
+                                interp_.release();
                                 exit(e.status());
                             }    
                             catch (...) {

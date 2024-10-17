@@ -164,6 +164,7 @@ namespace interp {
     public:
         Interpreter(symbol::SymbolTable &table);
         int execute(ir::IRCode &code, bool debug);
+        void release();
         void outputDebugInfo(std::ostream &out);
     private:
         symbol::SymbolTable &sym_tab;
@@ -220,6 +221,7 @@ namespace interp {
 
         long getIntegerValue(const std::string &operand);
         std::string stripQuotes(const std::string &value);
+        
     };
 }
 
