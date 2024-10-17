@@ -178,13 +178,19 @@ namespace interp {
         out << "Variales [ strings ]\n";
         for(auto &i : string_variables) {
             for(auto &x : i.second) {
-                out << i.first << " [ " << x.first << ", " << x.second << "]\n";
+                out << i.first << " [ " << x.first << ", " << x.second << " ]\n";
             }
         }
-        out << "Variales [ numbers ]\n";
+        out << "Variables [ numbers ]\n";
         for(auto &i : numeric_variables) {
             for(auto &x : i.second) {
-                out << i.first << " [ " << x.first << ", " << x.second << "]\n";
+                out << i.first << " [ " << x.first << ", " << x.second << " ]\n";
+            }
+        }
+        out << "Variables [ pointers ]\n";
+        for(auto &i : pointer_variables) {
+            for(auto &x : i.second) {
+                out << i.first << " [ " << x.first << ", " << (long)x.second << " ]\n";
             }
         }
         std::cout << "Labels: {\n";
@@ -313,6 +319,7 @@ namespace interp {
             } else if(loc_src.value()->vtype == ast::VarType::POINTER) {
                 pointer_variables[curFunction][instr.dest] =  pointer_variables[curFunction][instr.op1];   
             }
+            loc_dst.value()->vtype = loc_src.value()->vtype;
         }
     }
     
@@ -329,6 +336,7 @@ namespace interp {
             } else if(loc_op1.value()->vtype == ast::VarType::POINTER) {
                 pointer_variables[curFunction][instr.dest] = pointer_variables[curFunction][instr.op1];
             }
+            loc_dest.value()->vtype = loc_op1.value()->vtype;
         }
     }
     void Interpreter::executeSet(const ir::IRInstruction &instr) {
@@ -481,7 +489,13 @@ namespace interp {
             }
             std::vector<Var> v;
             for(size_t i = 0; i < f->int_vars.size(); ++i) {
-                v.push_back(Var(instr.args[i], f->int_vars[i].type));
+                auto loc = sym_tab.lookup(instr.args[i]);
+                if(!loc.has_value()) {
+                    std::ostringstream stream;
+                    stream << instr.args[i] << " not found in symbol table!\n";
+                    throw Exception(stream.str());
+                }
+                v.push_back(Var(instr.args[i], loc.value()->vtype));
                 size_t off = v.size()-1;
                 switch(v[off].type) {
                     case ast::VarType::NUMBER:
