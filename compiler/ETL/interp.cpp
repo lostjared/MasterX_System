@@ -141,6 +141,8 @@ namespace interp {
         std::string curFunc;
         std::string curDefine;
 
+        lf_table.addFunction("printf", lib::func_table["printf"]);
+
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
             if(instr.type == ir::InstructionType::SUB_LABEL) {
@@ -518,36 +520,61 @@ namespace interp {
             ip = pos;      
         } else {
             Functor *f = lf_table.getFunction(instr.functionName);
-            if(f == nullptr) {
+            if(f == nullptr && instr.functionName != "printf") {
                 std::ostringstream stream;
                 stream << "Function: " << instr.functionName << " not defined!\n";
                 throw Exception(stream.str());
             }
-            if(f->int_vars.size() != instr.args.size()) {
+            if(instr.functionName != "printf" && f->int_vars.size() != instr.args.size()) {
                 std::ostringstream stream;
                 stream << "Function: " << instr.functionName << " requires: " << f->int_vars.size() << " arguments, found: " << instr.args.size();
                 throw Exception(stream.str());
             }
             std::vector<Var> v;
-            for(size_t i = 0; i < f->int_vars.size(); ++i) {
-                auto loc = sym_tab.lookup(instr.args[i]);
-                if(!loc.has_value()) {
-                    std::ostringstream stream;
-                    stream << instr.args[i] << " not found in symbol table!\n";
-                    throw Exception(stream.str());
+
+            if(instr.functionName != "printf") {
+                for(size_t i = 0; i < f->int_vars.size(); ++i) {
+                    auto loc = sym_tab.lookup(instr.args[i]);
+                    if(!loc.has_value()) {
+                        std::ostringstream stream;
+                        stream << instr.args[i] << " not found in symbol table!\n";
+                        throw Exception(stream.str());
+                    }
+                    v.push_back(Var(instr.args[i], loc.value()->vtype));
+                    size_t off = v.size()-1;
+                    switch(v[off].type) {
+                        case ast::VarType::NUMBER:
+                        v[off].numeric_value = numeric_variables[curFunction][instr.args[i]];
+                        break;
+                        case ast::VarType::STRING:
+                        v[off].string_value = stripQuotes(string_variables[curFunction][instr.args[i]]);
+                        break;
+                        case ast::VarType::POINTER:
+                        v[off].ptr_value = pointer_variables[curFunction][instr.args[i]];
+                        break;
+                    }
                 }
-                v.push_back(Var(instr.args[i], loc.value()->vtype));
-                size_t off = v.size()-1;
-                switch(v[off].type) {
-                    case ast::VarType::NUMBER:
-                    v[off].numeric_value = numeric_variables[curFunction][instr.args[i]];
-                    break;
-                    case ast::VarType::STRING:
-                    v[off].string_value = stripQuotes(string_variables[curFunction][instr.args[i]]);
-                    break;
-                    case ast::VarType::POINTER:
-                    v[off].ptr_value = pointer_variables[curFunction][instr.args[i]];
-                    break;
+            } else {
+                for(size_t i = 0; i < instr.args.size(); ++i) {
+                    auto loc = sym_tab.lookup(instr.args[i]);
+                    if(!loc.has_value()) {
+                        std::ostringstream stream;
+                        stream << instr.args[i] << " not found in symbol table!\n";
+                        throw Exception(stream.str());
+                    }
+                    v.push_back(Var(instr.args[i], loc.value()->vtype));
+                    size_t off = v.size()-1;
+                    switch(v[off].type) {
+                        case ast::VarType::NUMBER:
+                        v[off].numeric_value = numeric_variables[curFunction][instr.args[i]];
+                        break;
+                        case ast::VarType::STRING:
+                        v[off].string_value = stripQuotes(string_variables[curFunction][instr.args[i]]);
+                        break;
+                        case ast::VarType::POINTER:
+                        v[off].ptr_value = pointer_variables[curFunction][instr.args[i]];
+                        break;
+                    }
                 }
             }
             sym_tab.enter(instr.dest);

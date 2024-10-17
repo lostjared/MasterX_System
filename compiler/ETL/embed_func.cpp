@@ -162,6 +162,46 @@ namespace lib {
         return interp::Var("return", (void *)b);
     }
 
+    interp::Var func_printf(const std::vector<interp::Var> &v) {
+        if(v.size() >= 1) {
+            std::string input = v.at(0).string_value;
+            size_t index = 1;
+            for(size_t i = 0; i < input.length(); ++i) {
+                if(input.at(i) != '%') {
+                    std::cout << input.at(i);
+                    continue;
+                } 
+                if(i+1 < input.length() && input.at(i+1) == '%') {
+                    std::cout << '%';
+                    i++;
+                    continue;
+                } else if(i+1 < input.length()) {
+                    char c = input.at(i+1);
+                    if(index < v.size()) {
+                        switch(v.at(index).type) {
+                            case ast::VarType::STRING:
+                            std::cout << v.at(index).string_value;
+                            break;
+                            case ast::VarType::NUMBER:
+                                if(c == 'c')
+                                    std::cout << (char)v.at(index).numeric_value;
+                                else 
+                                    std::cout << (long)v.at(index).numeric_value;
+                            break;
+                            case ast::VarType::POINTER:
+                            std::cout << (long)v.at(index).ptr_value;
+                            break;
+                        }
+                    }
+                    index ++;
+                    i ++;
+                }
+            }
+        }
+        return interp::Var("return", (long)0);
+    }
+
+
     std::unordered_map<std::string, interp::FuncPtr> func_table  { 
         {"puts", func_print}, 
         {"str", func_str},
@@ -185,7 +225,8 @@ namespace lib {
         {"memclr", func_memclr},
         {"memstorel", func_memstorel},
         {"memstoreb", func_memstoreb},
-        {"memcpy", func_memcpy}
+        {"memcpy", func_memcpy},
+        {"printf", func_printf}
     };
 
 }
