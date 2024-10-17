@@ -96,47 +96,70 @@ namespace lib {
     }
 
     interp::Var func_at(const std::vector<interp::Var> &v) {
-        return interp::Var("return", (long)0);
+        check_args("at", v,{ast::VarType::STRING, ast::VarType::NUMBER});
+        return interp::Var("return", (long)v.at(0).string_value.at(v.at(1).numeric_value));
     }
 
     interp::Var func_char_at(const std::vector<interp::Var> &v) {
-        return interp::Var("return", (long)0);
+        check_args("charAt", v,{ast::VarType::STRING, ast::VarType::NUMBER});
+        char *buf = (char*)malloc(2);
+        buf[0] = v.at(0).string_value.at(v.at(1).numeric_value);
+        return interp::Var("return", (void*)buf);
     }
 
     interp::Var func_ptr(const std::vector<interp::Var> &v) {
-        return interp::Var("return", (long)0);
+        check_args("ptr", v,{ast::VarType::STRING});
+        return interp::Var("return", (void*)v.at(0).string_value.data());
     }
 
     interp::Var func_string(const std::vector<interp::Var> &v) {
-        return interp::Var("return", (long)0);
+        check_args("string", v,{ast::VarType::POINTER});
+        return interp::Var("return", std::string((char*)v.at(0).ptr_value));
     }
 
     interp::Var func_calloc(const std::vector<interp::Var> &v) {
-        return interp::Var("return", (long)0);
+        check_args("calloc", v, {ast::VarType::NUMBER});
+        void *buf = nullptr;
+        buf = (void*) calloc(1, v.at(0).numeric_value);
+        return interp::Var("return", (void*)buf);
     }
 
     interp::Var func_mematl(const std::vector<interp::Var> &v) {
-        return interp::Var("return", (long)0);
+        check_args("mematl", v, {ast::VarType::POINTER, ast::VarType::NUMBER});
+        long *value = (long *)v.at(0).ptr_value;
+        return interp::Var("return", (long)value[v.at(1).numeric_value]);
     }
 
     interp::Var func_mematb(const std::vector<interp::Var> &v) {
-        return interp::Var("return", (long)0);
+        check_args("mematb", v, {ast::VarType::POINTER, ast::VarType::NUMBER});
+        char *value = (char *)v.at(0).ptr_value;
+        return interp::Var("return", (long)value[v.at(1).numeric_value]);
     }
 
     interp::Var func_memclr(const std::vector<interp::Var> &v) {
+        check_args("memclr", v, {ast::VarType::POINTER, ast::VarType::NUMBER});
+        memset(v.at(0).ptr_value, 0, v.at(1).numeric_value);
         return interp::Var("return", (long)0);
     }
 
     interp::Var func_memstorel(const std::vector<interp::Var> &v) {
+        check_args("memstorel", v, {ast::VarType::POINTER, ast::VarType::NUMBER, ast::VarType::NUMBER});
+        long *value = (long *)v.at(0).ptr_value;
+        value[v.at(1).numeric_value] = v.at(2).numeric_value;
         return interp::Var("return", (long)0);
     }
 
     interp::Var func_memstoreb(const std::vector<interp::Var> &v) {
+        check_args("memstoreb", v, {ast::VarType::POINTER, ast::VarType::NUMBER, ast::VarType::NUMBER});
+        char *value = (char *)v.at(0).ptr_value;
+        value[v.at(1).numeric_value] = (char)v.at(2).numeric_value;
         return interp::Var("return", (long)0);
     }
 
     interp::Var func_memcpy(const std::vector<interp::Var> &v) {
-        return interp::Var("return", (long)0);
+        check_args("memcpy", v, {ast::VarType::POINTER, ast::VarType::POINTER, ast::VarType::NUMBER});
+        void *b = memcpy(v.at(0).ptr_value, v.at(1).ptr_value, v.at(2).numeric_value);
+        return interp::Var("return", (void *)b);
     }
 
     std::unordered_map<std::string, interp::FuncPtr> func_table  { 

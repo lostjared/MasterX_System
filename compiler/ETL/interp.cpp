@@ -208,24 +208,40 @@ namespace interp {
     }
 
     void Interpreter::executeAdd(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 + val2;
     }
 
     void Interpreter::executeSub(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 - val2;
     }
 
     void Interpreter::executeMul(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 * val2;
     }
 
     void Interpreter::executeDiv(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         if(val2 == 0) {
@@ -235,12 +251,20 @@ namespace interp {
     }
 
     void Interpreter::executeMod(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 % val2;
     }
 
     void Interpreter::executeAnd(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 & val2;
@@ -248,24 +272,40 @@ namespace interp {
     }
 
     void Interpreter::executeOr(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 | val2;
     }
 
     void Interpreter::executeXor(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 ^ val2;
     }
 
     void Interpreter::executeLShift(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 << val2;
     }
 
     void Interpreter::executeRShift(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 >> val2;
@@ -603,36 +643,60 @@ namespace interp {
 
     
     void Interpreter::executeLt(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 < val2;
     }
     
     void Interpreter::executeGt(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 > val2;
     }
     
     void Interpreter::executeLte(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 <= val2;
     }
     
     void Interpreter::executeGte(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 >= val2;
     }
     
     void Interpreter::executeEq(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 == val2;
     }
     
     void Interpreter::executeNeq(const ir::IRInstruction &instr) {
+        sym_tab.enter(instr.dest);
+        auto loc = sym_tab.lookup(instr.dest);
+        if(loc.has_value())
+            loc.value()->vtype = ast::VarType::NUMBER;
         long val1 = getIntegerValue(instr.op1);
         long val2 = getIntegerValue(instr.op2);
         numeric_variables[curFunction][instr.dest] = val1 != val2;
