@@ -1,5 +1,9 @@
 #include"embed_func.hpp"
 #include<initializer_list>
+#include<algorithm>
+#include<cstring>
+#include<ctime>
+#include<cstdlib>
 
 namespace lib { 
 
@@ -46,11 +50,119 @@ namespace lib {
         return interp::Var("return", (long)0);
     }
 
+    interp::Var func_scan_integer(const std::vector<interp::Var> &v) {
+        check_args("scan_integer", v, {});
+        std::string line;
+        std::getline(std::cin, line);
+        return interp::Var("return", (long)std::atol(line.c_str()));
+    }
+
+    interp::Var func_len(const std::vector<interp::Var> &v) {
+        check_args("len", v, {ast::VarType::STRING});
+        return interp::Var("return", (long)v.at(0).string_value.length());
+    }
+
+    interp::Var func_exit(const std::vector<interp::Var> &v) {
+        check_args("exit", v, {ast::VarType::NUMBER});
+        exit(v.at(0).numeric_value);
+        return interp::Var("return", (long)0);
+    }
+   
+    interp::Var func_srand(const std::vector<interp::Var> &v) {
+        check_args("srand", v, {ast::VarType::NUMBER});
+        srand(v.at(0).numeric_value);
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_rand(const std::vector<interp::Var> &v) {
+        check_args("rand", v, {});
+        return interp::Var("return", (long)rand());
+    }
+
+    interp::Var func_time(const std::vector<interp::Var> &v) {
+        check_args("time", v, {ast::VarType::NUMBER});
+        int t = time(0);
+        return interp::Var("return", (long)t);
+    }
+
+    interp::Var func_strlen(const std::vector<interp::Var> &v) {
+        check_args("strlen", v, {ast::VarType::STRING});
+        return interp::Var("return", (long)v.at(0).string_value.length());
+    }
+
+    interp::Var func_strcmp(const std::vector<interp::Var> &v) {
+        check_args("strcmp", v, {ast::VarType::STRING, ast::VarType::STRING});
+        return interp::Var("return", (long)strcmp(v.at(0).string_value.c_str(), v.at(1).string_value.c_str()));
+    }
+
+    interp::Var func_at(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_char_at(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_ptr(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_string(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_calloc(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_mematl(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_mematb(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_memclr(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_memstorel(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_memstoreb(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
+    interp::Var func_memcpy(const std::vector<interp::Var> &v) {
+        return interp::Var("return", (long)0);
+    }
+
     std::unordered_map<std::string, interp::FuncPtr> func_table  { 
         {"puts", func_print}, 
         {"str", func_str},
         {"malloc", func_malloc},
         {"free", func_free},
+        {"scan_integer", func_scan_integer},
+        {"len", func_len},
+        {"exit", func_exit},
+        {"srand",  func_srand},
+        {"rand", func_rand},
+        {"time", func_time},
+        {"strlen", func_strlen},
+        {"strcmp", func_strcmp},
+        {"at", func_at},
+        {"charAt", func_char_at},
+        {"ptr", func_ptr},
+        {"string", func_string},
+        {"calloc", func_calloc},
+        {"mematl", func_mematl},
+        {"mematb", func_mematb},
+        {"memclr", func_memclr},
+        {"memstorel", func_memstorel},
+        {"memstoreb", func_memstoreb},
+        {"memcpy", func_memcpy}
     };
 
 }

@@ -7,7 +7,7 @@ namespace interp {
 
     }
 
-    int Interpreter::execute(ir::IRCode &code) {
+    int Interpreter::execute(ir::IRCode &code, bool debug) {
         collectLabels(code);
         if(label_pos.find("init") == label_pos.end()) {
             throw Exception("Error could not find init entry point.\n");
@@ -15,7 +15,8 @@ namespace interp {
         ip = label_pos["init"];
         while(ip < static_cast<long>(code.size())) {
             const auto instr = code[ip];
-            std::cout << instr.toString() << "\n";
+            if(debug)
+                std::cout << instr.toString() << "\n";
 
             if(instr.type == ir::InstructionType::LABEL) {
                     executeLabel(instr);

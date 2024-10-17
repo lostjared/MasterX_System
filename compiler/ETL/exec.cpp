@@ -36,16 +36,16 @@ void test_execute(const std::string &filename, bool debug_info) {
                             irContext.instructions = std::move(opt.optimize(irContext.instructions));
                             interp::Interpreter interp_(irContext.table);
                             try {
-                                int rt_exit = interp_.execute(irContext.instructions);
-                                interp_.outputDebugInfo(std::cout);
-                                std::cout << "exited: " << rt_exit << "\n";
+                                int rt_exit = interp_.execute(irContext.instructions, debug_info);
+                                if(debug_info) interp_.outputDebugInfo(std::cout);
+                                std::cout << "\nexited: " << rt_exit << "\n";
                                 exit(rt_exit);
                             } catch(const interp::Exception  &e) {
-                                std::cerr << "Exception: " << e.why() << "\n";
-                                interp_.outputDebugInfo(std::cout);
+                                std::cerr << "\nException: " << e.why() << "\n";
+                                if(debug_info) interp_.outputDebugInfo(std::cout);
                             } catch(const interp::Exit_Exception &e) {
-                                interp_.outputDebugInfo(std::cout);
-                                std::cout << "exited: " << e.status() <<"\n";
+                                if(debug_info) interp_.outputDebugInfo(std::cout);
+                                std::cout << "\nexited: " << e.status() <<"\n";
                                 exit(e.status());
                             }    
                             catch (...) {

@@ -163,7 +163,7 @@ namespace interp {
     class Interpreter {
     public:
         Interpreter(symbol::SymbolTable &table);
-        int execute(ir::IRCode &code);
+        int execute(ir::IRCode &code, bool debug);
         void outputDebugInfo(std::ostream &out);
     private:
         symbol::SymbolTable &sym_tab;
