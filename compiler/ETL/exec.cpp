@@ -30,11 +30,14 @@ void test_execute(const std::string &filename, bool debug_info) {
             if(parser.parse()) {
                 auto rootAST = parser.getAST();  
                 if (rootAST) {
+                            std::cout << "ETL: generating IR code ... ";
                             parse::IRGenerator irGen;
                             auto irContext = irGen.generateIR(rootAST);  
                             ir::IROptimizer opt;
+                            std::cout << "[complete]\n";
                             irContext.instructions = std::move(opt.optimize(irContext.instructions));
                             interp::Interpreter interp_(irContext.table);
+                            std::cout << "ETL: Executing ...\n";
                             try {
                                 int rt_exit = interp_.execute(irContext.instructions, debug_info);
                                 if(debug_info) interp_.outputDebugInfo(std::cout);
