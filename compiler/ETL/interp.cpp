@@ -146,7 +146,9 @@ namespace interp {
         std::string curDefine;
 
         lf_table.addFunction("printf", lib::func_table["printf"]);
-        lib::initSharedObject("/usr/local/lib/sdl.so");
+#ifdef WITH_SDL
+        lib::initSharedObject("/usr/local/lib/libsdl_rt.so");
+#endif
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
             if(instr.type == ir::InstructionType::SUB_LABEL) {

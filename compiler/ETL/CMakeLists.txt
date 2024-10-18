@@ -42,11 +42,18 @@ target_link_libraries(ETL_C PRIVATE dl scan_cxx::cxx_scan)
 # SDL configuration if WITH_SDL is enabled
 if(WITH_SDL)
     find_package(SDL2 REQUIRED)
-    
+    add_compile_definitions(WITH_SDL)    
     # Create a separate SDL library
     add_library(etl_sdl STATIC ${CMAKE_SOURCE_DIR}/libetl/sdl.c)
     target_include_directories(etl_sdl PUBLIC ${SDL2_INCLUDE_DIRS} /usr/local/include/SDL2 /usr/include/SDL2)
     target_link_libraries(etl_sdl PRIVATE ${SDL2_LIBRARIES})
+
+    add_library(sdl_rt SHARED ${CMAKE_SOURCE_DIR}/libetl/sdl.c ${CMAKE_SOURCE_DIR}/libetl/shared/sdl/sdl.cpp)
+    target_include_directories(sdl_rt PRIVATE ${SDL2_INCLUDE_DIRS})
+    target_compile_options(sdl_rt PRIVATE -O2 -fPIC)
+    target_link_libraries(sdl_rt PRIVATE ${SDL2_LIBRARIES} SDL2_ttf)
+    install(TARGETS sdl_rt DESTINATION /usr/local/lib)
+
     # Conditionally install SDL-related files
     install(FILES ${CMAKE_SOURCE_DIR}/libetl/sdl.e DESTINATION include/libetl)
 endif()
