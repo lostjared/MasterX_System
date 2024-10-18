@@ -47,7 +47,7 @@ namespace interp {
     void check_args(const std::string &n, const std::vector<interp::Var>  &v, std::initializer_list<ast::VarType> args) {
         if(v.size() != args.size()) {
             std::ostringstream stream;
-            stream << "In function: " << n << " argument count mismatch.";
+            stream << "In function: " << n << " argument count mismatch.\n";
             std::cout << stream.str();
             exit(EXIT_FAILURE);
         }
@@ -55,7 +55,7 @@ namespace interp {
         for(auto a = args.begin(); a != args.end(); ++a) {
             if(v.at(i).type != *a) {
                 std::ostringstream stream;
-                stream << "In function: " << n << " argumment type mismatch " << static_cast<int>(v.at(i).type) << ":" << static_cast<int>(*a);
+                stream << "In function: " << n << " argumment type mismatch " << static_cast<int>(v.at(i).type) << ":" << static_cast<int>(*a) << "\n";
                 std::cout << stream.str();
                 exit(EXIT_FAILURE);
             }
