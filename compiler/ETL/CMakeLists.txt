@@ -38,6 +38,7 @@ add_executable(ETL_C
 # Link scan_cxx library to ETL_C
 target_include_directories(ETL_C PRIVATE ${scan_cxx_INCLUDE_DIRS})
 target_link_libraries(ETL_C PRIVATE dl scan_cxx::cxx_scan)
+target_compile_options(ETL_C PRIVATE -O2)
 
 # SDL configuration if WITH_SDL is enabled
 if(WITH_SDL)
