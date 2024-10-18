@@ -490,6 +490,7 @@ namespace interp {
             Function &func = ftable.getFunction(instr.functionName);
             sym_tab.enter(instr.dest);
             for(size_t i = 0; i < func.arg_names.size(); ++i) {
+                std::string curScope = sym_tab.curScope();
                 sym_tab.enterScope(instr.functionName);
                 switch(func.arg_types[i]) {
                     case ast::VarType::NUMBER: {
@@ -511,18 +512,22 @@ namespace interp {
                     }
                     break;
                     case ast::VarType::POINTER: {
+
+                     
                         sym_tab.enter(func.arg_names[i]);
                         auto loc = sym_tab.lookup(func.arg_names[i]);
                         if(loc.has_value()) {
                             loc.value()->vtype = ast::VarType::POINTER;
                             pointer_variables[func.functionName][func.arg_names[i]] = pointer_variables[curFunction][instr.args[i]];
+                            //std::cout << (long) pointer_variables[func.functionName][func.arg_names[i]];
+                           
                         }
                     }
                     break;
                 }
             }
             long pos = label_pos[instr.functionName];
-            call_stack.push_back({curFunction, instr.dest, ip+1});
+            call_stack.push_back({curFunction, instr.dest, ip});
             ip = pos;      
         } else {
             Functor *f = lf_table.getFunction(instr.functionName);
@@ -627,19 +632,20 @@ namespace interp {
                     if(rt_dest.has_value()) {
                         switch(rt_var.value()->vtype) {
                             case ast::VarType::NUMBER:
-                                numeric_variables[curScope][pos.rt_name] = numeric_variables[curFunction][instr.dest];
+                                numeric_variables[pos.fname][pos.rt_name] = numeric_variables[curFunction][instr.dest];
                             break;
                             case ast::VarType::STRING:
-                                string_variables[curScope][pos.rt_name] = string_variables[curFunction][instr.dest];
+                                string_variables[pos.fname][pos.rt_name] = string_variables[curFunction][instr.dest];
                             break;
                             case ast::VarType::POINTER:
-                                pointer_variables[curScope][pos.rt_name] = pointer_variables[curFunction][instr.dest];
+                                pointer_variables[pos.fname][pos.rt_name] = pointer_variables[curFunction][instr.dest];
+                                
                             break;
                         }
                         rt_dest.value()->vtype = rt_var.value()->vtype;
                     }
                 }
-                ip = pos.pos;
+                ip = pos.pos+1;
                 curFunction = pos.fname;
            }
     }

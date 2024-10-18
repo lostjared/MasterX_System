@@ -129,7 +129,7 @@ namespace lib {
         check_args("mematl", v, {ast::VarType::POINTER, ast::VarType::NUMBER});
         long *value = (long *)v.at(0).ptr_value;
         if(value == nullptr) 
-            throw interp::Exception("Null pointer [mematl]");
+            throw interp::Exception("Null pointer [mematl] " + v.at(0).name);
         
         return interp::Var("return", (long)value[v.at(1).numeric_value]);
     }
@@ -138,7 +138,7 @@ namespace lib {
         check_args("mematb", v, {ast::VarType::POINTER, ast::VarType::NUMBER});
         char *value = (char *)v.at(0).ptr_value;
         if(value == nullptr) 
-            throw interp::Exception("Null pointer [mematb]");
+            throw interp::Exception("Null pointer [mematb] " + v.at(0).name);
 
         return interp::Var("return", (long)value[v.at(1).numeric_value]);
     }
@@ -153,7 +153,7 @@ namespace lib {
         check_args("memstorel", v, {ast::VarType::POINTER, ast::VarType::NUMBER, ast::VarType::NUMBER});
         long *value = (long *)v.at(0).ptr_value;
         if(value == nullptr) {
-            throw interp::Exception("Null pointer [memstorel]");
+            throw interp::Exception("Null pointer [memstorel] " + v.at(0).name);
         }
         value[v.at(1).numeric_value] = v.at(2).numeric_value;
         return interp::Var("return", (long)0);
@@ -163,7 +163,7 @@ namespace lib {
         check_args("memstoreb", v, {ast::VarType::POINTER, ast::VarType::NUMBER, ast::VarType::NUMBER});
         char *value = (char *)v.at(0).ptr_value;
         if(value == nullptr) {
-            throw interp::Exception("Null pointer [memstoreb]");
+            throw interp::Exception("Null pointer [memstoreb] " + v.at(0).name);
         }
         value[v.at(1).numeric_value] = (char)v.at(2).numeric_value;
         return interp::Var("return", (long)0);
