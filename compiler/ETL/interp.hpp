@@ -150,7 +150,7 @@ namespace interp {
             for(auto &f : functions) {
                 out << f.first << " [ ";
                 for(size_t i = 0; i < f.second.int_vars.size(); ++i) {
-                    out << f.second.int_vars[i].name << ":" << static_cast<int>(f.second.int_vars[i].type) << " ";
+                    out << f.second.int_vars[i].name << ":" << ast::VarString[static_cast<int>(f.second.int_vars[i].type)] << " ";
                 }
                 out << " ]\n";
             }
