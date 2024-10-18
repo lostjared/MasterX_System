@@ -58,6 +58,10 @@ if(WITH_SDL)
     install(FILES ${CMAKE_SOURCE_DIR}/libetl/sdl.e DESTINATION include/libetl)
 endif()
 
+add_library(io_rt SHARED ${CMAKE_SOURCE_DIR}/libetl/io.c ${CMAKE_SOURCE_DIR}/libetl/shared/io/io.cpp)
+target_compile_options(io_rt PRIVATE -O2 -fPIC)
+install(TARGETS io_rt DESTINATION /usr/local/lib)
+
 # Installation rules
 install(TARGETS ETL_C DESTINATION bin)
 install(TARGETS etl DESTINATION lib)
