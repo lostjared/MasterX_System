@@ -200,7 +200,7 @@ namespace interp {
         out << "Variables [ pointers ]\n";
         for(auto &i : pointer_variables) {
             for(auto &x : i.second) {
-                out << i.first << " [ " << x.first << ", " << x.second << " ]\n";
+                out << i.first << " [ " << x.first << ", " << std::hex << x.second << " ]\n";
             }
         }
         std::cout << "Labels: {\n";
