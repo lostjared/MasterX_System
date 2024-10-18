@@ -522,7 +522,7 @@ namespace interp {
                 }
             }
             long pos = label_pos[instr.functionName];
-            call_stack.push_back({curFunction, instr.dest, ip});
+            call_stack.push_back({curFunction, instr.dest, ip+1});
             ip = pos;      
         } else {
             Functor *f = lf_table.getFunction(instr.functionName);
@@ -619,6 +619,7 @@ namespace interp {
                 call_stack.pop_back();
                 std::string curScope = sym_tab.curScope();
                 auto rt_var = sym_tab.lookup(instr.dest);
+
                 if(rt_var.has_value()) {
                     sym_tab.enterScope(pos.fname);
                     sym_tab.enter(pos.rt_name);
@@ -626,15 +627,16 @@ namespace interp {
                     if(rt_dest.has_value()) {
                         switch(rt_var.value()->vtype) {
                             case ast::VarType::NUMBER:
-                                numeric_variables[pos.fname][pos.rt_name] = numeric_variables[curScope][instr.dest];
+                                numeric_variables[curScope][pos.rt_name] = numeric_variables[curFunction][instr.dest];
                             break;
                             case ast::VarType::STRING:
-                                string_variables[pos.fname][pos.rt_name] = string_variables[curScope][instr.dest];
+                                string_variables[curScope][pos.rt_name] = string_variables[curFunction][instr.dest];
                             break;
                             case ast::VarType::POINTER:
-                                pointer_variables[pos.fname][pos.rt_name] = pointer_variables[curScope][instr.dest];
+                                pointer_variables[curScope][pos.rt_name] = pointer_variables[curFunction][instr.dest];
                             break;
                         }
+                        rt_dest.value()->vtype = rt_var.value()->vtype;
                     }
                 }
                 ip = pos.pos;

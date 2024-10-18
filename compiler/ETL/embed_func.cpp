@@ -128,12 +128,18 @@ namespace lib {
     interp::Var func_mematl(const std::vector<interp::Var> &v) {
         check_args("mematl", v, {ast::VarType::POINTER, ast::VarType::NUMBER});
         long *value = (long *)v.at(0).ptr_value;
+        if(value == nullptr) 
+            throw interp::Exception("Null pointer [mematl]");
+        
         return interp::Var("return", (long)value[v.at(1).numeric_value]);
     }
 
     interp::Var func_mematb(const std::vector<interp::Var> &v) {
         check_args("mematb", v, {ast::VarType::POINTER, ast::VarType::NUMBER});
         char *value = (char *)v.at(0).ptr_value;
+        if(value == nullptr) 
+            throw interp::Exception("Null pointer [mematb]");
+
         return interp::Var("return", (long)value[v.at(1).numeric_value]);
     }
 
@@ -146,6 +152,9 @@ namespace lib {
     interp::Var func_memstorel(const std::vector<interp::Var> &v) {
         check_args("memstorel", v, {ast::VarType::POINTER, ast::VarType::NUMBER, ast::VarType::NUMBER});
         long *value = (long *)v.at(0).ptr_value;
+        if(value == nullptr) {
+            throw interp::Exception("Null pointer [memstorel]");
+        }
         value[v.at(1).numeric_value] = v.at(2).numeric_value;
         return interp::Var("return", (long)0);
     }
@@ -153,6 +162,9 @@ namespace lib {
     interp::Var func_memstoreb(const std::vector<interp::Var> &v) {
         check_args("memstoreb", v, {ast::VarType::POINTER, ast::VarType::NUMBER, ast::VarType::NUMBER});
         char *value = (char *)v.at(0).ptr_value;
+        if(value == nullptr) {
+            throw interp::Exception("Null pointer [memstoreb]");
+        }
         value[v.at(1).numeric_value] = (char)v.at(2).numeric_value;
         return interp::Var("return", (long)0);
     }
