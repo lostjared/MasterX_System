@@ -154,8 +154,12 @@ proc init() {
         sdl_setendcolor(255,255,255,255);
         sdl_draw_gradient(paddle_x, 380, paddle_width, paddle_height);
         sdl_draw_gradient(ball_x, ball_y, ball_size, ball_size);
-        sdl_printtext(10, 400, "Lives: " + str(lives));
-        sdl_printtext(10, 425, "Score: " + str(score));
+        let lives_fmt = "Lives: " + str(lives);
+        let score_fmt = "Score: " + str(score);
+        sdl_printtext(10, 400, lives_fmt);
+        sdl_printtext(10, 425, score_fmt);
+        release(lives_fmt);
+        release(score_fmt);
         sdl_flip();
     }
 
