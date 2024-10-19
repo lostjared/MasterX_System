@@ -11,8 +11,8 @@
 #define CARD3 10
 
 proc @alloc_deck() {
-    let deck = malloc(15 * 8);  
-    memclr(deck, 15 * 8);
+    let deck = malloc(16 * 8);  
+    memclr(deck, 16 * 8);
     return deck;
 }
 
@@ -200,11 +200,13 @@ proc init() {
         sdl_flip();
     }
 
+    
     let correct_card = 0;
 
     while(sdl_pump() && active_game == 1) {
         sdl_setcolor(0,0,0,255);
         sdl_clear();
+        
         if(mematl(deck, CARD1) == 2) {
             sdl_copytex(card_back_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
         } else {
@@ -237,9 +239,9 @@ proc init() {
         sdl_printtext(mematl(deck, CARD3+1)+320/2, 50, "3");
 
         if(selected_card == correct_card) {
-            sdl_printtext(15, 15, "You are correct! You Selected: " + str(selected_card+1) + " card is #" + str(correct_card+1) + " [Press Ecape to Quit]");
+            sdl_printtext(15, 15, "You are correct");
         } else {
-            sdl_printtext(15, 15, "You are incorrect! Selected: " + str(selected_card+1) + " card is # " + str(correct_card+1) + " [Press Escape to Quit]");
+            sdl_printtext(15, 15, "You are incorrect");
         }
         sdl_flip();
     }
