@@ -836,67 +836,53 @@ output << ".section .data\n";
         }
         
         void emitConcat(std::ostringstream &output, const ir::IRInstruction &instr) {
-            
-            auto op1_it  = table.lookup(instr.op1);
-            auto op2_it  = table.lookup(instr.op2);
+            auto op1_it = table.lookup(instr.op1);
+            auto op2_it = table.lookup(instr.op2);
             std::string prefix;
-#ifdef __APPLE__
+            
+        #ifdef __APPLE__
             prefix = "_";
-#endif
-
-
-            output  << "    movq $0, %rcx\n";
+        #endif
+            output << "    movq $0, %rcx\n";
             storeToTemp(output, "counter", "%rcx");
-
-            if (variableInfo[curFunction][instr.op1].type == VariableType::STRING_CONST) {
-                if(!variableInfo[curFunction][instr.op1].text.empty()  && variableInfo[curFunction][instr.op1].text[0] == '\"') {
-                    auto len = variableInfo[curFunction][instr.op1].text.length()+1;
-                    output << "    addq $" << len << ", " << getOperand("counter") << "\n";
-                } else {
-                    loadToRegister(output, instr.op1, "%rdi");
-                    output << "    call " << prefix << "strlen #" << instr.op1 << "\n";
-                    output << "    addq  %rax, " << getOperand("counter") << "\n";
+            auto addStringLength = [&](const std::string &op, auto &op_it) {
+                if (variableInfo[curFunction][op].type == VariableType::STRING_CONST) {
+                    if (!variableInfo[curFunction][op].text.empty() && variableInfo[curFunction][op].text[0] == '\"') {
+                        auto len = variableInfo[curFunction][op].text.length() + 1;
+                        output << "    addq $" << len << ", " << getOperand("counter") << "\n";
+                    } else {
+                        loadToRegister(output, op, "%rdi");
+                        output << "    call " << prefix << "strlen #" << op << "\n";
+                        output << "    addq %rax, " << getOperand("counter") << "\n";
+                    }
+                } else if (variableInfo[curFunction][op].type == VariableType::VAR_STRING ||
+                        (op_it.has_value() && op_it.value()->vtype == ast::VarType::STRING)) {
+                    loadToRegister(output, op, "%rdi");
+                    output << "    call " << prefix << "strlen # " << op << "\n";
+                    output << "    addq %rax, " << getOperand("counter") << "\n";
                 }
-            } else if(variableInfo[curFunction][instr.op1].type == VariableType::VAR_STRING || op1_it.has_value()   && op1_it.value()->vtype == ast::VarType::STRING) {
-                loadToRegister(output, instr.op1, "%rdi");
-                output << "    call " << prefix << "strlen # " << instr.op1 <<"\n";
-                output << "    addq %rax, " << getOperand("counter") << "\n";
-            } 
-
-            if (variableInfo[curFunction][instr.op2].type == VariableType::STRING_CONST) {
-                if(!variableInfo[curFunction][instr.op2].text.empty()  && variableInfo[curFunction][instr.op2].text[0] == '\"') {
-                    auto len = variableInfo[curFunction][instr.op2].text.length()+1;
-                    output << "    addq $" << len << ", " << getOperand("counter") << "\n";
-                } else {
-                    loadToRegister(output, instr.op2, "%rdi");
-                    output << "    call " << prefix << "strlen # " << instr.op2 << "\n";
-                    output << "    addq %rax, "  << getOperand("counter") << "\n";
-                }
-            } else if (variableInfo[curFunction][instr.op2].type == VariableType::VAR_STRING   && op2_it.has_value()  && op2_it.value()->vtype == ast::VarType::STRING) {
-                loadToRegister(output, instr.op2, "%rdi");
-                output << "    call " << prefix << "strlen # " << instr.op2 << "\n";
-                output << "    addq %rax, " << getOperand("counter") << "\n";
-            } 
-
+            };
+            addStringLength(instr.op1, op1_it);
+            addStringLength(instr.op2, op2_it);
             output << "    addq $1, " << getOperand("counter") << "\n";
             output << "    movq $" << sizeof(char) << ", %rsi\n";
             output << "    xorq %rax, %rax\n";
             loadToRegister(output, "counter", "%rdi");
             output << "    call " << prefix << "calloc\n";
-            output << "    movq %rax, %rdi\n";
+            output << "    movq %rax, %rdi\n";         
             storeToTemp(output, instr.dest, "%rdi");
-            loadToRegister(output,instr.op1,"%rsi");
+            loadToRegister(output, instr.op1, "%rsi");
             output << "    call " << prefix << "strcpy\n";
-            loadToRegister(output,instr.op2,"%rsi");
+            loadToRegister(output, instr.op2, "%rsi");
             output << "    call " << prefix << "strcat\n";
-            allocatedMemory[curFunction].insert(instr.dest);  
+            allocatedMemory[curFunction].insert(instr.dest);
             variableInfo[curFunction][instr.dest].type = VariableType::VAR_STRING;
             table.enter(instr.dest);
-            auto it = table.lookup(instr.dest);
-            if(it.has_value()) {
+            if (auto it = table.lookup(instr.dest); it.has_value()) {
                 it.value()->vtype = ast::VarType::STRING;
             }
         }
+
 
         void emitBinaryOp(std::ostringstream &output, const ir::IRInstruction &instr, const std::string &op) {
             table.enter(instr.dest);
