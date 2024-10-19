@@ -11,7 +11,7 @@
 #define CARD3 10
 
 proc @alloc_deck() {
-    let deck = malloc(12255 * 8);  
+    let deck = malloc(15 * 8);  
     memclr(deck, 15 * 8);
     return deck;
 }
