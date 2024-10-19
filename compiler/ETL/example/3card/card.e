@@ -7,11 +7,11 @@
 #define NUM_CARDS 3
 
 #define CARD1 0
-#define CARD2 4
-#define CARD3 8
+#define CARD2 5
+#define CARD3 10
 
 proc @alloc_deck() {
-    let deck = malloc(12 * 8);  
+    let deck = malloc(15 * 8);  
     memclr(deck, 12 * 8);
     return deck;
 }
@@ -20,17 +20,20 @@ proc set_deck(@deck) {
     memstorel(deck, 0, CARD_KING);
     memstorel(deck, 1, 320/2); // X
     memstorel(deck, 2, (720-450)/2); // Y
-    memstorel(deck, 3, rand()%2); 
+    memstorel(deck, 3, rand()%2); // DIR
+    memstorel(deck, 4, 0); // CARD_INDEX
 
-    memstorel(deck, 4, CARD_KING);
-    memstorel(deck, 5, 500); // X
-    memstorel(deck, 6, (720-450)/2); // Y
-    memstorel(deck, 7, rand()%2); // DIR
+    memstorel(deck, 5, CARD_KING);
+    memstorel(deck, 6, 500); // X
+    memstorel(deck, 7, (720-450)/2); // Y
+    memstorel(deck, 8, rand()%2); // DIR
+    memstorel(deck, 9, 1); // CARD_INDEX
     
-    memstorel(deck, 8, CARD_KING);
-    memstorel(deck, 9, 840); // X
-    memstorel(deck, 10, (720-450)/2); // Y
-    memstorel(deck, 11, rand()%2); // DIR
+    memstorel(deck, 10, CARD_KING);
+    memstorel(deck, 11, 840); // X
+    memstorel(deck, 12, (720-450)/2); // Y
+    memstorel(deck, 13, rand()%2); // DIR
+    memstorel(deck, 14, 2); // CARD_INDEX
 
     let r = rand()%3;
     if(r == 0) {
@@ -174,16 +177,14 @@ proc init() {
     while (sdl_pump() && active_game == 0) {
         sdl_setcolor(0, 0, 0, 255);
         sdl_clear();
-
         sdl_copytex(card_back_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
         sdl_copytex(card_back_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
         sdl_copytex(card_back_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
-
+        sdl_printtext(15, 15, "Press 1, 2, or 3 to Select Ace");
         sdl_printtext(mematl(deck, CARD1+1)+320/2, 50, "1");
         sdl_printtext(mematl(deck, CARD2+1)+320/2, 50, "2");
         sdl_printtext(mematl(deck, CARD3+1)+320/2, 50, "3");
 
-        sdl_printtext(15, 15, "Press 1, 2, or 3 to Select Ace");
         if(sdl_keydown(30)) {
             selected_card = 0;
             active_game = 1;
@@ -196,7 +197,6 @@ proc init() {
             selected_card = 2;
             active_game = 1;
         }
-
         sdl_flip();
     }
 
@@ -208,26 +208,31 @@ proc init() {
         if(mematl(deck, CARD1) == 2) {
             sdl_copytex(card_back_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
         } else {
-            correct_card = 0;
+            correct_card = mematl(deck, CARD1+4);
             sdl_copytex(card_ace_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
         }
         
         if(mematl(deck, CARD2) == 2) {
             sdl_copytex(card_back_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
         } else {
-            correct_card = 1;
+            correct_card = mematl(deck, CARD2+4);
             sdl_copytex(card_ace_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
         }
         if(mematl(deck, CARD3) == 2) {
             sdl_copytex(card_back_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
         } else {
-            correct_card = 2;
+            correct_card = mematl(deck, CARD3+4);
             sdl_copytex(card_ace_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
         }
+
+        sdl_printtext(mematl(deck, CARD1+1)+320/2, 50, "1");
+        sdl_printtext(mematl(deck, CARD2+1)+320/2, 50, "2");
+        sdl_printtext(mematl(deck, CARD3+1)+320/2, 50, "3");
+
         if(selected_card == correct_card) {
-            sdl_printtext(15, 15, "You are correct! You Selcted: " + str(selected_card+1) + " card is " + str(correct_card+1) + " [Press Ecape to Quit]");
+            sdl_printtext(15, 15, "You are correct! You Selcted: " + str(selected_card+1) + " card is #" + str(correct_card+1) + " [Press Ecape to Quit]");
         } else {
-            sdl_printtext(15, 15, "You are incorrect! Selected: " + str(selected_card+1) + " card " + str(correct_card+1) + " [Press Escape to Quit]");
+            sdl_printtext(15, 15, "You are incorrect! Selected: " + str(selected_card+1) + " card is # " + str(correct_card+1) + " [Press Escape to Quit]");
         }
         sdl_flip();
     }
