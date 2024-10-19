@@ -5,6 +5,12 @@
 #include <stdbool.h>
 #include <string.h>
 
+void release(char *buffer) {
+    if(buffer != NULL)
+        free(buffer);
+    buffer = NULL;
+}
+
 size_t intToString(long value, char *buffer, size_t buffer_size) {
     char temp[22]; 
     memset(temp, 0, 22);

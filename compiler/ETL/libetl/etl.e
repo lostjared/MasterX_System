@@ -3,6 +3,7 @@
 define scan_integer();
 define len($value);
 define $str(value);
+define release($value);
 define exit(code);
 define puts($output);
 define srand(seed);
