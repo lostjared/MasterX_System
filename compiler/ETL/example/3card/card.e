@@ -12,7 +12,7 @@
 
 proc @alloc_deck() {
     let deck = malloc(15 * 8);  
-    memclr(deck, 12 * 8);
+    memclr(deck, 15 * 8);
     return deck;
 }
 
