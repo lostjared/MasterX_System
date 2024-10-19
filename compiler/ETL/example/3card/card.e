@@ -208,21 +208,28 @@ proc init() {
         if(mematl(deck, CARD1) == 2) {
             sdl_copytex(card_back_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
         } else {
-            correct_card = mematl(deck, CARD1+4);
             sdl_copytex(card_ace_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
         }
         
         if(mematl(deck, CARD2) == 2) {
             sdl_copytex(card_back_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
         } else {
-            correct_card = mematl(deck, CARD2+4);
             sdl_copytex(card_ace_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
         }
         if(mematl(deck, CARD3) == 2) {
             sdl_copytex(card_back_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
         } else {
-            correct_card = mematl(deck, CARD3+4);
             sdl_copytex(card_ace_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
+        }
+
+        if(mematl(deck, CARD1) == CARD_ACE) {
+            correct_card = 0;
+        }
+        if(mematl(deck, CARD2) == CARD_ACE) {
+            correct_card = 1;
+        }
+        if(mematl(deck, CARD3) == CARD_ACE) {
+            correct_card = 2;
         }
 
         sdl_printtext(mematl(deck, CARD1+1)+320/2, 50, "1");
