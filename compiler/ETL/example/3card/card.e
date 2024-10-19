@@ -120,8 +120,7 @@ proc init() {
 
     let card_back_tex = sdl_loadtex("data/cardback.bmp");
     let card_ace_tex = sdl_loadtex("data/cardace.bmp");
-    let card_king_tex = sdl_loadtex("data/cardking.bmp");
-
+    
     let active_intro = 1;
     let active_game = 1;
     let active_win = 0;
@@ -168,15 +167,9 @@ proc init() {
             active_game = 0;
         }
     }
-
     set_cards(deck);
 
-    // key = 1 = 30
-    // key = 2 = 31
-    // key = 3 = 32
-
     let selected_card = 0;
-
 
     while (sdl_pump() && active_game == 0) {
         sdl_setcolor(0, 0, 0, 255);
@@ -236,7 +229,6 @@ proc init() {
 
     sdl_destroytex(card_back_tex);
     sdl_destroytex(card_ace_tex);
-    sdl_destroytex(card_king_tex);
     free(deck);
     sdl_release();
     sdl_quit();
