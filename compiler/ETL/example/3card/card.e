@@ -231,7 +231,9 @@ proc init() {
         sdl_printtext(mematl(deck, CARD1+1)+320/2, 50, "1");
         sdl_printtext(mematl(deck, CARD2+1)+320/2, 50, "2");
         sdl_printtext(mematl(deck, CARD3+1)+320/2, 50, "3");
-        sdl_printtext(15, 15, "Correct card was: " + str(correct_card+1));
+        let output = "Correct card was: " + str(correct_card+1);
+        sdl_printtext(15, 15, output);
+        release(output);
         sdl_flip();
     }
 
