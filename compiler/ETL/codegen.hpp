@@ -839,7 +839,6 @@ output << ".section .data\n";
             auto op1_it = table.lookup(instr.op1);
             auto op2_it = table.lookup(instr.op2);
             std::string prefix;
-            
         #ifdef __APPLE__
             prefix = "_";
         #endif
@@ -875,7 +874,7 @@ output << ".section .data\n";
             output << "    call " << prefix << "strcpy\n";
             loadToRegister(output, instr.op2, "%rsi");
             output << "    call " << prefix << "strcat\n";
-            allocatedMemory[curFunction].insert(instr.dest);
+            //allocatedMemory[curFunction].insert(instr.dest);
             variableInfo[curFunction][instr.dest].type = VariableType::VAR_STRING;
             table.enter(instr.dest);
             if (auto it = table.lookup(instr.dest); it.has_value()) {

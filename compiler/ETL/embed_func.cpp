@@ -175,6 +175,11 @@ namespace lib {
         return interp::Var("return", (void *)b);
     }
 
+    interp::Var func_release(const std::vector<interp::Var> &v) {
+        check_args("release", v, {ast::VarType::STRING});
+        return interp::Var("return", (long)0);
+    }
+
     interp::Var func_printf(const std::vector<interp::Var> &v) {
         if(v.size() >= 1) {
             std::string input = v.at(0).string_value;
@@ -239,6 +244,7 @@ namespace lib {
         {"memstorel", func_memstorel},
         {"memstoreb", func_memstoreb},
         {"memcpy", func_memcpy},
+        {"release", func_release},
         {"printf", func_printf}
     };
 
