@@ -203,9 +203,35 @@ proc init() {
         sdl_flip();
     }
 
-    while(sdl_pump() && active_game == 1) {
+    let correct_card = 0;
 
-        
+    while(sdl_pump() && active_game == 1) {
+        sdl_setcolor(0,0,0,255);
+        sdl_clear();
+        if(mematl(deck, CARD1) == 2) {
+            sdl_copytex(card_back_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
+        } else {
+            correct_card = 0;
+            sdl_copytex(card_ace_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
+        }
+        if(mematl(deck, CARD2) == 2) {
+            sdl_copytex(card_back_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
+        } else {
+            correct_card = 1;
+            sdl_copytex(card_ace_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
+        }
+        if(mematl(deck, CARD3) == 2) {
+            sdl_copytex(card_back_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
+        } else {
+            correct_card = 2;
+            sdl_copytex(card_ace_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
+        }
+        if(selected_card == correct_card) {
+            sdl_printtext(15, 15, "You are correct! [Press Ecape to Quit]");
+        } else {
+            sdl_printtext(15, 15, "You are incorrect! [Press Escape to Quit]");
+        }
+        sdl_flip();
     }
 
     sdl_destroytex(card_back_tex);
