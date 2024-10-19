@@ -237,7 +237,7 @@ proc init() {
         sdl_printtext(mematl(deck, CARD3+1)+320/2, 50, "3");
 
         if(selected_card == correct_card) {
-            sdl_printtext(15, 15, "You are correct! You Selcted: " + str(selected_card+1) + " card is #" + str(correct_card+1) + " [Press Ecape to Quit]");
+            sdl_printtext(15, 15, "You are correct! You Selected: " + str(selected_card+1) + " card is #" + str(correct_card+1) + " [Press Ecape to Quit]");
         } else {
             sdl_printtext(15, 15, "You are incorrect! Selected: " + str(selected_card+1) + " card is # " + str(correct_card+1) + " [Press Escape to Quit]");
         }
