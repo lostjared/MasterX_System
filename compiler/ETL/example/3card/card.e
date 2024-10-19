@@ -179,13 +179,17 @@ proc init() {
         sdl_copytex(card_back_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
         sdl_copytex(card_back_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
 
+        sdl_printtext(mematl(deck, CARD1+1)+320/2, 50, "1");
+        sdl_printtext(mematl(deck, CARD2+1)+320/2, 50, "2");
+        sdl_printtext(mematl(deck, CARD3+1)+320/2, 50, "3");
+
         sdl_printtext(15, 15, "Press 1, 2, or 3 to Select Ace");
         if(sdl_keydown(30)) {
             selected_card = 0;
             active_game = 1;
         }
         if(sdl_keydown(31)) {
-            selected_card = 1;
+            selected_card = 1
             active_game = 1;
         }
         if(sdl_keydown(32)) {
@@ -207,6 +211,7 @@ proc init() {
             correct_card = 0;
             sdl_copytex(card_ace_tex, mematl(deck, CARD1+1), mematl(deck,CARD1+2), 320, 450);
         }
+        
         if(mematl(deck, CARD2) == 2) {
             sdl_copytex(card_back_tex, mematl(deck, CARD2+1), mematl(deck,CARD2+2), 320, 450);
         } else {
@@ -220,9 +225,9 @@ proc init() {
             sdl_copytex(card_ace_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
         }
         if(selected_card == correct_card) {
-            sdl_printtext(15, 15, "You are correct! [Press Ecape to Quit]");
+            sdl_printtext(15, 15, "You are correct! Selcted: " + str(selected_card) + " card " + str(correct_card) + " [Press Ecape to Quit]");
         } else {
-            sdl_printtext(15, 15, "You are incorrect! [Press Escape to Quit]");
+            sdl_printtext(15, 15, "You are incorrect! Selected: " + str(selected_card) + " card " + str(correct_card) + " [Press Escape to Quit]");
         }
         sdl_flip();
     }
