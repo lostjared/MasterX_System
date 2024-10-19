@@ -225,9 +225,9 @@ proc init() {
             sdl_copytex(card_ace_tex, mematl(deck, CARD3+1), mematl(deck,CARD3+2), 320, 450);
         }
         if(selected_card == correct_card) {
-            sdl_printtext(15, 15, "You are correct! Selcted: " + str(selected_card) + " card " + str(correct_card) + " [Press Ecape to Quit]");
+            sdl_printtext(15, 15, "You are correct! You Selcted: " + str(selected_card+1) + " card is " + str(correct_card+1) + " [Press Ecape to Quit]");
         } else {
-            sdl_printtext(15, 15, "You are incorrect! Selected: " + str(selected_card) + " card " + str(correct_card) + " [Press Escape to Quit]");
+            sdl_printtext(15, 15, "You are incorrect! Selected: " + str(selected_card+1) + " card " + str(correct_card+1) + " [Press Escape to Quit]");
         }
         sdl_flip();
     }
