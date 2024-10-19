@@ -10,5 +10,6 @@ proc init() {
 	memstoreb(data, len, 0);
 	printf("%s\n", data);
 	file_close(file);
+	free(data);
 	return 0;
 }
