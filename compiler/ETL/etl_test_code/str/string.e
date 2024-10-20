@@ -4,7 +4,9 @@
 proc init() {
     let x = 200;
     let y = 300;
-    puts(str(x) + "+" + str(y) + "=" + str(x+y));
-    puts(str(x * x));
+    let fmt = malloc(255);
+    sprintf(fmt, "%d+%d=%d", x, y, x+y);
+    puts(string(fmt));
+    free(fmt);
     return 0;
 }
