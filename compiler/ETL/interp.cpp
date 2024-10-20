@@ -327,6 +327,7 @@ namespace interp {
     }
 
     void Interpreter::executeLoadConst(const ir::IRInstruction &instr) {
+
         if(instr.op1[0] == '\"') {
             sym_tab.enter(instr.dest);
             auto it = sym_tab.lookup(instr.dest);
@@ -515,8 +516,6 @@ namespace interp {
                     }
                     break;
                     case ast::VarType::POINTER: {
-
-                     
                         sym_tab.enter(func.arg_names[i]);
                         auto loc = sym_tab.lookup(func.arg_names[i]);
                         if(loc.has_value()) {
@@ -569,7 +568,14 @@ namespace interp {
                     }
                 }
             } else {
-                for(size_t i = 0; i < instr.args.size(); ++i) {
+                size_t offset = 0;
+                if(instr.functionName == "printf" && instr.args.size() >= 1) {
+                    v.push_back(Var(instr.args[0], ast::VarType::STRING));
+                    size_t off = v.size()-1;
+                    v[off].string_value = stripQuotes(string_variables[curFunction][instr.args[0]]);
+                    offset = 1;
+                }
+                for(size_t i = offset; i < instr.args.size(); ++i) {
                     auto loc = sym_tab.lookup(instr.args[i]);
                     if(!loc.has_value()) {
                         std::ostringstream stream;

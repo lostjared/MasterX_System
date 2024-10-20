@@ -188,8 +188,8 @@ namespace lib {
     }
 
 
-    interp::Var func_printf(const std::vector<interp::Var> &v) {
-        if(v.size() >= 1) {
+    interp::Var func_printf(const std::vector<interp::Var> &v) {       
+        if(v.size() > 0) {
             std::string input = v.at(0).string_value;
             size_t index = 1;
             for(size_t i = 0; i < input.length(); ++i) {
