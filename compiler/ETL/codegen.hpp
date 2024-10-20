@@ -874,7 +874,8 @@ output << ".section .data\n";
             output << "    call " << prefix << "strcpy\n";
             loadToRegister(output, instr.op2, "%rsi");
             output << "    call " << prefix << "strcat\n";
-            //allocatedMemory[curFunction].insert(instr.dest);
+            allocatedMemory[curFunction].insert(instr.dest);
+            
             variableInfo[curFunction][instr.dest].type = VariableType::VAR_STRING;
             table.enter(instr.dest);
             if (auto it = table.lookup(instr.dest); it.has_value()) {
@@ -1008,7 +1009,7 @@ output << ".section .data\n";
                         exit(EXIT_FAILURE);
                     }
                 } else {
-                    if(functionName != "printf") {
+                    if(functionName != "printf" && functionName != "sprintf") {
                         std::cerr << "Error: Function '" << functionName << "' is not defined.\n";
                         exit(EXIT_FAILURE);
                     }
@@ -1070,12 +1071,12 @@ output << ".section .data\n";
                         break;
                 }
 
-                if (instr.args.size() != fn->second.args.size() && instr.functionName != "printf") {
+                if (instr.args.size() != fn->second.args.size() && instr.functionName != "printf" && instr.functionName != "sprintf") {
                     std::cerr << "ETL: Fatal, incorrect number of arguments for: " << instr.functionName << "\n";
                     exit(EXIT_FAILURE);
                 }
 
-                if (instr.functionName != "printf") {
+                if (instr.functionName != "printf" && instr.functionName != "sprintf") {
                     for (size_t i = 0; i < fn->second.args.size(); ++i) {
                         ast::VarType actualVarType , expectedType;
 
@@ -1107,7 +1108,7 @@ output << ".section .data\n";
 
                 if (fn->second.allocated || fn->first == "str") {
                     if (allocatedMemory[curFunction].find(instr.dest) == allocatedMemory[curFunction].end()) {
-                        //allocatedMemory[curFunction].insert(instr.dest);
+                        allocatedMemory[curFunction].insert(instr.dest);
                     }
                 }
                 if(fn->first == "str") {
@@ -1136,7 +1137,7 @@ output << ".section .data\n";
                         case ast::VarType::STRING:
                                 if(variableInfo[instr.functionName][instr.transfer_var].type == VariableType::VAR_STRING) {
                                     variableInfo[curFunction][instr.dest].type = VariableType::VAR_STRING;
-                                    //allocatedMemory[curFunction].insert(instr.dest);
+                                    allocatedMemory[curFunction].insert(instr.dest);
                                 }
                             break;
                         case ast::VarType::NUMBER:
@@ -1188,17 +1189,20 @@ output << ".section .data\n";
             prefix = "_";
 #endif
 
+            
+            /*
             for (const auto &var : allocatedMemory[curFunction]) {
                 if(variableInfo[curFunction][var].type == VariableType::VAR_STRING) {
                     loadToRegister(output, var, "%rdi");
                     output << "    call " << prefix << "free # local variable: "<<var<<"\n";
                 }
-            }
+            } 
 
             for(const auto &var : ownedMemory[curFunction]) {
                     loadToRegister(output, var, "%rdi");
                     output << "    call " << prefix << "free # ownership transfer: "<<var<<"\n";
-            }
+            }*/
+
 
             if (!instr.dest.empty()) {
                 loadToRegister(output, instr.dest, "%rax");

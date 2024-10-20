@@ -18,7 +18,7 @@ namespace lib {
         for(auto a = args.begin(); a != args.end(); ++a) {
             if(v.at(i).type != *a) {
                 std::ostringstream stream;
-                stream << "In function: " << n << " argumment type mismatch " << static_cast<int>(v.at(i).type) << ":" << static_cast<int>(*a);
+                stream << "In function: " << n << " argumment type mismatch found " << ast::VarString[static_cast<int>(v.at(i).type)] << " expected " << ast::VarString[static_cast<int>(*a)];
                 throw interp::Exception(stream.str());
             }
             i ++;
@@ -180,6 +180,14 @@ namespace lib {
         return interp::Var("return", (long)0);
     }
 
+    interp::Var func_string_int(const std::vector<interp::Var> &v) {
+        check_args("string_int", v, {ast::VarType::POINTER, ast::VarType::NUMBER});
+        std::string value = std::to_string(v.at(1).numeric_value);
+        strcpy((char*)v.at(0).ptr_value, value.c_str());
+        return interp::Var("return", (long)0);
+    }
+
+
     interp::Var func_printf(const std::vector<interp::Var> &v) {
         if(v.size() >= 1) {
             std::string input = v.at(0).string_value;
@@ -219,6 +227,50 @@ namespace lib {
         return interp::Var("return", (long)0);
     }
 
+     interp::Var func_sprintf(const std::vector<interp::Var> &v) {
+        if(v.size() >= 2) {
+            void *buf = v.at(0).ptr_value;
+            std::ostringstream stream;
+            std::string input = v.at(1).string_value;
+            size_t index = 2;
+            for(size_t i = 0; i < input.length(); ++i) {
+                if(input.at(i) != '%') {
+                    stream << input.at(i);
+                    continue;
+                } 
+                if(i+1 < input.length() && input.at(i+1) == '%') {
+                    stream << '%';
+                    i++;
+                    continue;
+                } else if(i+1 < input.length()) {
+                    char c = input.at(i+1);
+                    if(index < v.size()) {
+                        switch(v.at(index).type) {
+                            case ast::VarType::STRING:
+                            stream << v.at(index).string_value;
+                            break;
+                            case ast::VarType::NUMBER:
+                                if(c == 'c')
+                                    stream << (char)v.at(index).numeric_value;
+                                else 
+                                    stream << (long)v.at(index).numeric_value;
+                            break;
+                            case ast::VarType::POINTER:
+                            stream << (long)v.at(index).ptr_value;
+                            break;
+                        }
+                    }
+                    index ++;
+                    i ++;
+                }
+                strcpy((char*)buf, stream.str().c_str());
+            }
+            return interp::Var("return", stream.str());
+        }
+        return interp::Var("return", "");
+        
+    }
+
 
     std::unordered_map<std::string, interp::FuncPtr> func_table  { 
         {"puts", func_print}, 
@@ -245,7 +297,8 @@ namespace lib {
         {"memstoreb", func_memstoreb},
         {"memcpy", func_memcpy},
         {"release", func_release},
-        {"printf", func_printf}
+        {"printf", func_printf},
+        {"sprintf", func_sprintf}
     };
 
     std::vector<void *> shared_objects;

@@ -146,6 +146,8 @@ namespace interp {
         std::string curDefine;
 
         lf_table.addFunction("printf", lib::func_table["printf"]);
+        lf_table.addFunction("sprintf", lib::func_table["sprintf"]);
+
         lib::initSharedObject("/usr/local/lib/libio_rt.so");
 #ifdef WITH_SDL
         lib::initSharedObject("/usr/local/lib/libsdl_rt.so");
@@ -537,14 +539,14 @@ namespace interp {
                 stream << "Function: " << instr.functionName << " not defined!\n";
                 throw Exception(stream.str());
             }
-            if(instr.functionName != "printf" && f->int_vars.size() != instr.args.size()) {
+            if(instr.functionName != "printf" && instr.functionName != "sprintf" && f->int_vars.size() != instr.args.size()) {
                 std::ostringstream stream;
                 stream << "Function: " << instr.functionName << " requires: " << f->int_vars.size() << " arguments, found: " << instr.args.size();
                 throw Exception(stream.str());
             }
             std::vector<Var> v;
 
-            if(instr.functionName != "printf") {
+            if(instr.functionName != "printf" && instr.functionName != "sprintf") {
                 for(size_t i = 0; i < f->int_vars.size(); ++i) {
                     auto loc = sym_tab.lookup(instr.args[i]);
                     if(!loc.has_value()) {
