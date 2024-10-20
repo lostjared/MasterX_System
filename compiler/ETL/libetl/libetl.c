@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+void *str(long);
+
 void release(char *buffer) {
     if(buffer != NULL)
         free(buffer);
