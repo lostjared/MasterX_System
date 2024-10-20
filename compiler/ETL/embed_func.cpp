@@ -27,7 +27,7 @@ namespace lib {
 
     interp::Var func_print(const std::vector<interp::Var> &v) {
         check_args("puts", v, {ast::VarType::STRING});
-        std::cout << v.at(0).string_value;
+        std::cout << v.at(0).string_value << "\n";
         return interp::Var("return", (long)0);
     }
 
