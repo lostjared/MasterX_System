@@ -1,12 +1,15 @@
 #include<libetl/etl.e>
 
 proc add_numbers() {
-    puts("Enter firsT number: ");
+    puts("Enter first number: ");
     let x = scan_integer();
     puts("Enter second number: ");
     let y = scan_integer();
-    puts(str(x) + "+" + str(y) + "=" + str(x+y));
-     return 0;
+    let buffer = malloc ( 255 );
+    sprintf(buffer, "\n%d+%d=%d\n", x, y, x+y);
+    puts(string(buffer));
+    free(buffer);
+    return 0;
 }
 
 proc init() {
