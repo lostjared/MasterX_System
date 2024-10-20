@@ -211,7 +211,9 @@ proc init() {
     if(mematl(deck, CARD3) == CARD_ACE) {
         correct_card = 2;
     }
-    
+    let card1_num = str(correct_card+1);
+    let card2_num = str(selected_card+1);
+    let output = "Correct card was: " + card1_num + " You picked: " + card2_num;
     while(sdl_pump() && active_game == 1) {
         sdl_setcolor(0,0,0,255);
         sdl_clear();
@@ -235,12 +237,12 @@ proc init() {
         sdl_printtext(mematl(deck, CARD1+1)+320/2, 50, "1");
         sdl_printtext(mematl(deck, CARD2+1)+320/2, 50, "2");
         sdl_printtext(mematl(deck, CARD3+1)+320/2, 50, "3");
-        let output = "Correct card was: " + str(correct_card+1) + " You picked: " + str(selected_card+1);
         sdl_printtext(15, 15, output);
-        release(output);
         sdl_flip();
     }
-
+    release(output);
+    release(card1_num);
+    release(card2_num);
     sdl_destroytex(card_back_tex);
     sdl_destroytex(card_ace_tex);
     free(deck);
