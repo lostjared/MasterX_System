@@ -171,6 +171,7 @@ proc init() {
         }
     }
     set_cards(deck);
+    let selected_card = -1;
 
     while (sdl_pump() && active_game == 0) {
         sdl_setcolor(0, 0, 0, 255);
@@ -185,12 +186,15 @@ proc init() {
 
         if(sdl_keydown(30)) {
             active_game = 1;
+            selected_card = 0;
         }
         if(sdl_keydown(31)) {
             active_game = 1;
+            selected_card = 1;
         }
         if(sdl_keydown(32)) {
             active_game = 1;
+            selected_card = 2;
         }
         sdl_flip();
     }
@@ -231,7 +235,7 @@ proc init() {
         sdl_printtext(mematl(deck, CARD1+1)+320/2, 50, "1");
         sdl_printtext(mematl(deck, CARD2+1)+320/2, 50, "2");
         sdl_printtext(mematl(deck, CARD3+1)+320/2, 50, "3");
-        let output = "Correct card was: " + str(correct_card+1);
+        let output = "Correct card was: " + str(correct_card+1) + " You picked: " + str(selected_card+1);
         sdl_printtext(15, 15, output);
         release(output);
         sdl_flip();
