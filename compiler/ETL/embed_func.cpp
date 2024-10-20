@@ -217,6 +217,8 @@ namespace lib {
                             case ast::VarType::POINTER:
                             std::cout << (long)v.at(index).ptr_value;
                             break;
+                            default:
+                            break;
                         }
                     }
                     index ++;
@@ -257,6 +259,8 @@ namespace lib {
                             break;
                             case ast::VarType::POINTER:
                             stream << (long)v.at(index).ptr_value;
+                            break;
+                            default:
                             break;
                         }
                     }

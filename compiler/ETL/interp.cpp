@@ -148,9 +148,16 @@ namespace interp {
         lf_table.addFunction("printf", lib::func_table["printf"]);
         lf_table.addFunction("sprintf", lib::func_table["sprintf"]);
 
+#ifdef __APPLE__
+       lib::initSharedObject("/usr/local/lib/libio_rt.dylib");
+#ifdef WITH_SDL
+       lib::initSharedObject("/usr/local/lib/libsdl_rt.dylib");
+#endif
+#elif defined(__linux__)
         lib::initSharedObject("/usr/local/lib/libio_rt.so");
 #ifdef WITH_SDL
         lib::initSharedObject("/usr/local/lib/libsdl_rt.so");
+#endif
 #endif
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
@@ -526,6 +533,8 @@ namespace interp {
                         }
                     }
                     break;
+                    default:
+                    break;
                 }
             }
             long pos = label_pos[instr.functionName];
@@ -565,6 +574,8 @@ namespace interp {
                         case ast::VarType::POINTER:
                         v[off].ptr_value = pointer_variables[curFunction][instr.args[i]];
                         break;
+                        default:
+                        break;
                     }
                 }
             } else {
@@ -594,6 +605,8 @@ namespace interp {
                         case ast::VarType::POINTER:
                         v[off].ptr_value = pointer_variables[curFunction][instr.args[i]];
                         break;
+                        default:
+                        break;
                     }
                 }
             }
@@ -609,6 +622,8 @@ namespace interp {
                 break;
                 case ast::VarType::POINTER:
                 pointer_variables[curFunction][instr.dest] = v_.ptr_value;
+                break;
+                default:
                 break;
             }
             loc.value()->vtype = v_.type;
@@ -649,6 +664,8 @@ namespace interp {
                             case ast::VarType::POINTER:
                                 pointer_variables[pos.fname][pos.rt_name] = pointer_variables[curFunction][instr.dest];
                                 
+                            break;
+                            default:
                             break;
                         }
                         rt_dest.value()->vtype = rt_var.value()->vtype;
