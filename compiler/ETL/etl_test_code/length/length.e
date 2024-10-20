@@ -1,12 +1,15 @@
 #include<libetl/etl.e>
 
 proc testLen($what) {
-    let n_s = "hey: " + what;
-    puts(n_s);
-    return len(n_s);
+    let n_s = malloc (strlen("hey: ") + strlen(what) + 1 + 255);
+    sprintf(n_s, "hey: %s len: %d", what, strlen(what));
+    puts(string(n_s));
+    let length = strlen(string(n_s));
+    free(n_s);
+    return length;
 }
 
 proc init() {
-    puts("Len value:" + str(testLen("value is here")));
+    printf("THIS IS A TEST Len: %d\n", testLen("ABC"));
     return 0;
 }
