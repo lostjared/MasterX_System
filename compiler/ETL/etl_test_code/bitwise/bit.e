@@ -1,12 +1,16 @@
 #include<libetl/etl.e>
 
-proc $andString(x, y) {
-    return str(x) + "  & " + str(y) + " = " + str(x&y);
+proc @andString(x, y) {
+    let fmt = malloc (255);
+    sprintf(fmt, "%d & %d = %x", x, y, x&y);
+    return fmt;
 }
 
 proc init() {
-    puts(andString(10, 100));
+    let and_s = andString(25, rand());
+    puts(string(and_s));
+    free(and_s);
     let u = 4242411111 >> 8 ^ 2;
-    printf("%d\n", u);
+    printf("U: %d\n", u);
     return 0;
 }
