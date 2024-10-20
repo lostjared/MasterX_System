@@ -86,9 +86,10 @@ proc init() {
         sdl_flip();
     }
 
-    
-    let prev_time = sdl_getticks();
-    
+    let prev_time = sdl_getticks();    
+    let score_string = malloc (255);
+    let lives_string = malloc (255);
+
     while(sdl_pump() && active == 1) {
         sdl_setcolor(0, 0, 0, 255);
         sdl_clear();   
@@ -154,18 +155,15 @@ proc init() {
         sdl_setendcolor(255,255,255,255);
         sdl_draw_gradient(paddle_x, 380, paddle_width, paddle_height);
         sdl_draw_gradient(ball_x, ball_y, ball_size, ball_size);
-        let lives_str = str(lives);
-        let score_str = str(score);
-        let lives_fmt = "Lives: " + lives_str;
-        let score_fmt = "Score: " + score_str;
-        sdl_printtext(10, 400, lives_fmt);
-        sdl_printtext(10, 425, score_fmt);
-        release(lives_fmt);
-        release(score_fmt);
-        release(lives_str);
-        release(score_str);
+        sprintf(score_string, "Score: %d", score);
+        sprintf(lives_string, "Lives: %d", lives);
+        sdl_printtext(10, 400, string(score_string));
+        sdl_printtext(10, 425, string(lives_string));
         sdl_flip();
     }
+
+    free(score_string);
+    free(lives_string);
 
     while(sdl_pump() && active_gameover == 1) {
         if(sdl_keydown(40)) {
