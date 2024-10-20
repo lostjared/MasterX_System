@@ -277,9 +277,11 @@ proc init() {
         sdl_copytex(puzzle_bg, 0, 0, 1440, 1080);
         draw_grid(grid, block);
         sdl_settextcolor(255, 255, 255, 255);
-        let score_fmt = "Score: " + str(mematl(score, 0));
+        let score_str = str(mematl(score, 0));
+        let score_fmt = "Score: " + score_str;
         sdl_printtext(25, 25, score_fmt);
         release(score_fmt);
+        release(score_str);
         check_blocks(grid, score);
         move_blocks(grid);
         sdl_flip(); // flip
@@ -322,19 +324,19 @@ proc init() {
             }
         }
     }
-
     let game_over_screen = sdl_loadtex("img/gameover.bmp");
-
+    let gscore_str = str(mematl(score, 0));
     while(sdl_pump()) {
         sdl_clear();
         sdl_copytex(game_over_screen, 0, 0, 1440, 1080);
         sdl_setcolor(0, 0, 0, 255);
         sdl_settextcolor(rand()%255, rand()%255, rand()%255 ,255);
-        let gover_fmt = "Game Over Score: " + str(mematl(score, 0));
+        let gover_fmt = "Game Over Score: " + gscore_str;
         sdl_printtext(45, 45, gover_fmt);
         release(gover_fmt);
         sdl_flip();
     }
+    release(gscore_str);
     sdl_destroytex(puzzle_bg);
     sdl_destroytex(game_over_screen);
     free(grid);
