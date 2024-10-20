@@ -1107,7 +1107,7 @@ output << ".section .data\n";
 
                 if (fn->second.allocated || fn->first == "str") {
                     if (allocatedMemory[curFunction].find(instr.dest) == allocatedMemory[curFunction].end()) {
-                        allocatedMemory[curFunction].insert(instr.dest);
+                        //allocatedMemory[curFunction].insert(instr.dest);
                     }
                 }
                 if(fn->first == "str") {
@@ -1136,7 +1136,7 @@ output << ".section .data\n";
                         case ast::VarType::STRING:
                                 if(variableInfo[instr.functionName][instr.transfer_var].type == VariableType::VAR_STRING) {
                                     variableInfo[curFunction][instr.dest].type = VariableType::VAR_STRING;
-                                    allocatedMemory[curFunction].insert(instr.dest);
+                                    //allocatedMemory[curFunction].insert(instr.dest);
                                 }
                             break;
                         case ast::VarType::NUMBER:
