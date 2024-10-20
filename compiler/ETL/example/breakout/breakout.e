@@ -95,7 +95,7 @@ proc init() {
         sdl_clear();   
         sdl_copytex(bg, 0, 0, 640, 480);
         let current_time = sdl_getticks();
-        if ((current_time - prev_time) >= 10) {
+        if ((current_time - prev_time) >= 15) {
             prev_time = current_time; 
     
             ball_x += ball_vx;
