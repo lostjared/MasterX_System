@@ -1,1 +1,1 @@
-/usr/local/lib/libio_rt
+libio_rt

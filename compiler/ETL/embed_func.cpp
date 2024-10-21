@@ -344,14 +344,14 @@ namespace lib {
         table(addFunc);
     }
 
-    void loadSharedObjects(const std::string &filename) {
+    void loadSharedObjects(const std::string &lib_path, const std::string &filename) {
         std::fstream file;
         file.open(filename, std::ios::in);
         while(!file.eof()) {
             std::string line;
             std::getline(file, line);
             if(file)
-                initSharedObject(line);
+                initSharedObject(lib_path + "/" + line);
         }
         file.close();
     }

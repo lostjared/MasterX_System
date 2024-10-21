@@ -151,7 +151,7 @@ namespace interp {
 #ifdef WITH_SDL
         lib::initSharedObject(LIB_PATH + "/libsdl_rt");
 #endif
-        lib::loadSharedObjects(LIB_PATH + "/etl-lib.txt"); // config file
+        lib::loadSharedObjects(LIB_PATH, LIB_PATH + "/etl-lib.txt"); // config file
 
 
         while(ip_id < code.size()) {
