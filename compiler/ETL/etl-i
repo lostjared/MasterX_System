@@ -1,34 +1,18 @@
 #!/bin/bash
-
-# Check if input file exists and is not empty
 if [[ -z "$1" || ! -f "$1" ]]; then
   echo "Error: Input file is missing or does not exist."
   exit 1
 fi
-
-# Set debug info if the second argument is "-d"
 if [[ "$2" == "-d" ]]; then
   debug_info="-d"
 else
   debug_info=""
 fi
-
-# Get the base name
 base_name=$(basename "$1" .e)
-
-# Get the path to the executable's directory (i.e., /usr/local/bin)
 exe_dir=$(dirname "$(readlink "$0" || echo "$0")")
-
-# Convert relative path to absolute path
 if [[ "$exe_dir" != /* ]]; then
   exe_dir=$(pwd)/"$exe_dir"
 fi
-
-# Replace /usr/local/bin with /usr/local/lib
 lib_dir="${exe_dir/bin/lib}"
-
-# Preprocess the file
 cc -x c -E "$1" -o "${base_name}.i" || { echo "Preprocessing failed"; exit 1; }
-
-# Run ETL_C with preprocessed file and dynamically set library path
 ETL_C -i "${base_name}.i" -e "$debug_info" -p "$lib_dir" || { echo "ETL_C command failed"; exit 1; }
