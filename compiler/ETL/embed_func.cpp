@@ -7,6 +7,8 @@
 #include<fstream>
 #include<dlfcn.h>
 
+
+
 namespace lib { 
 
     void check_args(const std::string &n, const std::vector<interp::Var>  &v, std::initializer_list<ast::VarType> args) {
@@ -306,13 +308,16 @@ namespace lib {
         {"sprintf", func_sprintf}
     };
 
+
+
+    
     std::vector<void *> shared_objects;
 
     void addFunc(const char *src, void *ptr) {
         func_table[std::string(src)] = (interp::FuncPtr)ptr;
     }
-        
-     void initSharedObject(const std::string &n) {
+
+     void initSharedObject(const std::string &n, const std::string &init_func) {
         std::string path = n;
 #ifdef __APPLE__
         path += ".dylib";
@@ -333,7 +338,7 @@ namespace lib {
         shared_objects.push_back(obj);
         typedef void  (*addFunction)(const char *src, void *ptr);
         typedef void (*initTable)(addFunction);
-        initTable table = (initTable)dlsym(obj, "initTable");
+        initTable table = (initTable)dlsym(obj, init_func.c_str());
         char *err = dlerror();
         if(err) {
             std::cerr << "ETL: Could not get Pointer to table function: " << err << "\n";
@@ -344,14 +349,24 @@ namespace lib {
         table(addFunc);
     }
 
+#ifdef WITH_STATIC_SDL
+    void initStatic() {
+        libsdl_rt_initTable(addFunc);
+        libio_rt_initTable(addFunc);
+    }
+#endif
+
     void loadSharedObjects(const std::string &lib_path, const std::string &filename) {
         std::fstream file;
         file.open(filename, std::ios::in);
         while(!file.eof()) {
             std::string line;
             std::getline(file, line);
-            if(file)
-                initSharedObject(lib_path + "/" + line);
+            if(file) {
+                std::string name = line.substr(line.rfind("/")+1);
+                std::string tname = name + "_initTable";
+                initSharedObject(lib_path + "/" + line, tname);
+            }
         }
         file.close();
     }

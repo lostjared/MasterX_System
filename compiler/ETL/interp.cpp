@@ -140,6 +140,8 @@ namespace interp {
         return EXIT_SUCCESS;
     }
 
+
+
     void Interpreter::collectLabels(const ir::IRCode &code) {
         int ip_id = 0;
         std::string curFunc;
@@ -147,12 +149,14 @@ namespace interp {
 
         lf_table.addFunction("printf", lib::func_table["printf"]);
         lf_table.addFunction("sprintf", lib::func_table["sprintf"]);
-        std::cout << "ETL: Loading Shared Library Path: " << LIB_PATH << "\n";
-#ifdef WITH_SDL
-        lib::initSharedObject(LIB_PATH + "/libsdl_rt");
-#endif
+#ifdef WITH_STATIC_SDL
+        lib::initStatic();
+#else
+        #ifdef WITH_SDL
+        lib::initSharedObject(LIB_PATH + "/libsdl_rt", "libsdl_rt_initTable");
+        #endif
         lib::loadSharedObjects(LIB_PATH, LIB_PATH + "/etl-lib.txt"); // config file
-
+#endif
 
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
