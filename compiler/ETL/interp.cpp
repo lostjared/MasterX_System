@@ -3,7 +3,7 @@
 
 namespace interp {
 
-    Interpreter::Interpreter(symbol::SymbolTable &table) : sym_tab{table}, ip{0} {
+    Interpreter::Interpreter(const std::string &lib_path, symbol::SymbolTable &table) : sym_tab{table}, ip{0}, LIB_PATH{lib_path} {
 
     }
     
@@ -147,18 +147,13 @@ namespace interp {
 
         lf_table.addFunction("printf", lib::func_table["printf"]);
         lf_table.addFunction("sprintf", lib::func_table["sprintf"]);
+        std::cout << "ETL: Loading Shared Library Path: " << LIB_PATH << "\n";
+#ifdef WITH_SDL
+        lib::initSharedObject(LIB_PATH + "/libsdl_rt");
+#endif
+        lib::loadSharedObjects(LIB_PATH + "/etl-lib.txt"); // config file
 
-#ifdef __APPLE__
-       lib::initSharedObject("/usr/local/lib/libio_rt.dylib");
-#ifdef WITH_SDL
-       lib::initSharedObject("/usr/local/lib/libsdl_rt.dylib");
-#endif
-#elif defined(__linux__)
-        lib::initSharedObject("/usr/local/lib/libio_rt.so");
-#ifdef WITH_SDL
-        lib::initSharedObject("/usr/local/lib/libsdl_rt.so");
-#endif
-#endif
+
         while(ip_id < code.size()) {
             const auto instr = code[ip_id];
             if(instr.type == ir::InstructionType::SUB_LABEL) {

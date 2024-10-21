@@ -1,23 +1,18 @@
 #!/bin/bash
 
-# Check if input file exists and is not empty
 if [[ -z "$1" || ! -f "$1" ]]; then
   echo "Error: Input file is missing or does not exist."
   exit 1
 fi
 
-# Set debug info if the second argument is "-d"
 if [[ "$2" == "-d" ]]; then
   debug_info="-d"
 else
   debug_info=""
 fi
 
-# Get the base name
 base_name=$(basename "$1" .e)
-
-# Preprocess the file
+exe_dir=$(dirname "$(realpath "$0")")
+lib_dir="${exe_dir/bin/lib}"
 cc -x c -E "$1" -o "${base_name}.i" || { echo "Preprocessing failed"; exit 1; }
-
-# Run ETL_C with preprocessed file
-ETL_C -i "${base_name}.i" -e "$debug_info" || { echo "ETL_C command failed"; exit 1; }
+ETL_C -i "${base_name}.i" -e "$debug_info" -p "$lib_dir" || { echo "ETL_C command failed"; exit 1; }

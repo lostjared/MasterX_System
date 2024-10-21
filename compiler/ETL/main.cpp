@@ -4,7 +4,7 @@
 #include"version_info.hpp"
 
 extern void test_parse(const std::string &, const std::string &, bool debug_info, bool quiet_mode);
-extern void test_execute(const std::string &, bool debug_info);
+extern void test_execute(const std::string &, const std::string &, bool debug_info);
 
 void print_about() {
     std::cout << "ETL: ETL v" << etl_version << "\n";
@@ -17,6 +17,7 @@ int main(int argc, char **argv)  {
     argz.addOptionSingleValue('i', "input text file")
     .addOptionSingleValue('o', "output file")
     .addOptionSingle('h', "help")
+    .addOptionSingleValue('p', "shared library path")
     .addOptionSingle('v', "help")
     .addOptionSingle('d', "Output Debug info")
     .addOptionSingle('q', "Quiet mode")
@@ -28,6 +29,7 @@ int main(int argc, char **argv)  {
     bool debug_info = false;
     bool quiet_mode = true;
     bool execute = false;
+    std::string library_path = "/usr/local/lib";
     try {
         while((value = argz.proc(arg)) != -1) {
             switch(value) {
@@ -53,6 +55,9 @@ int main(int argc, char **argv)  {
                 case 'e':
                     execute = true;
                     break;
+                case 'p':
+                    library_path = arg.arg_value;
+                    break;
             }
         }
     } catch(const ArgException<std::string> &e) {
@@ -74,7 +79,7 @@ int main(int argc, char **argv)  {
     if(execute == false)
         test_parse(in_file, out_file, debug_info,quiet_mode);
     else
-        test_execute(in_file, debug_info);
+        test_execute(in_file, library_path, debug_info);
 
     return 0;
 }

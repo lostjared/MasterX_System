@@ -4,6 +4,7 @@
 #include<cstring>
 #include<ctime>
 #include<cstdlib>
+#include<fstream>
 #include<dlfcn.h>
 
 namespace lib { 
@@ -312,9 +313,15 @@ namespace lib {
     }
         
      void initSharedObject(const std::string &n) {
-        void *obj = dlopen(n.c_str(), RTLD_NOW);
+        std::string path = n;
+#ifdef __APPLE__
+        path += ".dylib";
+#else
+        path += ".so";
+#endif
+        void *obj = dlopen(path.c_str(), RTLD_NOW);
         if(!obj) {
-            std::cerr << "ETL: Error opening shared library: " << n << "\n";
+            std::cerr << "ETL: Error opening shared library: " << path << "\n";
             char *e = dlerror();
             if(e) {
                 std::cerr << "Error: " << e << "\n";
@@ -333,8 +340,20 @@ namespace lib {
             std::cerr.flush();
             exit(EXIT_FAILURE);
         }
-        std::cout << "ETL: Loaded Shared Library: " << n << "\n";
+        std::cout << "ETL: Loaded Shared Library: " << path << "\n";
         table(addFunc);
+    }
+
+    void loadSharedObjects(const std::string &filename) {
+        std::fstream file;
+        file.open(filename, std::ios::in);
+        while(!file.eof()) {
+            std::string line;
+            std::getline(file, line);
+            if(file)
+                initSharedObject(line);
+        }
+        file.close();
     }
 
     void releaseSharedObjects() {

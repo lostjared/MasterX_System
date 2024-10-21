@@ -162,7 +162,7 @@ namespace interp {
 
     class Interpreter {
     public:
-        Interpreter(symbol::SymbolTable &table);
+        Interpreter(const std::string &lib_path, symbol::SymbolTable &table);
         int execute(ir::IRCode &code, bool debug);
         void release();
         void outputDebugInfo(std::ostream &out);
@@ -171,7 +171,7 @@ namespace interp {
         FunctionTable ftable;
         LibraryFunctions lf_table;
         long ip = 0;
-
+        std::string LIB_PATH = "/usr/local/lib";
         std::string curFunction;
         std::unordered_map<std::string, std::unordered_map<std::string, long>> numeric_variables;
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> string_variables;

@@ -9,7 +9,7 @@
 
 extern void outputDebugInfo(std::ostream &file, symbol::SymbolTable &table, const ir::IRCode &code);
 
-void test_execute(const std::string &filename, bool debug_info) {
+void test_execute(const std::string &filename, const std::string &lib_path, bool debug_info) {
 
     std::fstream file;
     file.open(filename, std::ios::in);
@@ -36,7 +36,7 @@ void test_execute(const std::string &filename, bool debug_info) {
                             ir::IROptimizer opt;
                             std::cout << "[complete]\n";
                             irContext.instructions = std::move(opt.optimize(irContext.instructions));
-                            interp::Interpreter interp_(irContext.table);
+                            interp::Interpreter interp_(lib_path, irContext.table);
                             std::cout << "ETL: Executing ...\n";
                             try {
                                 int rt_exit = interp_.execute(irContext.instructions, debug_info);

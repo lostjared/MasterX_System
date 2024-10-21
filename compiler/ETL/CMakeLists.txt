@@ -70,7 +70,7 @@ install(TARGETS etl DESTINATION lib)
 install(FILES ${CMAKE_SOURCE_DIR}/libetl/etl.e ${CMAKE_SOURCE_DIR}/libetl/io.e DESTINATION include/libetl)
 install(PROGRAMS ${CMAKE_SOURCE_DIR}/etl DESTINATION bin)
 install(PROGRAMS ${CMAKE_SOURCE_DIR}/etl-i DESTINATION bin)
-
+install(FILES ${CMAKE_SOURCE_DIR}/etl-lib.txt DESTINATION "/usr/local/lib")
 # Conditionally install SDL library if WITH_SDL is set
 if(WITH_SDL)
     install(TARGETS etl_sdl DESTINATION lib)
