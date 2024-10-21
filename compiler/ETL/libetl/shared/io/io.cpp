@@ -1,3 +1,5 @@
+#include "../../../interp.hpp"
+#include "../../../ast.hpp"
 #include "../etl.hpp"
 #include<cstdio>
 
@@ -46,7 +48,7 @@ interp::Var func_file_size(const std::vector<interp::Var> &v) {
     return interp::Var("return", (long)file_size(v.at(0).ptr_value));
 }
 
-extern "C" void initTable(addFunction func) {
+extern "C" void libio_rt_initTable(addFunction func) {
     func("file_open", (void*)func_file_open);
     func("file_print", (void*)func_file_print);
     func("file_write", (void*)func_file_write);

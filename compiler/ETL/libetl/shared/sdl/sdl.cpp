@@ -1,5 +1,7 @@
 /* ETL: SDL2 Module */
 #include"SDL.h"
+#include "../../../interp.hpp"
+#include "../../../ast.hpp"
 #include "../etl.hpp"
 
 extern "C" void sdl_init();
@@ -200,8 +202,7 @@ interp::Var func_sdl_draw_gradient(const std::vector<interp::Var> &v) {
     return interp::Var("return", (long)0);
 }
 
-
-extern "C" void initTable(addFunction func) {
+extern "C" void libsdl_rt_initTable(addFunction func) {
     func("sdl_init", (void*)func_sdl_init);
     func("sdl_init_size", (void*)func_sdl_init_size);
     func("sdl_quit", (void*)func_sdl_quit);
