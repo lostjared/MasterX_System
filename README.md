@@ -6,7 +6,7 @@
 
 ![image](https://github.com/user-attachments/assets/5f40ce93-134e-4c53-9fc3-f4e86c43c263)
 
-MasterX System is an application featuring a custom-built compiler designed for Linux/macOS for ETL (Easy Toy Language), accompanied by a virtual playground for testing and exploration. This project is a personal endeavor in its early stages, aimed at enhancing my learning through practical application. 
+MasterX System is an application prototype featuring a custom-built compiler designed for Linux/macOS for ETL (Easy Toy Language), accompanied by a virtual playground for testing and exploration. This project is a personal endeavor in its early stages, aimed at enhancing my learning through practical application. 
 For a demonstration of the WebAssembly version, which runs ATS as the shell and serves as a demo, please visit https://lostsidedead.biz/MasterX.
 
 Note for Windows Users:
