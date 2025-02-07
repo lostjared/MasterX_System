@@ -75,7 +75,7 @@ namespace interp {
         if(tokens.size()>=2 && input_line.length()>0) {
             lex::Token_type num = tokens[0].getTokenType();
             if(num != lex::TOKEN_DIGIT) {
-                std::cerr << "Requires line number before code.\n";
+                stream << "Requires line number before code.\n";
                 return;
             }
             int value = atoi(tokens[0].getToken().c_str());
@@ -93,7 +93,7 @@ namespace interp {
             }
         } 
         else {
-            std::cerr << "Error invalid input.\n";
+            stream << "Error invalid input.\n";
             return;
         }
     }
@@ -102,7 +102,7 @@ namespace interp {
     // will do for translating
     bool checkInstruction(std::vector<lex::Token> &tokens, const TextLine &text) {
         if(tokens.size()<= 1) {
-            std::cerr << "Error: Statement requires instruction.\n";
+            stream << "Error: Statement requires instruction.\n";
             return false;
         }
         static unsigned int inc_offset = 0;
@@ -110,13 +110,13 @@ namespace interp {
             icode::opc op = icode::strtoInc(tokens[1].getToken());
             if(op == icode::opc::NOTINC) {
                 if(tokens[1].getTokenType() != lex::TOKEN_CHAR) {
-                    std::cerr << "Syntax Error: After line number requires either Label or instruction.\n";
+                    stream << "Syntax Error: After line number requires either Label or instruction.\n";
                     return false;
                 }
                 inc_offset = 1;
                 op = icode::strtoInc(tokens[1+inc_offset].getToken());
                 if(op == icode::opc::NOTINC) {
-                    std::cerr << "Syntax Error: After Label requires Instruction.\n";
+                    stream << "Syntax Error: After Label requires Instruction.\n";
                     return false;
                 }
             } else {
@@ -126,11 +126,11 @@ namespace interp {
                         if(tokens.size()>=4+inc_offset) {
                             if(tokens[3+inc_offset].getTokenType() == lex::TOKEN_DIGIT) {}
                             else if(tokens[3+inc_offset].getTokenType() != lex::TOKEN_DIGIT && tokens[3+inc_offset].getTokenType() != lex::TOKEN_HEX) {
-                                std::cerr << "Syntax Error: requires either digit or $.\n";
+                                stream << "Syntax Error: requires either digit or $.\n";
                                 return false;
                                 
                             } else if(tokens[3+inc_offset].getTokenType() != lex::TOKEN_HEX) {
-                                std::cerr << "Syntax Error: $ is followed by a Hex value\n";
+                                stream << "Syntax Error: $ is followed by a Hex value\n";
                                 return false;
                             }
                             
@@ -139,12 +139,12 @@ namespace interp {
                                     // check if register
                                 }
                             } else if(tokens.size()>=5+inc_offset && tokens[4+inc_offset].getToken() != ",") {
-                                std::cerr << "Syntax Error: Expecting comma instead I found: " << tokens[4].getToken() << "\n";
+                                stream << "Syntax Error: Expecting comma instead I found: " << tokens[4].getToken() << "\n";
                                 return false;
                             }
                             
                         } else {
-                            std::cerr << "Syntax Error: Missing value after #\n";
+                            stream << "Syntax Error: Missing value after #\n";
                             return false;
                         }
                     }
