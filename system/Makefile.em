@@ -2,11 +2,11 @@
 CXX = em++
 CXXFLAGS = -std=c++20 -O2 -DFOR_WASM -s USE_SDL=2 -s USE_SDL_TTF=2 
 #set to libs path
-LIBS_PATH=/home/jared/emscripten-libs
-ZLIB_INCLUDE= -I${LIBS_PATH}/zlib/include
-PNG_INCLUDE=-I${LIBS_PATH}/libpng/include
-ZLIB_LIB=$(LIBS_PATH)/zlib/lib/libz.a
-PNG_LIB=$(LIBS_PATH)/libpng/lib/libpng.a
+LIBS_PATH=$(HOME)/emscripten-libs
+ZLIB_INCLUDE= -s USE_ZLIB=1
+PNG_INCLUDE= -s USE_LIBPNG=1 #-I${LIBS_PATH}/libpng/include
+ZLIB_LIB= -s USE_ZLIB=1 #$(LIBS_PATH)/zlib/lib/libz.a
+PNG_LIB= -s USE_LIBPNG=1  # $(LIBS_PATH)/libpng/lib/libpng.a
 
 
 OUTPUT = MasterX.html
