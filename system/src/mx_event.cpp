@@ -68,9 +68,10 @@ namespace mx {
 
     void EventHandler::sendDrawMessage() {
         for (auto &window : window_stack) {
-            window->draw(app_);
+            if(window != nullptr)
+                window->draw(app_);
         }
-        if(!window_stack.empty() && !allHidden())
+        if(!window_stack.empty() && !allHidden() && window_stack[cur_focus] != nullptr)
             window_stack[cur_focus]->menu.draw(app_);
     }
 
@@ -115,6 +116,7 @@ namespace mx {
     }
 
     void EventHandler::addWindow(Window *window) {
-        window_stack.push_back(window);
+        if(window != nullptr)
+            window_stack.push_back(window);
     }
 }

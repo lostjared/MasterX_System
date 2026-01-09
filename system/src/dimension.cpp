@@ -307,7 +307,7 @@ namespace mx {
         settings_window->show(true);
         settings_window->setReload(true);
         settings_window->setCanResize(false);
-        settings_window->removeAtClose(true);
+        settings_window->removeAtClose(false);
         settings_window->children.push_back(std::make_unique<Button>(app));
         toggle_fullscreen = dynamic_cast<Button *>(settings_window->getControl());
         if(!toggle_fullscreen) {
