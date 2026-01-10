@@ -75,10 +75,21 @@ namespace cmd {
     int catCommand(const std::vector<Argument>& args, std::istream& input, std::ostream& output) {
         if (args.empty()) {
             std::string line;
-            while (std::getline(input, line)) {
-                std::string out = line + "\n";
-                output << out;
-                AstExecutor::getExecutor().execUpdateCallback(out);
+            AstExecutor &executor = AstExecutor::getExecutor();
+            if (executor.hasInputCallback()) {
+                while (true) {
+                    line = executor.getInput();
+                    if (line.empty()) break;
+                    std::string out = line + "\n";
+                    output << out;
+                    executor.execUpdateCallback(out);
+                }
+            } else {
+                while (std::getline(input, line)) {
+                    std::string out = line + "\n";
+                    output << out;
+                    executor.execUpdateCallback(out);
+                }
             }
             return 0; 
         } else {
@@ -2406,7 +2417,14 @@ namespace cmd {
             return 1;
         }
         std::string line;
-        std::getline(input, line);
+        
+        AstExecutor &executor = AstExecutor::getExecutor();
+        if (executor.hasInputCallback()) {
+            line = executor.getInput();
+        } else {
+            std::getline(input, line);
+        }
+        
         if(line.empty()) {
             return 0;
         }
