@@ -920,6 +920,7 @@ namespace cmd {
 #endif
             returnSignal = false;         
             updateCallbackUsed = false;
+            executionDepth++;  // Track nested execution
             std::ostringstream defaultOutput;
             try {
                 #ifdef DEBUG_MODE_ON
@@ -940,6 +941,7 @@ namespace cmd {
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
                 if (program_running == 0) {
                     defaultOutput << "Command interrupted" << std::endl;
+                    executionDepth--;
                     return;
                 }
 #endif
@@ -950,23 +952,26 @@ namespace cmd {
                     fflush(stdout);
                 }
                 else {
-#if defined(__EMSCRIPTEN__)
                     std::string output = defaultOutput.str();
-                    if (wasm_render_callback && !output.empty() && !updateCallbackUsed) {
-                        wasm_render_callback(output);
-                    } else if (!wasm_render_callback) {
-                        defaultOutputStream << output;
-                        defaultOutputStream.flush();
-                    }
-#else
-                    defaultOutputStream << defaultOutput.str();
+                    // Always write to the output stream (for command substitution capture)
+                    defaultOutputStream << output;
                     defaultOutputStream.flush();
-                    if(updateCallback && !updateCallbackUsed) {
-                        updateCallback(defaultOutput.str());
-                    }
+                    // Only call display callback at top level (depth == 1), not when capturing
+                    if (executionDepth == 1) {
+#if defined(__EMSCRIPTEN__)
+                        if (wasm_render_callback && !output.empty() && !updateCallbackUsed) {
+                            wasm_render_callback(output);
+                        }
+#else
+                        if(updateCallback && !updateCallbackUsed) {
+                            updateCallback(output);
+                        }
 #endif
+                    }
                 }
+                executionDepth--;
             } catch (const std::exception& e) {
+                executionDepth--;
                 defaultOutput << "Exception: " << e.what() << std::endl;
                 execUpdateCallback(defaultOutput.str());
             }
@@ -1132,6 +1137,7 @@ namespace cmd {
         mutable std::istream* input = nullptr;
         mutable std::ostream* output = nullptr;
         bool returnSignal = false;
+        mutable int executionDepth = 0;  // Track nested execution for capture suppression
 
         void executeNode(const std::shared_ptr<cmd::Node>& node, std::istream& input, std::ostream& output);
 
