@@ -872,9 +872,7 @@ namespace cmd {
             pos = specPos + 1;
         }
 
-        std::string result = output.str();
-        stream_output << result;
-        AstExecutor::getExecutor().execUpdateCallback(result);
+        stream_output << output.str();
         return 0;
     }
 

@@ -1328,7 +1328,6 @@ namespace cmd {
                         executeNode(whileStmt->body, input, output);
                     } catch(const ContinueException&) {
 #if defined(__EMSCRIPTEN__)
-                       // Yield even on continue.
                        wasmYieldAndRender("");
 #endif
                        continue;
