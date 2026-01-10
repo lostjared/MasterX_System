@@ -999,24 +999,18 @@ namespace mx {
         }
 #else
     if(command.length() > 0 && clear == false) {
-        bool printedAny = false;
+        resetWasmLoop();  
         Terminal* term = this;
-        setCmdUpdateCallback([term, &printedAny](const std::string& chunk) {
+        setCmdUpdateCallback([term](const std::string& chunk) {
             if (!chunk.empty()) {
-                printedAny = true;
                 term->print(chunk);
                 forceFrameRender();
             }
         });
 
-        std::string result = executeCmd(command);
+        executeCmd(command);
 
         setCmdUpdateCallback(nullptr);
-
-        // Fallback: if nothing streamed, print the full result.
-        if (!printedAny && !result.empty()) {
-            print(result);
-        }
     }
 #endif
         scroll();
