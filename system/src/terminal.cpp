@@ -872,8 +872,12 @@ namespace mx {
         if (e.type == SDL_MOUSEMOTION && isScrolling) {
             int mouseY = e.motion.y;
             int newScrollPosY = mouseY - scrollBarDragOffset;
-            scrollOffset = (newScrollPosY * totalLines - maxVisibleLines) / (rc.y+rc.h- scrollBarHeight);
-            scrollOffset = my_max(0, my_min(scrollOffset, (totalLines - maxVisibleLines)));
+            int availableHeight = rc.h - 28;
+            int scrollableRange = availableHeight - scrollBarHeight;
+            if (scrollableRange > 0 && totalLines > maxVisibleLines) {
+                scrollOffset = ((newScrollPosY - rc.y) * (totalLines - maxVisibleLines)) / scrollableRange;
+                scrollOffset = my_max(0, my_min(scrollOffset, (totalLines - maxVisibleLines)));
+            }
             render_text = false;
         }
 
