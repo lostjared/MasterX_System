@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmxcmd.a CMakeFiles/mxcmd.dir/src/scanner.cpp.o CMakeFiles/mxcmd.dir/src/string_buffer.cpp.o CMakeFiles/mxcmd.dir/src/types.cpp.o CMakeFiles/mxcmd.dir/src/command.cpp.o CMakeFiles/mxcmd.dir/src/ast.cpp.o CMakeFiles/mxcmd.dir/src/html.cpp.o CMakeFiles/mxcmd.dir/src/command_reg.cpp.o
+/usr/bin/ranlib libmxcmd.a

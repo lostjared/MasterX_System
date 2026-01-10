@@ -8,7 +8,7 @@
 #include"dimension.hpp"
 #include"mx_system_bar.hpp"
 #ifdef FOR_WASM
-#include "apps/ats/ats.h"
+#include "apps/cmd/cmd_shell.h"
 #endif
 template<typename T>
 T my_max(const T& a, const T& b) {
@@ -762,8 +762,11 @@ namespace mx {
             mx::system_err << "MasterX System: Error on write..\n";
         }
 #else
-    if(command.length()>0 && clear == false) {
-        print(scanATS(command));
+    if(command.length() > 0 && clear == false) {
+        std::string result = executeCmd(command);
+        if(!result.empty()) {
+            print(result);
+        }
     }
 #endif
         scroll();

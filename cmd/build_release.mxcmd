@@ -1,0 +1,22 @@
+#!/usr/bin/env mxcmd-cli
+
+define create_release(folder)
+begin
+exec $(printf "rm -rf %s" folder)
+mkdir --p folder
+mkdir --p $(printf "%s/shell" folder)
+mkdir --p $(printf "%s/library/include/" folder)
+mkdir --p $(printf "%s/library/lib/cmake/" folder)
+exec $(printf "cp -rfv /usr/local/bin/mxcmd-cli %s/shell/mxcmd-cli" folder)
+exec $(printf "cp -rfv /usr/local/lib/libmxcmd.dll.a %s/library/lib/libmxcmd.dll.a" folder)
+exec $(printf "cp -rfv /usr/local/include/mxcmd %s/library/include/mxcmd" folder)
+exec $(printf "cp -rfv /usr/local/lib/cmake/libmxcmd %s/library/lib/cmake/libmxcmd" folder)
+end
+
+pos = $(argv "length")
+if test pos --eq 1
+then
+create_release $(argv 0)
+else
+printf "error: requires one  arguments folder to build\n"
+fi

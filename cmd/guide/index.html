@@ -1,0 +1,123 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="MXCMD Beta: a command-line interpreter for Windows x64 (MSYS2/MINGW64).">
+    <meta property="og:type"        content="website">
+    <meta property="og:title"       content="MXCMD Shell Interpreter">
+    <meta property="og:description" content="MXCMD Beta: a powerful shell for MSYS2/MINGW64/Linux/MacOS/BSD with scripting features.">
+    <meta property="og:image"       content="https://lostsidedead.biz/mxcmd/console.jpg">
+    <title>MXCMD Shell Interpreter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+    <a href="index.html">Home</a>
+    <a href="code.html">Overview</a>
+    <a href="commands.html">Commands</a>
+    <a href="control_flow.html">Control Flow</a>
+    <a href="expressions.html">Expressions & Syntax</a>
+</nav>
+<div class="container">
+    <h1>MXCMD Shell Scripting Language Guide</h1>
+    <p>Welcome to the comprehensive guide for MXCMD, a lightweight shell scripting language.</p>
+    <ul>
+
+        <li><a href="code.html">Project Overview</a></li>
+        <li><a href="commands.html">Supported Commands</a></li>
+        <li><a href="control_flow.html">Control Flow Constructs</a></li>
+        <li><a href="expressions.html">Expressions & Syntax</a></li>
+        <li><a href="https://github.com/lostjared/libmx2/tree/main/cmd/scripts">Examples</a></li>
+        <li><a href="/debug">AST Visualizer</a></li>
+        <li><a href="https://github.com/lostjared/libmx2/tree/main/cmd">Project GitHub</a></li>
+    </ul>
+
+
+<h1>MXCMD Beta</h1>
+
+<div style="text-align:center;"><img src="console1.jpg"></div>
+<h1>Platform: Windows x64 (MSYS2/MinGW-w64)</h1>
+Introducing MXCMD Beta—an initial release of our command-line interpreter specifically designed for the MSYS2/MinGW-w64 environment on Windows x64. This beta version is intended solely for testing and feedback; all features remain under development and may be modified in future updates. The beta package now includes an example SDL module for developing games and graphical demos, resulting in a larger file size.<br> If MSYS2 is installed in a location other than <code>C:\msys64</code>, you must configure the path to <code>bash.exe</code> via environment variables:<br><br> <b>export</b> MSYS2_BASH_PATH="C:\\msys64\\usr\\bin\\bash.exe"<br><br> Alternatively, set this variable in your System environment settings (assuming <code>bash.exe</code> resides at <code>C:\msys64\usr\bin\bash.exe</code>):<br> <b>set</b> MSYS2_BASH_PATH=C:\msys64\usr\bin\bash.exe<br><br> You can also configure this by navigating to Control Panel &rarr; System &rarr; Advanced System Settings &rarr; Environment Variables.<br> In summary, assign <code>MSYS2_BASH_PATH</code> to your MSYS2 <code>bash.exe</code> location only if MSYS2 is not installed under <code>C:\msys64</code>.<br> <br> The beta now includes a <b>console application implemented with OpenGL/SDL2</b>. Refer to README.txt for detailed information—this addition contributes to the increased package size.<br><br> Download: <b>mxcmd-release.v1.11</b> – <a href="mxcmd-release.v1.11.tar.gz">tar.gz</a> – <a href="mxcmd-release.v1.11.zip">zip</a><br> <h1>How to build from source on Linux/Unix systems</h1>, install the following prerequisites before building: <code>readline</code>, <code>git</code>, <code>g++</code>, and <code>cmake</code>.<br> 
+<pre><code>
+git clone https://github.com/lostjared/libmx2.git --depth 1
+cd libmx2/cmd
+mkdir build
+cd build
+cmake .. -DCMD=ON -DSHARED=ON
+cmake --build .
+sudo cmake --install .
+</code>
+<b>Then at your shell prompt:</b>
+<code>$ mxcmd-cli
+</code>
+<b>[mxcmd prompt appears]</b>
+</pre>
+
+<h1> Compile with MXCMD with Console GUI: </h1>
+Requires <code>SDL2</code> and <code>OpenGL</code> development libraries as well as libmx2, readline etc<br>
+<pre><code>
+git clone https://github.com/lostjared/libmx2.git --depth 1
+cd libmx2/libmx
+mkdir build
+cd build
+cmake .. -DEXAMPLES=OFF -DDEBUG_MODE=OFF
+cmake --build .
+sudo cmake --install .
+cd ../..
+cd libmx2/cmd
+mkdir build
+cd build
+cmake .. -DCMD=ON -DSHARED=ON -DCONSOLE=ON
+cmake --build .
+sudo cmake --install .
+</code>
+</pre>
+
+<p><b>Command Line Arguments:</b></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Option</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>-h, --help</td>
+        <td>Display help message</td>
+      </tr>
+      <tr>
+        <td>-v, --version</td>
+        <td>Display version</td>
+      </tr>
+      <tr>
+        <td>-i, --stdin</td>
+        <td>stdin input</td>
+      </tr>
+      <tr>
+        <td>-d, --debug</td>
+        <td>debug output</td>
+      </tr>
+      <tr>
+        <td>-s, --syntax</td>
+        <td>debug syntax highlight</td>
+      </tr>
+      <tr>
+        <td>-t, --tokens</td>
+        <td>debug tokens</td>
+      </tr>
+        <tr>
+        <td>source_file.mxcmd</td>
+        <td>execute script</td>
+      </tr>
+      <tr>
+        <td>-c &lt;value&gt;, --command &lt;value&gt;</td>
+        <td>command</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
