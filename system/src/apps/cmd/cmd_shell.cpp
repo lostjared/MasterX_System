@@ -29,6 +29,11 @@ void setCmdInputCallback(std::function<std::string()> callback) {
     executor.setInputCallback(callback);
 }
 
+void setCmdFlushCallback(std::function<void(const std::string&)> callback) {
+    cmd::AstExecutor &executor = cmd::AstExecutor::getExecutor();
+    executor.setFlushCallback(callback);
+}
+
 static int countWord(const std::string& input, const std::string& word) {
     int count = 0;
     size_t pos = 0;

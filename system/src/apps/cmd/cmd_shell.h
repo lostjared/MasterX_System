@@ -10,6 +10,7 @@ void initCmdShell();
 
 void setCmdUpdateCallback(std::function<void(const std::string&)> callback);
 void setCmdInputCallback(std::function<std::string()> callback);
+void setCmdFlushCallback(std::function<void(const std::string&)> callback);
 
 struct MultiLineState {
     bool needsMoreInput;

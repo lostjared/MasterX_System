@@ -850,14 +850,38 @@ namespace cmd {
 
         // Input callback for getline - returns user input from GUI terminal
         std::function<std::string()> inputCallback = nullptr;
+        std::function<void(const std::string&)> flushCallback = nullptr;
+        
         void setInputCallback(std::function<std::string()> callback) {
             inputCallback = std::move(callback);
+        }
+        
+        void setFlushCallback(std::function<void(const std::string&)> callback) {
+            flushCallback = std::move(callback);
         }
 
         bool hasInputCallback() const {
             return inputCallback != nullptr;
         }
 
+        std::string getInput(std::ostream& pendingOutput) {
+            if (flushCallback) {
+                std::ostringstream* oss = dynamic_cast<std::ostringstream*>(&pendingOutput);
+                if (oss) {
+                    std::string pending = oss->str();
+                    if (!pending.empty()) {
+                        flushCallback(pending);
+                        oss->str("");
+                        oss->clear();
+                    }
+                }
+            }
+            if (inputCallback) {
+                return inputCallback();
+            }
+            return "";
+        }
+        
         std::string getInput() {
             if (inputCallback) {
                 return inputCallback();

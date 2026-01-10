@@ -2420,7 +2420,7 @@ namespace cmd {
         
         AstExecutor &executor = AstExecutor::getExecutor();
         if (executor.hasInputCallback()) {
-            line = executor.getInput();
+            line = executor.getInput(output);
         } else {
             std::getline(input, line);
         }

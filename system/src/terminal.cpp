@@ -397,7 +397,7 @@ namespace mx {
         
 #ifdef FOR_WASM
         if (waitingForInput && !orig_text.empty() && orig_text.back() != '\n') {
-            cy -= lineHeight;
+            int lastLineY = y - lineHeight;
             int lastLineWidth = 0;
             if (!outputLines.empty()) {
                 TTF_SizeText(font, outputLines.back().c_str(), &lastLineWidth, nullptr);
@@ -405,7 +405,7 @@ namespace mx {
             int inputStartX = rc.x + 5 + lastLineWidth;
             
             if (!inputText.empty()) {
-                renderText(app, inputText, inputStartX, cy);
+                renderText(app, inputText, inputStartX, lastLineY);
             }
             
             int inputWidth = 0;
@@ -419,7 +419,7 @@ namespace mx {
                 showCursor = !showCursor;
                 cursorTimer = currentTime;
             }
-            drawCursor(app, inputStartX + inputWidth, cy, showCursor);
+            drawCursor(app, inputStartX + inputWidth, lastLineY, showCursor);
         } else {
 #endif
 #if defined(__linux__) || defined(__APPLE__)
@@ -1151,11 +1151,20 @@ namespace mx {
         setCmdInputCallback([term]() -> std::string {
             return term->getInput();
         });
+        
+        setCmdFlushCallback([term](const std::string& pending) {
+            if (!pending.empty()) {
+                term->print(pending);
+                term->scroll();
+                forceFrameRender();
+            }
+        });
 
         executeCmd(command);
 
         setCmdUpdateCallback(nullptr);
         setCmdInputCallback(nullptr);
+        setCmdFlushCallback(nullptr);
     }
 #endif
         scroll();
