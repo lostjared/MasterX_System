@@ -703,6 +703,15 @@ namespace mx {
                         cursorPosition++;
                     }
                     break;
+
+                case SDLK_HOME:
+                    cursorPosition = 0;
+                    break;
+
+                case SDLK_END:
+                    cursorPosition = static_cast<int>(inputText.length());
+                    break;
+
                case SDLK_UP:
 #ifdef FOR_WASM
                     if (!stored_commands.empty()) {
