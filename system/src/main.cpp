@@ -1,7 +1,7 @@
 /* 
 
     MasterX System written by Jared Bruni
-    (C) 2024 LostSideDead Software
+    (C) 2026 LostSideDead Software
     https://lostsidedead.biz
 
     demo: https://lostsidedead.biz/MasterX

@@ -30,7 +30,7 @@ namespace mx {
         matrix_font_ = loadFont(matrix_font, 14);
 
         mx::system_out << "MasterX System v" << version << " Loading .... \n";
-        mx::system_out << "(C) 2024 LostSideDead Software\n";
+        mx::system_out << "(C) 2026 LostSideDead Software\n";
         
         win = SDL_CreateWindow(name.c_str(), 
                                         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 

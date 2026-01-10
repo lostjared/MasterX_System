@@ -722,7 +722,7 @@ namespace mx {
             print(command + "\nMasterX System: - set text color\n");
             command.clear();
         } else if(words.size() == 1 && words[0] == "about") {
-            print(command + "\nMasterX System written by Jared Bruni\n(C) 2024 LostSideDead Software.\nhttps://lostsidedead.biz\n");
+            print(command + "\nMasterX System written by Jared Bruni\n(C) 2026 LostSideDead Software.\nhttps://lostsidedead.biz\n");
             command.clear();
         } else if(words.size() == 1  && words[0] == "clear") {
             orig_text = "";   

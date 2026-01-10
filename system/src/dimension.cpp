@@ -421,7 +421,7 @@ namespace mx {
         });
         about_window->children.push_back(std::make_unique<Label>(app));
         about_window_info = dynamic_cast<Label *>(about_window->getControl());
-        std::vector<std::string> info_text {"MasterX System v" + app.version, "written by Jared Bruni", "(C) 2024 LostSideDead Software", "https://lostsidedead.biz", "\"Open Source, Open Mind\""};
+        std::vector<std::string> info_text {"MasterX System v" + app.version, "written by Jared Bruni", "(C) 2026 LostSideDead Software", "https://lostsidedead.biz", "\"Open Source, Open Mind\""};
         about_window_info->create_multi(about_window, info_text, { 255,255,255,255}, 25, 25 );
         about_window_info->loadFont(app.system_font, 36);
         about_window_info->linkMode(false);
@@ -478,7 +478,7 @@ namespace mx {
 
         Menu_ID hlp_hte_menu = termx->menu.addHeader(create_header("Help"));
         termx->menu.addItem(hlp_hte_menu,termx->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Terminal", "(C) 2024 LostSideDead Software written by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Terminal", "(C) 2026 LostSideDead Software written by Jared Bruni");
             return true;
         }));
 
@@ -529,7 +529,7 @@ namespace mx {
 
         Menu_ID hlp_menu = piece->menu.addHeader(create_header("Help"));
         piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_pink.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About MasterPiece", "(C) 2024 LostSideDead Software written by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About MasterPiece", "(C) 2026 LostSideDead Software written by Jared Bruni");
             return true;
         }));
 
@@ -568,7 +568,7 @@ namespace mx {
         })); 
         Menu_ID hlp_amenu = asteroid_window->menu.addHeader(create_header("Help"));
         asteroid_window->menu.addItem(hlp_amenu,asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Asteroids", "(C) 2024 LostSideDead Software writen by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Asteroids", "(C) 2026 LostSideDead Software writen by Jared Bruni");
             return true;
         }));
 
@@ -615,7 +615,7 @@ namespace mx {
         }));
         Menu_ID hlp_hamenu = tetris_window->menu.addHeader(create_header("Help"));
         tetris_window->menu.addItem(hlp_hamenu,tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Tetris", "(C) 2024 LostSideDead Software written by Jared Bruni");
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Tetris", "(C) 2026 LostSideDead Software written by Jared Bruni");
             return true;
         }));
 
