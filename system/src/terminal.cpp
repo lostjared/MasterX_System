@@ -147,7 +147,7 @@ namespace mx {
         EM_ASM({
             navigator.clipboard.readText().then(function(text) {
                 if (text && text.length > 0) {
-                    var cleanText = text.split(String.fromCharCode(13)).join('').split(String.fromCharCode(10)).join('');
+                    var cleanText = text.split(String.fromCharCode(13)).join("").split(String.fromCharCode(10)).join("");
                     Module.ccall('terminalPasteText', null, ['string'], [cleanText]);
                 }
             }).catch(function(err) {
