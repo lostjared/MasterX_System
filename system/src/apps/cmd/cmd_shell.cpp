@@ -19,6 +19,9 @@ void initCmdShell() {
 void setCmdUpdateCallback(std::function<void(const std::string&)> callback) {
     cmd::AstExecutor &executor = cmd::AstExecutor::getExecutor();
     executor.setUpdateCallback(callback);
+#if defined(__EMSCRIPTEN__)
+    setWasmRenderCallback(callback);
+#endif
 }
 
 static int countWord(const std::string& input, const std::string& word) {
