@@ -909,11 +909,21 @@ namespace cmd {
                     fflush(stdout);
                 }
                 else {
+#if defined(__EMSCRIPTEN__)
+                    std::string output = defaultOutput.str();
+                    if (wasm_render_callback && !output.empty() && !updateCallbackUsed) {
+                        wasm_render_callback(output);
+                    } else if (!wasm_render_callback) {
+                        defaultOutputStream << output;
+                        defaultOutputStream.flush();
+                    }
+#else
                     defaultOutputStream << defaultOutput.str();
                     defaultOutputStream.flush();
                     if(updateCallback && !updateCallbackUsed) {
                         updateCallback(defaultOutput.str());
                     }
+#endif
                 }
             } catch (const std::exception& e) {
                 defaultOutput << "Exception: " << e.what() << std::endl;
@@ -1329,9 +1339,12 @@ namespace cmd {
 #if defined(__EMSCRIPTEN__)
                         if (wasm_render_callback) {
                             wasm_render_callback(result);
+                        } else {
+                            outputStream << result;
                         }
-#endif
+#else
                         outputStream << result;
+#endif
                     }
                 }
             }
@@ -1364,9 +1377,12 @@ namespace cmd {
 #if defined(__EMSCRIPTEN__)
                     if (wasm_render_callback) {
                         wasm_render_callback(result);
+                    } else {
+                        outputStream << result;
                     }
-#endif
+#else
                     outputStream << result;
+#endif
                 }
             };
             

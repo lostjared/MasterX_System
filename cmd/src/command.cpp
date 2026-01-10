@@ -76,7 +76,9 @@ namespace cmd {
         if (args.empty()) {
             std::string line;
             while (std::getline(input, line)) {
-                output << line << std::endl;
+                std::string out = line + "\n";
+                output << out;
+                AstExecutor::getExecutor().execUpdateCallback(out);
             }
             return 0; 
         } else {
@@ -91,7 +93,9 @@ namespace cmd {
                 }
                 std::string line;
                 while (std::getline(file, line)) {
-                    output << line << std::endl;
+                    std::string out = line + "\n";
+                    output << out;
+                    AstExecutor::getExecutor().execUpdateCallback(out);
                 }
             }
     
@@ -868,7 +872,9 @@ namespace cmd {
             pos = specPos + 1;
         }
 
-        stream_output << output.str();
+        std::string result = output.str();
+        stream_output << result;
+        AstExecutor::getExecutor().execUpdateCallback(result);
         return 0;
     }
 
