@@ -44,6 +44,9 @@ namespace mx {
                 bool atBottom();
                 std::string parseTerminalData(const std::string &);
                 void sendCommand(const std::string &cmd);
+                void pasteFromClipboard();
+                void copyToClipboard();
+                void insertText(const std::string &text);
         private:
                 std::string prompt = "$ ";
 #if !defined(FOR_WASM) && !defined(WIN32)

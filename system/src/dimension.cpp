@@ -468,11 +468,13 @@ namespace mx {
             return true;
         }));
         termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/clipboard.png")), create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            mx::system_out << "Copy not implemented yet.\n";
+            Terminal *term = dynamic_cast<Terminal*>(win);
+            if (term) term->copyToClipboard();
             return true;
         }));
         termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/glueicon.png")), create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            mx::system_out << "Paste not implemented yet.\n";
+            Terminal *term = dynamic_cast<Terminal*>(win);
+            if (term) term->pasteFromClipboard();
             return true;
         }));
 

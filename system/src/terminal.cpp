@@ -10,7 +10,20 @@
 #ifdef FOR_WASM
 #include "apps/cmd/cmd_shell.h"
 #include "ast.hpp"
+#include <emscripten.h>
 extern "C" void forceFrameRender();
+
+static mx::Terminal* g_activeTerminal = nullptr;
+
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE
+    void terminalPasteText(const char* text) {
+        if (g_activeTerminal && text) {
+            std::string pasteText(text);
+            g_activeTerminal->insertText(pasteText);
+        }
+    }
+}
 #endif
 template<typename T>
 T my_max(const T& a, const T& b) {
@@ -129,6 +142,60 @@ namespace mx {
         wallpaper = tex;
      }
 
+    void Terminal::pasteFromClipboard() {
+#ifdef FOR_WASM
+        EM_ASM({
+            navigator.clipboard.readText().then(function(text) {
+                if (text && text.length > 0) {
+                    var cleanText = text.split(String.fromCharCode(13)).join('').split(String.fromCharCode(10)).join('');
+                    Module.ccall('terminalPasteText', null, ['string'], [cleanText]);
+                }
+            }).catch(function(err) {
+                console.log('Clipboard read failed:', err);
+            });
+        });
+#else
+        char* clipboardText = SDL_GetClipboardText();
+        if (clipboardText && clipboardText[0] != '\0') {
+            std::string pasteText(clipboardText);
+            for (char c : pasteText) {
+                if (c != '\r' && c != '\n') {
+                    inputText.insert(cursorPosition, 1, c);
+                    cursorPosition++;
+                }
+            }
+            scroll();
+        }
+        SDL_free(clipboardText);
+#endif
+    }
+
+    void Terminal::copyToClipboard() {
+#ifdef FOR_WASM
+        std::string allText = orig_text;
+        EM_ASM({
+            var text = UTF8ToString($0);
+            navigator.clipboard.writeText(text).then(function() {
+                console.log('Copied to clipboard');
+            }).catch(function(err) {
+                console.log('Clipboard write failed:', err);
+            });
+        }, allText.c_str());
+#else
+        SDL_SetClipboardText(orig_text.c_str());
+#endif
+    }
+
+    void Terminal::insertText(const std::string &text) {
+        for (char c : text) {
+            if (c != '\r' && c != '\n') {
+                inputText.insert(cursorPosition, 1, c);
+                cursorPosition++;
+            }
+        }
+        scroll();
+    }
+
     void Terminal::sendCommand(const std::string &cmd) {
         #if defined(__linux__) || defined(__APPLE__)
             int bytes = 0;
@@ -233,6 +300,10 @@ namespace mx {
     void Terminal::draw(mxApp &app) {
         if (!isVisible())
             return;
+
+#ifdef FOR_WASM
+        g_activeTerminal = this;
+#endif
 
         Window::draw(app);
 
@@ -454,7 +525,6 @@ namespace mx {
                     firstVisualLine = false;
                 }
 
-                // Empty line still needs a row.
                 if (lineText.empty()) {
                     y += lineHeight;
                 }
@@ -685,6 +755,18 @@ namespace mx {
                     #endif
                 }
                 break;
+                case SDLK_v:
+                if (e.key.keysym.mod & KMOD_CTRL) {
+                    pasteFromClipboard();
+                    return true;
+                }
+                break;
+                case SDLK_INSERT:
+                if (e.key.keysym.mod & KMOD_CTRL) {
+                    pasteFromClipboard();
+                    return true;
+                }
+                break;
                 case SDLK_BACKSPACE:
                     if (!inputText.empty() && cursorPosition > 0) {
                         inputText.erase(cursorPosition - 1, 1);
@@ -797,7 +879,6 @@ namespace mx {
                         size_t lastNonSpace = inputText.find_last_not_of(" \t");
                         if (lastNonSpace != std::string::npos && inputText[lastNonSpace] == '\\') {
                             lineContinuation = true;
-                            // Remove the backslash
                             inputText = inputText.substr(0, lastNonSpace);
                         }
                     }
@@ -821,11 +902,6 @@ namespace mx {
                         cursorPosition = 0;
                         forceFrameRender();
                     } else {
-                        // Always echo the final line (including `done` / `fi` / `end`) so
-                        // blocks look like:
-                        //   define foo(x)
-                        //   .. begin
-                        //   .. end
                         ensureNewlineBeforeEcho();
                         print(prompt + inputText + "\n");
                         stored_commands.push_back(inputText);
