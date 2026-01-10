@@ -24,6 +24,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
+#include "ast.hpp"
 #endif
 
 #if defined(_MSC_VER)
@@ -98,6 +99,29 @@ void draw_loading(mx::mxApp &app) {
     }
     draw(*p_app);
 }
+
+#ifdef __EMSCRIPTEN__
+// Exported function to force a frame render from within loops
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE
+    void forceFrameRender() {
+        if (p_app != nullptr && screens != nullptr) {
+            SDL_PumpEvents();
+            // Process any pending events
+            SDL_Event e;
+            while (SDL_PollEvent(&e)) {
+                if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_c && 
+                    (e.key.keysym.mod & KMOD_CTRL)) {
+                    cancelWasmLoop();
+                }
+                (*screens)[cur_screen]->event(*p_app, e);
+            }
+            // Force redraw
+            draw(*p_app);
+        }
+    }
+}
+#endif
 
 void init(mx::mxApp &app) {
     if(screens != nullptr) {

@@ -9,6 +9,8 @@
 #include"mx_system_bar.hpp"
 #ifdef FOR_WASM
 #include "apps/cmd/cmd_shell.h"
+#include "ast.hpp"
+extern "C" void forceFrameRender();
 #endif
 template<typename T>
 T my_max(const T& a, const T& b) {
@@ -266,7 +268,7 @@ namespace mx {
         if (!outputLines.empty()) {
             prompt = outputLines.back();
         }
-    #elif defined(_WIN32) || defined(FOR_WASM)
+    #elif defined(_WIN32)
         prompt = "$ ";
     #endif
         SDL_Rect rc;
@@ -284,9 +286,15 @@ namespace mx {
         int maxWidth = rc.w - 10;
         int y = rc.y + 5;
 
+        int promptWidth = 0;
+        TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
+        int requiredInputLines = calculateWrappedLinesForText(inputText, maxWidth - promptWidth, promptWidth);
+        if (requiredInputLines < 1) {
+            requiredInputLines = 1;
+        }
 
         for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
-            if (y + lineHeight + lineHeight > rc.y + rc.h) {
+            if (y + lineHeight * (requiredInputLines + 1) > rc.y + rc.h) {
                 break;
             }
             renderText(app, outputLines[i], rc.x + 5, y);
@@ -306,8 +314,6 @@ namespace mx {
 
         int totalLines = static_cast<int>(outputLines.size());
 
-        int promptWidth;
-        TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
         int totalWrappedLines = calculateWrappedLinesForText(inputText, maxWidth - promptWidth, promptWidth);
         totalLines += totalWrappedLines;
 
@@ -388,6 +394,106 @@ namespace mx {
         int availableWidth = maxWidth - margin * 2;
         x = rc.x + margin;
         int lineHeight = TTF_FontHeight(font);
+
+#ifdef FOR_WASM
+        if (inputText.find('\n') != std::string::npos) {
+            int cursorX = x;
+            int cursorY = y;
+            bool cursorDrawn = false;
+
+            auto renderOneLogicalLine = [&](const std::string& linePrompt, const std::string& lineText, int lineStartIndex) {
+                int prompt_w = 0;
+                TTF_SizeText(font, linePrompt.c_str(), &prompt_w, nullptr);
+                renderText(app, linePrompt, x, y);
+
+                int localCursorPos = -1;
+                if (cursorPosition >= lineStartIndex && cursorPosition <= lineStartIndex + static_cast<int>(lineText.size())) {
+                    localCursorPos = cursorPosition - lineStartIndex;
+                }
+
+                int localCount = 0;
+                bool firstVisualLine = true;
+                int textX = x + prompt_w;
+                int textY = y;
+                std::string remainingText = lineText;
+
+                while (!remainingText.empty()) {
+                    std::string lineToRender;
+                    int currentWidth = 0;
+                    size_t i = 0;
+
+                    int lineWidth = firstVisualLine ? (availableWidth - prompt_w - 10) : (availableWidth - 10);
+                    int drawX = firstVisualLine ? textX : (rc.x + margin);
+
+                    while (i < remainingText.length()) {
+                        std::string testLine = lineToRender + remainingText[i];
+                        TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
+
+                        if (currentWidth > lineWidth) {
+                            if (!lineToRender.empty()) {
+                                break;
+                            }
+                            lineToRender += remainingText[i++];
+                            break;
+                        }
+
+                        lineToRender += remainingText[i++];
+                        localCount++;
+                        if (!cursorDrawn && localCursorPos >= 0 && localCount == localCursorPos) {
+                            cursorX = drawX + currentWidth;
+                            cursorY = textY;
+                            cursorDrawn = true;
+                        }
+                    }
+
+                    renderText(app, lineToRender, drawX, textY);
+
+                    textY += lineHeight;
+                    y = textY;
+                    remainingText = remainingText.substr(i);
+                    firstVisualLine = false;
+                }
+
+                // Empty line still needs a row.
+                if (lineText.empty()) {
+                    y += lineHeight;
+                }
+
+                x = rc.x + margin;
+            };
+
+            int lineStartIndex = 0;
+            size_t pos = 0;
+            size_t next = 0;
+            bool firstLine = true;
+            while (true) {
+                next = inputText.find('\n', pos);
+                std::string line = (next == std::string::npos) ? inputText.substr(pos) : inputText.substr(pos, next - pos);
+                renderOneLogicalLine(firstLine ? prompt : continuationPrompt, line, lineStartIndex);
+                lineStartIndex += static_cast<int>(line.size()) + 1;
+                if (next == std::string::npos) break;
+                pos = next + 1;
+                firstLine = false;
+            }
+
+            if (!cursorDrawn) {
+                cursorX = x;
+                cursorY = y;
+            }
+            if (cursorPosition == 0) {
+                cursorX = rc.x + margin;
+            }
+
+            Uint32 currentTime = SDL_GetTicks();
+            if (currentTime - cursorTimer >= cursorBlinkInterval) {
+                showCursor = !showCursor;
+                cursorTimer = currentTime;
+            }
+            drawCursor(app, cursorX, cursorY, showCursor);
+            return;
+        }
+#endif
+
         int prompt_w = 0;
         TTF_SizeText(font, prompt.c_str(), &prompt_w, nullptr);
     #if defined(__linux__) || defined(__APPLE__)
@@ -546,8 +652,23 @@ namespace mx {
                 break;
                 case SDLK_c:
                 if (e.key.keysym.mod & KMOD_CTRL) {
-                    
-                    #if !defined(FOR_WASM) && !defined(_WIN32)
+                    #ifdef FOR_WASM
+                        cancelWasmLoop();
+                        if (isMultiLineInput) {
+                            print("^C\n");
+                            multiLineBuffer.clear();
+                            isMultiLineInput = false;
+                            blockDepth = 0;
+                            inputText.clear();
+                            cursorPosition = 0;
+                            print(prompt);
+                        } else {
+                            print("^C\n");
+                            inputText.clear();
+                            cursorPosition = 0;
+                            print(prompt);
+                        }
+                    #elif !defined(_WIN32)
                         echo_enabled = true;
                         pid_t fg_pgid = tcgetpgrp(master_fd);
                         if (fg_pgid == -1) {
@@ -583,35 +704,138 @@ namespace mx {
                     }
                     break;
                case SDLK_UP:
+#ifdef FOR_WASM
                     if (!stored_commands.empty()) {
                         if (!cyclingThroughHistory) {
-                            savedInputText = inputText; 
-                            cyclingThroughHistory = true; 
+                            savedInputText = inputText;
+                            cyclingThroughHistory = true;
                         }
                         if (store_offset > 0) {
                             store_offset--;
                         } else {
-                            store_offset = stored_commands.size() - 1;  
+                            store_offset = stored_commands.size() - 1;
                         }
                         inputText = stored_commands[store_offset];
-                        cursorPosition = inputText.length();  
+                        cursorPosition = inputText.length();
                     }
+#else
+                    if (!stored_commands.empty()) {
+                        if (!cyclingThroughHistory) {
+                            savedInputText = inputText;
+                            cyclingThroughHistory = true;
+                        }
+                        if (store_offset > 0) {
+                            store_offset--;
+                        } else {
+                            store_offset = stored_commands.size() - 1;
+                        }
+                        inputText = stored_commands[store_offset];
+                        cursorPosition = inputText.length();
+                    }
+#endif
                     break;
 
             case SDLK_DOWN:
+#ifdef FOR_WASM
                     if (!stored_commands.empty()) {
                         if (store_offset < static_cast<int>(stored_commands.size() - 1)) {
                             store_offset++;
                             inputText = stored_commands[store_offset];
-                            cursorPosition = inputText.length();  
+                            cursorPosition = inputText.length();
                         } else {
                             inputText = savedInputText;
-                            cursorPosition = inputText.length();  
-                            cyclingThroughHistory = false;  
+                            cursorPosition = inputText.length();
+                            cyclingThroughHistory = false;
                         }
                     }
+#else
+                    if (!stored_commands.empty()) {
+                        if (store_offset < static_cast<int>(stored_commands.size() - 1)) {
+                            store_offset++;
+                            inputText = stored_commands[store_offset];
+                            cursorPosition = inputText.length();
+                        } else {
+                            inputText = savedInputText;
+                            cursorPosition = inputText.length();
+                            cyclingThroughHistory = false;
+                        }
+                    }
+#endif
                     break;
             case SDLK_RETURN:
+#ifdef FOR_WASM
+                if (!inputText.empty() || isMultiLineInput) {
+                    auto trimSpaces = [](const std::string& s) {
+                        const size_t start = s.find_first_not_of(" \t\r\n");
+                        if (start == std::string::npos) return std::string{};
+                        const size_t end = s.find_last_not_of(" \t\r\n");
+                        return s.substr(start, end - start + 1);
+                    };
+                    auto isBlockTerminator = [&](const std::string& s) {
+                        const std::string t = trimSpaces(s);
+                        return (t == "done" || t == "fi" || t == "end");
+                    };
+
+                    auto ensureNewlineBeforeEcho = [&]() {
+                        if (!orig_text.empty() && orig_text.back() != '\n') {
+                            print("\n");
+                            forceFrameRender();
+                        }
+                    };
+
+                    bool lineContinuation = false;
+                    if (!inputText.empty()) {
+                        size_t lastNonSpace = inputText.find_last_not_of(" \t");
+                        if (lastNonSpace != std::string::npos && inputText[lastNonSpace] == '\\') {
+                            lineContinuation = true;
+                            // Remove the backslash
+                            inputText = inputText.substr(0, lastNonSpace);
+                        }
+                    }
+                    
+                    if (isMultiLineInput) {
+                        multiLineBuffer += "\n" + inputText;
+                    } else {
+                        multiLineBuffer = inputText;
+                    }
+                    MultiLineState state = checkMultiLineState(multiLineBuffer);
+                    
+                    if (lineContinuation || state.needsMoreInput) {
+                        isMultiLineInput = true;
+                        blockDepth = state.blockDepth;
+                        ensureNewlineBeforeEcho();
+                        print(prompt + inputText + "\n");
+                        stored_commands.push_back(inputText);
+                        store_offset = stored_commands.size();
+                        prompt = continuationPrompt;
+                        inputText.clear();
+                        cursorPosition = 0;
+                        forceFrameRender();
+                    } else {
+                        // Always echo the final line (including `done` / `fi` / `end`) so
+                        // blocks look like:
+                        //   define foo(x)
+                        //   .. begin
+                        //   .. end
+                        ensureNewlineBeforeEcho();
+                        print(prompt + inputText + "\n");
+                        stored_commands.push_back(inputText);
+                        inputText.clear();
+                        cursorPosition = 0;
+                        forceFrameRender();
+                        processCommand(app, multiLineBuffer);
+                        store_offset = stored_commands.size();
+                        isMultiLineInput = false;
+                        multiLineBuffer.clear();
+                        blockDepth = 0;
+                        prompt = "$ ";
+                    }
+                    scroll();
+                } else {
+                    print(prompt + "\n");
+                    scroll();
+                }
+#else
                 if (!inputText.empty()) {
                     processCommand(app, inputText);            
                     store_offset = stored_commands.size();  
@@ -619,6 +843,7 @@ namespace mx {
                     cursorPosition = 0;
                     scroll();
                 }
+#endif
                 break;
                 default:
                     break;
@@ -684,14 +909,12 @@ namespace mx {
         store_offset = stored_commands.size()-1;
     }
      echo_enabled = true;
-#else
+#elif defined(_WIN32)
         stored_commands.push_back(command);
         store_offset = stored_commands.size()-1;
-
 #endif
 
-
-#if defined(_WIN32) || defined(FOR_WASM)
+#if defined(_WIN32)
         print("\n$ " + command + "\n");
 #endif
         std::vector<std::string> words;
@@ -763,8 +986,22 @@ namespace mx {
         }
 #else
     if(command.length() > 0 && clear == false) {
+        bool printedAny = false;
+        Terminal* term = this;
+        setCmdUpdateCallback([term, &printedAny](const std::string& chunk) {
+            if (!chunk.empty()) {
+                printedAny = true;
+                term->print(chunk);
+                forceFrameRender();
+            }
+        });
+
         std::string result = executeCmd(command);
-        if(!result.empty()) {
+
+        setCmdUpdateCallback(nullptr);
+
+        // Fallback: if nothing streamed, print the full result.
+        if (!printedAny && !result.empty()) {
             print(result);
         }
     }
@@ -845,7 +1082,63 @@ namespace mx {
     }
 
     int Terminal::calculateWrappedLinesForText(const std::string &text, int maxWidth, int promptWidth) {
-        int lineCount = 0;  
+        if (text.empty()) {
+            return 1;
+        }
+
+#ifdef FOR_WASM
+        if (text.find('\n') != std::string::npos) {
+            int contPromptWidth = 0;
+            TTF_SizeText(font, continuationPrompt.c_str(), &contPromptWidth, nullptr);
+
+            auto countSegment = [&](const std::string& segmentText, int segmentPromptWidth) {
+                if (segmentText.empty()) {
+                    return 1;
+                }
+
+                int lineCount = 0;
+                std::string lineToRender;
+                int currentWidth = 0;
+                bool isFirstLine = true;
+
+                for (size_t i = 0; i < segmentText.length(); ++i) {
+                    lineToRender += segmentText[i];
+                    TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
+                    int currentMaxWidth = isFirstLine ? maxWidth - segmentPromptWidth : maxWidth;
+                    if (currentWidth > currentMaxWidth) {
+                        lineCount++;
+                        lineToRender.clear();
+                        lineToRender += segmentText[i];
+                        TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
+                        isFirstLine = false;
+                    }
+                }
+
+                if (!lineToRender.empty()) {
+                    lineCount++;
+                }
+                return lineCount;
+            };
+
+            int total = 0;
+            bool firstLogicalLine = true;
+            size_t pos = 0;
+            while (true) {
+                size_t next = text.find('\n', pos);
+                std::string segment = (next == std::string::npos) ? text.substr(pos) : text.substr(pos, next - pos);
+                total += countSegment(segment, firstLogicalLine ? promptWidth : contPromptWidth);
+                if (next == std::string::npos) {
+                    break;
+                }
+                pos = next + 1;
+                firstLogicalLine = false;
+            }
+
+            return total;
+        }
+#endif
+
+        int lineCount = 0;
         std::string lineToRender;
         int currentWidth = 0;
         bool isFirstLine = true;
@@ -854,21 +1147,16 @@ namespace mx {
             TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
             int currentMaxWidth = isFirstLine ? maxWidth - promptWidth : maxWidth;
             if (currentWidth > currentMaxWidth) {
-                lineCount++;  
-                lineToRender.clear();  
-                lineToRender += text[i]; 
+                lineCount++;
+                lineToRender.clear();
+                lineToRender += text[i];
                 TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
-                isFirstLine = false; 
+                isFirstLine = false;
             }
         }
         if (!lineToRender.empty()) {
             lineCount++;
-
         }
-//#if defined (_WIN32) || defined(FOR_WASM)
-        if(inputText.empty())
-            lineCount++;               
-//#endif
         return lineCount;
     }
 

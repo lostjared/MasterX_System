@@ -18,6 +18,39 @@
 #include<cmath>
 #include"game_state.hpp"
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#include <emscripten/html5.h>
+#include <SDL2/SDL.h>
+inline bool wasm_loop_cancelled = false;
+inline std::function<void(const std::string&)> wasm_render_callback = nullptr;
+
+extern "C" void forceFrameRender();
+
+inline void cancelWasmLoop() { wasm_loop_cancelled = true; }
+inline void resetWasmLoop() { wasm_loop_cancelled = false; }
+inline bool isWasmLoopCancelled() { return wasm_loop_cancelled; }
+inline void setWasmRenderCallback(std::function<void(const std::string&)> cb) { wasm_render_callback = cb; }
+
+inline void pumpWasmEvents() {
+    // Don't pump here - let forceFrameRender handle it
+}
+
+// Forward declare the forceFrameRender function
+extern "C" void forceFrameRender();
+
+// Yield to browser and force render update
+inline void wasmYieldAndRender(const std::string& output) {
+    if (wasm_render_callback && !output.empty()) {
+        wasm_render_callback(output);
+    }
+
+    // Force a full frame and yield so the browser can paint.
+    forceFrameRender();
+    emscripten_sleep(1);
+}
+#endif
+
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 #include <signal.h>
 #include <unistd.h>
@@ -803,12 +836,14 @@ namespace cmd {
 
         bool on_fail = true;
         std::function<void(const std::string &)> updateCallback = nullptr;
+        bool updateCallbackUsed = false;
         void setUpdateCallback(std::function<void(const std::string &)> callback) {
             updateCallback = std::move(callback);
         }
 
         void execUpdateCallback(const std::string &text) {
             if (updateCallback) {
+                updateCallbackUsed = true;
                 updateCallback(text);
             }
         }
@@ -843,6 +878,7 @@ namespace cmd {
             program_running = 1;
 #endif
             returnSignal = false;         
+            updateCallbackUsed = false;
             std::ostringstream defaultOutput;
             try {
                 #ifdef DEBUG_MODE_ON
@@ -875,7 +911,7 @@ namespace cmd {
                 else {
                     defaultOutputStream << defaultOutput.str();
                     defaultOutputStream.flush();
-                    if(updateCallback) {
+                    if(updateCallback && !updateCallbackUsed) {
                         updateCallback(defaultOutput.str());
                     }
                 }
@@ -1252,30 +1288,42 @@ namespace cmd {
 
                     
                 while (true) {
-                    std::ostringstream output;
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                    // Always yield once per iteration so the canvas/cursor stays responsive.
+                    wasmYieldAndRender("");
+                    pumpWasmEvents();
+                    if (isWasmLoopCancelled()) {
+                        if (wasm_render_callback) {
+                            wasm_render_callback("- [ Loop interrupted ]-\n");
+                        } else {
+                            outputStream << "- [ Loop interrupted ]-" << std::endl;
+                        }
+                        resetWasmLoop();
+                        break;
+                    }
+#elif !defined(_WIN32)
                     if (program_running == 0) {
                         outputStream << "- [ Loop interrupted ]-" << std::endl;
                         break;
                     }
 #endif
 
+                    std::ostringstream output;
+
                     executeNode(whileStmt->condition, input, output);
                     if (lastExitStatus != 0) {
-                        execUpdateCallback(output.str());    
                         break;
                     }
                     try {
                         executeNode(whileStmt->body, input, output);
                     } catch(const ContinueException&) {
+#if defined(__EMSCRIPTEN__)
+                       // Yield even on continue.
+                       wasmYieldAndRender("");
+#endif
                        continue;
                     }
-                    
-                    static size_t iterationCount = 0;
-                    if(++iterationCount % 10 == 0) {
-                        execUpdateCallback(output.str());
-                        iterationCount = 0;
-                    }
+
                     outputStream << output.str();
                 }
             }
@@ -1298,13 +1346,18 @@ namespace cmd {
                             std::string item = gameState->getFromList(listName, i);
                             setVariable(forStmt->variable, item);
                             try {
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                                pumpWasmEvents();
+                                if (isWasmLoopCancelled()) { resetWasmLoop(); throw BreakException(); }
+                                emscripten_sleep(1);
+#elif !defined(_WIN32)
                                 if (program_running == 0) {
                                     output << "- [ Loop interrupted ]-" << std::endl;
                                     break;
                                 }
 #endif
                                 executeNode(forStmt->body, input, output);
+                                
                             } catch (const ContinueException&) {
                                 continue;
                             }
@@ -1335,14 +1388,17 @@ namespace cmd {
                                 if (!line.empty()) {
                                     setVariable(forStmt->variable, line);
                                     try {
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                                        pumpWasmEvents();
+                                        if (isWasmLoopCancelled()) { resetWasmLoop(); throw BreakException(); }
+                                        emscripten_sleep(1);
+#elif !defined(_WIN32)
                                         if (program_running == 0) {
                                             output << "- [ Loop interrupted ]- " << std::endl;
                                             break;
                                         }
 #endif
                                         executeNode(forStmt->body, input, output);
-                                        execUpdateCallback("");
                                     } catch (const ContinueException&) {
                                         continue;
                                     }
@@ -1354,14 +1410,18 @@ namespace cmd {
                             while (wordStream >> word) {
                                 setVariable(forStmt->variable, word);
                                 try {
-        #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                                    pumpWasmEvents();
+                                    if (isWasmLoopCancelled()) { resetWasmLoop(); throw BreakException(); }
+                                    emscripten_sleep(1);
+#elif !defined(_WIN32)
                                     if (program_running == 0) {
                                         output << "-[ Loop interrupted ]- " << std::endl;
                                         break;
                                     }
-        #endif
+#endif
                                     executeNode(forStmt->body, input, output);
-                                    execUpdateCallback("");
+                                    
                                 } catch (const ContinueException&) {
                                     continue;
                                 }
@@ -1381,14 +1441,18 @@ namespace cmd {
                                     if (!line.empty()) {
                                         setVariable(forStmt->variable, line);
                                         try {
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                                            pumpWasmEvents();
+                                            if (isWasmLoopCancelled()) { resetWasmLoop(); throw BreakException(); }
+                                            emscripten_sleep(1);
+#elif !defined(_WIN32)
                                             if (program_running == 0) {
                                                 output << "- [ Loop interrupted ]- " << std::endl;
                                                 break;
                                             }
 #endif
                                             executeNode(forStmt->body, input, output);
-                                            execUpdateCallback("");
+                                            
                                         } catch (const ContinueException&) {
                                             continue;
                                         } 
@@ -1400,14 +1464,18 @@ namespace cmd {
                                 while (wordStream >> word) {
                                     setVariable(forStmt->variable, word);
                                     try {
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                                        pumpWasmEvents();
+                                        if (isWasmLoopCancelled()) { resetWasmLoop(); throw BreakException(); }
+                                        emscripten_sleep(1);
+#elif !defined(_WIN32)
                                         if (program_running == 0) {
                                             output << "-[ Loop interrupted ]- " << std::endl;
                                             break;
                                         }
 #endif
                                         executeNode(forStmt->body, input, output);
-                                        execUpdateCallback("");
+                                        
                                     } catch (const ContinueException&) {
                                         continue;
                                     }
@@ -1415,14 +1483,18 @@ namespace cmd {
                             } else {
                                 setVariable(forStmt->variable, valueStr);
                                 try {
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                                    pumpWasmEvents();
+                                    if (isWasmLoopCancelled()) { resetWasmLoop(); throw BreakException(); }
+                                    emscripten_sleep(1);
+#elif !defined(_WIN32)
                                     if (program_running == 0) {
                                         output << "-[ Loop interrupted ]- " << std::endl;
                                         break;
                                     }
 #endif
                                     executeNode(forStmt->body, input, output);
-                                    execUpdateCallback("");
+                                    
                                 } catch (const ContinueException&) {
                                     continue;
                                 }
@@ -1443,14 +1515,18 @@ namespace cmd {
                                     if (!line.empty()) {
                                         setVariable(forStmt->variable, line);
                                         try {
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                                            pumpWasmEvents();
+                                            if (isWasmLoopCancelled()) { resetWasmLoop(); throw BreakException(); }
+                                            emscripten_sleep(1);
+#elif !defined(_WIN32)
                                             if (program_running == 0) {
                                                 output << "-[ Loop interrupted ]- " << std::endl;
                                                 break;
                                             }
 #endif
                                             executeNode(forStmt->body, input, output);
-                                            execUpdateCallback("");
+                                            
                                         } catch (const ContinueException&) {
                                             continue;
                                         }
@@ -1462,7 +1538,11 @@ namespace cmd {
                 
                         setVariable(forStmt->variable, literalValue);
                         try {
-#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+                            pumpWasmEvents();
+                            if (isWasmLoopCancelled()) { resetWasmLoop(); throw BreakException(); }
+                            emscripten_sleep(1);
+#elif !defined(_WIN32)
                             if (program_running == 0) {
                                 output << "-[ Loop interrupted ]- " << std::endl;
                                 break;
@@ -1486,7 +1566,7 @@ namespace cmd {
                     setVariable(forStmt->variable, "");
                 }
             }
-            execUpdateCallback  ("");
+            
         }
     };
 

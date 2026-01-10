@@ -90,6 +90,13 @@ namespace mx {
                 std::string new_output;
                 std::string new_data;
                 std::atomic<bool> newData;
+#ifdef FOR_WASM
+                // Multi-line input support
+                std::string multiLineBuffer;
+                bool isMultiLineInput = false;
+                int blockDepth = 0;
+                std::string continuationPrompt = ".. ";
+#endif
         #ifdef _WIN32
                 HANDLE hChildStdinRd, hChildStdinWr;  
                 HANDLE hChildStdoutRd, hChildStdoutWr;  

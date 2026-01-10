@@ -5,6 +5,7 @@
 #include "command.hpp"
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 static bool cmd_initialized = false;
 static bool last_command_succeeded = true;
@@ -13,6 +14,74 @@ void initCmdShell() {
     if (cmd_initialized) return;
     cmd::AstExecutor::getExecutor();
     cmd_initialized = true;
+}
+
+void setCmdUpdateCallback(std::function<void(const std::string&)> callback) {
+    cmd::AstExecutor &executor = cmd::AstExecutor::getExecutor();
+    executor.setUpdateCallback(callback);
+}
+
+static int countWord(const std::string& input, const std::string& word) {
+    int count = 0;
+    size_t pos = 0;
+    while ((pos = input.find(word, pos)) != std::string::npos) {
+        // Check word boundary before
+        bool validStart = (pos == 0 || !std::isalnum(input[pos - 1]));
+        // Check word boundary after
+        bool validEnd = (pos + word.length() >= input.length() || 
+                        !std::isalnum(input[pos + word.length()]));
+        if (validStart && validEnd) {
+            count++;
+        }
+        pos += word.length();
+    }
+    return count;
+}
+
+static bool endsWithBackslash(const std::string& input) {
+    if (input.empty()) return false;
+    // Find last non-whitespace character
+    size_t lastNonSpace = input.find_last_not_of(" \t\n\r");
+    if (lastNonSpace != std::string::npos && input[lastNonSpace] == '\\') {
+        return true;
+    }
+    return false;
+}
+
+MultiLineState checkMultiLineState(const std::string& input) {
+    MultiLineState state;
+    state.needsMoreInput = false;
+    state.blockDepth = 0;
+    state.lineContinuation = false;
+    
+    if (input.empty()) {
+        return state;
+    }
+    
+    if (endsWithBackslash(input)) {
+        state.lineContinuation = true;
+        state.needsMoreInput = true;
+        return state;
+    }
+    int forCount = countWord(input, "for");
+    int whileCount = countWord(input, "while");
+    int ifCount = countWord(input, "if");
+    int defineCount = countWord(input, "define");
+    
+    int doneCount = countWord(input, "done");
+    int fiCount = countWord(input, "fi");
+    int endCount = countWord(input, "end");
+    int loopDepth = (forCount + whileCount) - doneCount;
+    int ifDepth = ifCount - fiCount;
+    int defineDepth = defineCount - endCount;
+    
+    state.blockDepth = loopDepth + ifDepth + defineDepth;
+    
+    if (state.blockDepth > 0) {
+        state.needsMoreInput = true;
+    }
+    
+    return state;
 }
 
 std::string getCommandName(const std::string& command) {

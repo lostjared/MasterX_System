@@ -67,9 +67,11 @@ namespace cmd {
             }
         }
         output << std::endl;
-        
+
         if(&stream != &std::cout) {
-            stream << output.str();
+            // In the embedded terminal/WASM path we stream output via updateCallback.
+            // Writing to the provided stream can cause duplicate output (buffered + callback).
+            AstExecutor::getExecutor().execUpdateCallback(output.str());
         } else  {
             printf("%s", output.str().c_str());
             fflush(stdout);
@@ -213,14 +215,24 @@ namespace cmd {
             else {
                 if(output_integer == true) {
                     try {
-                        output << std::stoi(arg) << std::endl;
+                        const std::string line = std::to_string(std::stoi(arg)) + "\n";
+                        if (&output == &std::cout) {
+                            output << line;
+                        } else {
+                            AstExecutor::getExecutor().execUpdateCallback(line);
+                        }
                         output_integer = false;
                     } catch (const std::exception& e) {
                         output << "print: can't convert '" << arg << "' to integer" << std::endl;
                         success = false;
                     }
                 } else {
-                    output << arg << std::endl;
+                    const std::string line = arg + "\n";
+                    if (&output == &std::cout) {
+                        output << line;
+                    } else {
+                        AstExecutor::getExecutor().execUpdateCallback(line);
+                    }
                 }
             }
         }
@@ -864,8 +876,7 @@ namespace cmd {
         }
 
         if(&stream_output != &std::cout) {
-            stream_output << output.str();
-            stream_output.flush();
+            AstExecutor::getExecutor().execUpdateCallback(output.str());
         } else {
             printf("%s", output.str().c_str());
             fflush(stdout);
