@@ -159,12 +159,8 @@ namespace cmd {
             std::shared_ptr<cmd::Expression> parsePrimary() {
                 if (peek().getTokenType() == types::TokenType::TT_SYM && peek().getTokenValue() == "$") {
                     advance();
-                    if (match("(")) {
-                        auto cmdNode = parseCommandSubstitution();
-                        return std::make_shared<cmd::CommandSubstitution>(cmdNode, false);
-                    } else {
-                        throw std::runtime_error("Expected '(' after '$' for command subsitution found: " + peek().getTokenValue() + " on Line: " + std::to_string(peek().get_pos().first));
-                    }
+                    auto cmdNode = parseCommandSubstitution();
+                    return std::make_shared<cmd::CommandSubstitution>(cmdNode, false);
                 }
             
                 if (peek().getTokenType() == types::TokenType::TT_NUM) {
@@ -340,12 +336,8 @@ namespace cmd {
             std::shared_ptr<cmd::Node> parseCommand() {
                 if (peek().getTokenType() == types::TokenType::TT_SYM && peek().getTokenValue() == "$") {
                     advance();
-                    if (match("(")) {
-                        auto cmdNode = parseCommandSubstitution();
-                        return std::make_shared<cmd::CommandSubstitution>(cmdNode, false);
-                    } else {
-                        throw std::runtime_error("Expected '(' after '$' for command substitution  instead if found: " + peek().getTokenValue());
-                    }
+                    auto cmdNode = parseCommandSubstitution();
+                    return std::make_shared<cmd::CommandSubstitution>(cmdNode, false);
                 }
                 if (peek().getTokenType() != types::TokenType::TT_ID) {
                     throw std::runtime_error("Expected command name, let keyword, or variable name found: " + peek().getTokenValue() + " on Line: " + std::to_string(peek().get_pos().first));

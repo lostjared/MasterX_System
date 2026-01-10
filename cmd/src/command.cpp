@@ -68,13 +68,9 @@ namespace cmd {
         }
         output << std::endl;
 
-        if(&stream != &std::cout) {
-            // In the embedded terminal/WASM path we stream output via updateCallback.
-            // Writing to the provided stream can cause duplicate output (buffered + callback).
+        stream << output.str();
+        if(&stream == &std::cout) {
             AstExecutor::getExecutor().execUpdateCallback(output.str());
-        } else  {
-            printf("%s", output.str().c_str());
-            fflush(stdout);
         }
         return 0;
     }
@@ -875,11 +871,9 @@ namespace cmd {
             pos = specPos + 1;
         }
 
-        if(&stream_output != &std::cout) {
+        stream_output << output.str();
+        if(&stream_output == &std::cout) {
             AstExecutor::getExecutor().execUpdateCallback(output.str());
-        } else {
-            printf("%s", output.str().c_str());
-            fflush(stdout);
         }
         return 0;
     }

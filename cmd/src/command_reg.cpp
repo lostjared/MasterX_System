@@ -5,7 +5,7 @@
 namespace cmd {
     static void validateArguments(const std::vector<Argument>& args, std::ostream& output) {
         for (const auto& arg : args) {
-            if (arg.type == ARG_STRING_LITERAL) {
+            if (arg.type == ARG_STRING_LITERAL || arg.type == ARG_COMMAND_SUBST) {
                 continue;
             }
             if (arg.value.find('(') != std::string::npos || 
