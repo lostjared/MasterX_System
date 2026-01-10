@@ -825,10 +825,10 @@ namespace cmd {
             exec_interrupt = interrupt;
         }
 
-	void setInterruptValue(bool b) {
-	    if(exec_interrupt)
-		exec_interrupt->store(b);
-	}
+        void setInterruptValue(bool b) {
+            if(exec_interrupt)
+            exec_interrupt->store(b);
+        }
 
         bool checkInterrupt() {
             return exec_interrupt != nullptr && exec_interrupt->load();
@@ -837,6 +837,7 @@ namespace cmd {
         bool on_fail = true;
         std::function<void(const std::string &)> updateCallback = nullptr;
         bool updateCallbackUsed = false;
+        int executeDepth = 0;
         void setUpdateCallback(std::function<void(const std::string &)> callback) {
             updateCallback = std::move(callback);
         }
@@ -879,6 +880,7 @@ namespace cmd {
 #endif
             returnSignal = false;         
             updateCallbackUsed = false;
+            executeDepth++;
             std::ostringstream defaultOutput;
             try {
                 #ifdef DEBUG_MODE_ON
@@ -899,6 +901,7 @@ namespace cmd {
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
                 if (program_running == 0) {
                     defaultOutput << "Command interrupted" << std::endl;
+                    executeDepth--;
                     return;
                 }
 #endif
@@ -911,7 +914,7 @@ namespace cmd {
                 else {
                     defaultOutputStream << defaultOutput.str();
                     defaultOutputStream.flush();
-                    if(updateCallback && !updateCallbackUsed) {
+                    if(executeDepth == 1 && updateCallback && !updateCallbackUsed) {
                         updateCallback(defaultOutput.str());
                     }
                 }
@@ -919,6 +922,7 @@ namespace cmd {
                 defaultOutput << "Exception: " << e.what() << std::endl;
                 execUpdateCallback(defaultOutput.str());
             }
+            executeDepth--;
         }
 
         void setVariable(const std::string& name, const std::string& value) {

@@ -69,9 +69,6 @@ namespace cmd {
         output << std::endl;
 
         stream << output.str();
-        if(&stream == &std::cout) {
-            AstExecutor::getExecutor().execUpdateCallback(output.str());
-        }
         return 0;
     }
 
@@ -872,9 +869,6 @@ namespace cmd {
         }
 
         stream_output << output.str();
-        if(&stream_output == &std::cout) {
-            AstExecutor::getExecutor().execUpdateCallback(output.str());
-        }
         return 0;
     }
 
