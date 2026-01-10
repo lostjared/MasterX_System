@@ -25,6 +25,7 @@
 #include<mutex>
 #include<atomic>
 #include<regex>
+#include<condition_variable>
 
 namespace mx {
 
@@ -47,6 +48,8 @@ namespace mx {
                 void pasteFromClipboard();
                 void copyToClipboard();
                 void insertText(const std::string &text);
+                std::string getInput();
+                bool isWaitingForInput() const { return waitingForInput; }
         private:
                 std::string prompt = "$ ";
 #if !defined(FOR_WASM) && !defined(WIN32)
@@ -93,6 +96,13 @@ namespace mx {
                 std::string new_output;
                 std::string new_data;
                 std::atomic<bool> newData;
+                
+                std::atomic<bool> waitingForInput{false};
+                std::string inputResult;
+#ifndef FOR_WASM
+                std::mutex inputMutex;
+                std::condition_variable inputCondition;
+#endif
 #ifdef FOR_WASM
                 // Multi-line input support
                 std::string multiLineBuffer;

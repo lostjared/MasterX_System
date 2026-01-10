@@ -1,0 +1,17 @@
+define correct_ip(ip)
+begin
+temp = $(regex_match "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" ip)
+if test temp --eq "1'; then
+printf "True\n"
+else
+printf "False\n"
+fi
+end
+
+define main()
+begin
+value = $(correct_ip "192.168.1.1")
+printf "result: %d\n" value
+end
+
+main

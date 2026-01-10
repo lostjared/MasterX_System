@@ -196,6 +196,26 @@ namespace mx {
         scroll();
     }
 
+    std::string Terminal::getInput() {
+        waitingForInput = true;
+        inputResult.clear();
+        
+#ifdef FOR_WASM
+        scroll();
+        forceFrameRender();
+        
+        while (waitingForInput) {
+            forceFrameRender();
+            emscripten_sleep(16);
+        }
+#else
+        std::unique_lock<std::mutex> lock(inputMutex);
+        inputCondition.wait(lock, [this]() { return !waitingForInput; });
+#endif
+        
+        return inputResult;
+    }
+
     void Terminal::sendCommand(const std::string &cmd) {
         #if defined(__linux__) || defined(__APPLE__)
             int bytes = 0;
@@ -374,11 +394,43 @@ namespace mx {
 
         int cx = rc.x + 5;
         int cy = y;
+        
+#ifdef FOR_WASM
+        if (waitingForInput && !orig_text.empty() && orig_text.back() != '\n') {
+            cy -= lineHeight;
+            int lastLineWidth = 0;
+            if (!outputLines.empty()) {
+                TTF_SizeText(font, outputLines.back().c_str(), &lastLineWidth, nullptr);
+            }
+            int inputStartX = rc.x + 5 + lastLineWidth;
+            
+            if (!inputText.empty()) {
+                renderText(app, inputText, inputStartX, cy);
+            }
+            
+            int inputWidth = 0;
+            if (!inputText.empty()) {
+                std::string textBeforeCursor = inputText.substr(0, cursorPosition);
+                TTF_SizeText(font, textBeforeCursor.c_str(), &inputWidth, nullptr);
+            }
+            
+            Uint32 currentTime = SDL_GetTicks();
+            if (currentTime - cursorTimer >= cursorBlinkInterval) {
+                showCursor = !showCursor;
+                cursorTimer = currentTime;
+            }
+            drawCursor(app, inputStartX + inputWidth, cy, showCursor);
+        } else {
+#endif
 #if defined(__linux__) || defined(__APPLE__)
         if(echo_enabled == true) {
 #endif
-            renderTextWrapped(app, prompt, inputText, cx, cy, maxWidth);
+            std::string displayPrompt = waitingForInput ? "" : prompt;
+            renderTextWrapped(app, displayPrompt, inputText, cx, cy, maxWidth);
 #if defined(__linux__) || defined(__APPLE__)
+        }
+#endif
+#ifdef FOR_WASM
         }
 #endif
 
@@ -854,6 +906,18 @@ namespace mx {
 #endif
                     break;
             case SDLK_RETURN:
+                if (waitingForInput) {
+                    print(inputText + "\n");
+                    inputResult = inputText;
+                    inputText.clear();
+                    cursorPosition = 0;
+                    waitingForInput = false;
+#ifndef FOR_WASM
+                    inputCondition.notify_one();
+#endif
+                    scroll();
+                    break;
+                }
 #ifdef FOR_WASM
                 if (!inputText.empty() || isMultiLineInput) {
                     auto trimSpaces = [](const std::string& s) {
@@ -1084,9 +1148,14 @@ namespace mx {
             }
         });
 
+        setCmdInputCallback([term]() -> std::string {
+            return term->getInput();
+        });
+
         executeCmd(command);
 
         setCmdUpdateCallback(nullptr);
+        setCmdInputCallback(nullptr);
     }
 #endif
         scroll();
