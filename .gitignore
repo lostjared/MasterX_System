@@ -1,2 +1,5 @@
 *.o
 *DS_Store
+*.d
+build
+
