@@ -86,10 +86,10 @@ namespace cmd {
 
     extern bool windows_mode;
   
-    class AstFailure {
+    class AstFailure : public std::exception {
     public:
         AstFailure(const std::string& message) : message(message) {}
-        const char* what() const noexcept  { return message.c_str(); }
+        const char* what() const noexcept override { return message.c_str(); }
      private:
         std::string message;
     };
