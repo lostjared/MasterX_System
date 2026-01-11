@@ -1143,14 +1143,12 @@ namespace cmd {
         } catch (const scan::ScanExcept &e) {
             output << "cmd: Scan error in " << filename << ": " << e.why() << std::endl;
             return 1;
+        } catch(const AstFailure &e) {
+            throw AstFailure("Exception: Script: " + filename + " execution failed: " + std::string(e.what()) + "\n");
         } catch (const std::exception &e) {
             output << "cmd: Error in " << filename << ": " << e.what() << std::endl;
             return 1;
-        } 
-        catch(const AstFailure &e) {
-            throw AstFailure("Exception: Script: " + filename + " execution failed: " + std::string(e.what()) + "\n");
-        } 
-        catch (...) {
+        } catch (...) {
             output << "cmd: Unknown error occurred while executing " << filename << std::endl;
             return 1;
         }

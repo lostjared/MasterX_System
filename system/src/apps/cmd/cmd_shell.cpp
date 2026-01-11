@@ -176,14 +176,14 @@ std::string executeCmd(const std::string& command) {
         std::cerr.flush();
         last_command_succeeded = false;
         result = out_stream.str() + err_stream.str() + "Runtime Error: " + std::string(e.what()) + "\n";
-    } catch(const std::exception &e) {
-        std::cerr.flush();
-        last_command_succeeded = false;
-        result = out_stream.str() + err_stream.str() + "Error: " + std::string(e.what()) + "\n";
     } catch(const cmd::AstFailure &e) {
         std::cerr.flush();
         last_command_succeeded = false;
         result = out_stream.str() + err_stream.str() + "Failure: " + std::string(e.what()) + "\n";
+    } catch(const std::exception &e) {
+        std::cerr.flush();
+        last_command_succeeded = false;
+        result = out_stream.str() + err_stream.str() + "Error: " + std::string(e.what()) + "\n";
     } catch(...) {
         std::cerr.flush();
         last_command_succeeded = false;
