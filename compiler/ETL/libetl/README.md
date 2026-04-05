@@ -13,7 +13,7 @@ Before installing the project, ensure that the following prerequisites are met:
 - CMake (version 3.10 or higher)
 - SDL2 (including the `sdl2-config` tool)
 - GNU `ar` (for creating static libraries)
-- Make (optional, if using CMake’s default generator)
+- Make (optional, if using CMakes default generator)
 
 ### Installation Paths
 

@@ -96,7 +96,7 @@ You may have to set the paths for CMake to see it, it will tell you if there is 
 
 5. **Test the WebAssembly build:**
 
-    Serve the application locally using Python’s HTTP server:
+    Serve the application locally using Pythons HTTP server:
 
     ```bash
     python3 -m http.server 3000
