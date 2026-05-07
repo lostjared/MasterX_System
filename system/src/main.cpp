@@ -307,6 +307,4 @@ int main(int argc, char **argv) {
     emscripten_set_main_loop(eventProc, 0, 1);
 #endif
     return 0;
-
- 
 }
