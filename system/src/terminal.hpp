@@ -219,6 +219,11 @@ namespace mx {
                 std::string getSelectedText() const;
                 void clearSelection();
                 void drawSelection(mxApp &app, const SDL_Rect &contentRect, int lineHeight, int cellW);
+                bool hasInlineSelectableInput() const;
+                std::vector<std::string> buildSelectableInputLines(int maxWidth) const;
+                std::string selectableLineText(int row, int maxWidth) const;
+                int selectableLineCount(int maxWidth) const;
+                int visibleOutputRowCapacity(int lineHeight, int maxWidth) const;
 
                 // Built-in nano-style text editor. When non-null the
                 // terminal routes events / drawing to it.

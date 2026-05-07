@@ -55,19 +55,35 @@ namespace mx {
             updatePtySize();
             return;
         }
-        const int baseWidth = 1280;
-        const int baseHeight = 720;
-        int screenWidth = w;
-        int screenHeight = h;
-        float scaleX = static_cast<float>(screenWidth) / baseWidth;
-        float scaleY = static_cast<float>(screenHeight) / baseHeight;
-        int windowWidth = static_cast<int>(800 * scaleX);
-        int windowHeight = static_cast<int>(505 * scaleY);
-        int windowPosX = (screenWidth - windowWidth) / 2;
-        int windowPosY = (screenHeight - windowHeight) / 2;
-        // Clamp so the window never covers the menu bar.
-        if (windowPosY < 26) windowPosY = 26;
-        SDL_Rect rc={windowPosX, windowPosY, windowWidth, windowHeight};
+        SDL_Rect rc;
+        Window::getRect(rc);
+        const int topLimit    = 26;
+        const int bottomLimit = h - 50;
+        const int maxH        = std::max(1, bottomLimit - topLimit);
+        if (Window::isMaximized()) {
+            // Fill the host window (under the menu bar, above the system bar).
+            rc = { 0, topLimit, w, h - 76 };
+        } else if (rc.w <= 0 || rc.h <= 0) {
+            // Initial layout: centered default size scaled to host.
+            const int baseWidth  = 1280;
+            const int baseHeight = 720;
+            float scaleX = static_cast<float>(w) / baseWidth;
+            float scaleY = static_cast<float>(h) / baseHeight;
+            rc.w = static_cast<int>(800 * scaleX);
+            rc.h = static_cast<int>(505 * scaleY);
+            rc.x = (w - rc.w) / 2;
+            rc.y = (h - rc.h) / 2;
+            if (rc.y < topLimit) rc.y = topLimit;
+        } else {
+            // Preserve the user's chosen size; clamp to fit the new host.
+            if (rc.w > w)    rc.w = w;
+            if (rc.h > maxH) rc.h = maxH;
+            if (rc.x < 0)             rc.x = 0;
+            if (rc.y < topLimit)      rc.y = topLimit;
+            if (rc.x + rc.w > w)      rc.x = std::max(0, w - rc.w);
+            if (rc.y + rc.h > bottomLimit)
+                rc.y = std::max(topLimit, bottomLimit - rc.h);
+        }
         this->setRect(rc);
         updatePtySize();
     }
@@ -478,17 +494,178 @@ namespace mx {
         if (relY < 0) relY = 0;
         if (relX < 0) relX = 0;
         int visibleRow = relY / lineH;
-        int absRow = visibleRow + (altScreen ? 0 : scrollOffset);
         int absCol = relX / cellW;
-        int total = static_cast<int>(outputLines.size());
+        if (absCol < 0) absCol = 0;
+        int maxWidth = rc.w - 10;
+
+#ifdef FOR_WASM
+        if (!hasInlineSelectableInput()) {
+            std::vector<std::string> inputLines = buildSelectableInputLines(maxWidth);
+            if (!inputLines.empty()) {
+                int outputRows = visibleOutputRowCapacity(lineH, maxWidth);
+                if (visibleRow >= outputRows) {
+                    int inputRow = visibleRow - outputRows;
+                    if (inputRow < 0) inputRow = 0;
+                    if (inputRow >= static_cast<int>(inputLines.size()))
+                        inputRow = static_cast<int>(inputLines.size()) - 1;
+                    row = static_cast<int>(outputLines.size()) + inputRow;
+                    col = absCol;
+                    (void)contentW; (void)contentH;
+                    return true;
+                }
+            }
+        }
+#endif
+
+        int absRow = visibleRow + (altScreen ? 0 : scrollOffset);
+        int total = selectableLineCount(maxWidth);
         if (total == 0) return false;
         if (absRow < 0) absRow = 0;
         if (absRow >= total) absRow = total - 1;
-        if (absCol < 0) absCol = 0;
         row = absRow;
         col = absCol;
         (void)contentW; (void)contentH;
         return true;
+    }
+
+    bool Terminal::hasInlineSelectableInput() const {
+#ifdef FOR_WASM
+        return waitingForInput && !orig_text.empty() && orig_text.back() != '\n';
+#else
+        return false;
+#endif
+    }
+
+    std::vector<std::string> Terminal::buildSelectableInputLines(int maxWidth) const {
+        std::vector<std::string> lines;
+#ifdef FOR_WASM
+        if (hasInlineSelectableInput()) return lines;
+        if (!font) {
+            lines.push_back((waitingForInput ? "" : prompt) + inputText);
+            return lines;
+        }
+
+        const int margin = 5;
+        int availableWidth = maxWidth - margin * 2;
+        if (availableWidth < 1) availableWidth = 1;
+
+        auto appendWrappedLine = [&](const std::string &prefix, const std::string &text) {
+            int prefixWidth = 0;
+            TTF_SizeText(const_cast<TTF_Font*>(font), prefix.c_str(), &prefixWidth, nullptr);
+
+            if (text.empty()) {
+                lines.push_back(prefix);
+                return;
+            }
+
+            size_t pos = 0;
+            bool firstVisualLine = true;
+            while (pos < text.size()) {
+                std::string chunk;
+                int currentWidth = 0;
+                int lineWidth = firstVisualLine ? availableWidth - prefixWidth : availableWidth;
+                if (lineWidth < 1) lineWidth = 1;
+
+                while (pos < text.size()) {
+                    std::string testChunk = chunk + text[pos];
+                    TTF_SizeText(const_cast<TTF_Font*>(font), testChunk.c_str(), &currentWidth, nullptr);
+                    if (currentWidth > lineWidth) {
+                        if (chunk.empty()) {
+                            chunk += text[pos++];
+                        }
+                        break;
+                    }
+                    chunk = std::move(testChunk);
+                    ++pos;
+                }
+
+                lines.push_back(firstVisualLine ? prefix + chunk : chunk);
+                firstVisualLine = false;
+            }
+        };
+
+        if (inputText.find('\n') != std::string::npos) {
+            bool firstLogicalLine = true;
+            size_t pos = 0;
+            while (true) {
+                size_t next = inputText.find('\n', pos);
+                std::string segment = (next == std::string::npos)
+                    ? inputText.substr(pos)
+                    : inputText.substr(pos, next - pos);
+                appendWrappedLine(firstLogicalLine ? (waitingForInput ? "" : prompt) : continuationPrompt,
+                                  segment);
+                if (next == std::string::npos) break;
+                pos = next + 1;
+                firstLogicalLine = false;
+            }
+        } else {
+            appendWrappedLine(waitingForInput ? "" : prompt, inputText);
+        }
+
+        if (lines.empty()) {
+            lines.push_back(waitingForInput ? "" : prompt);
+        }
+#else
+        (void)maxWidth;
+#endif
+        return lines;
+    }
+
+    std::string Terminal::selectableLineText(int row, int maxWidth) const {
+        if (row < 0) return "";
+
+        const int outputCount = static_cast<int>(outputLines.size());
+        if (row < outputCount) {
+#ifdef FOR_WASM
+            if (hasInlineSelectableInput() && row == outputCount - 1) {
+                return outputLines[row] + inputText;
+            }
+#endif
+            return outputLines[row];
+        }
+
+        std::vector<std::string> inputLines = buildSelectableInputLines(maxWidth);
+        int inputRow = row - outputCount;
+        if (inputRow < 0 || inputRow >= static_cast<int>(inputLines.size())) return "";
+        return inputLines[inputRow];
+    }
+
+    int Terminal::selectableLineCount(int maxWidth) const {
+        return static_cast<int>(outputLines.size()) + static_cast<int>(buildSelectableInputLines(maxWidth).size());
+    }
+
+    int Terminal::visibleOutputRowCapacity(int lineHeight, int maxWidth) const {
+        if (lineHeight <= 0) return 0;
+
+        SDL_Rect rc;
+        const_cast<Terminal*>(this)->Window::getRect(rc);
+        // Mirror draw(): after the title bar adjustment, y starts at
+        // (rc.y + 28) + 5 and the loop breaks when
+        //   y + lineHeight * (inputRows + 1) > rc.y + rc.h
+        // so the maximum drawable output rows is
+        //   floor((contentH - 5) / lineHeight) - (inputRows + 1) + 1
+        // = floor((contentH - 5) / lineHeight) - inputRows.
+        int contentH = rc.h - 28;
+        if (contentH < lineHeight) return 0;
+
+#ifdef FOR_WASM
+        if (!hasInlineSelectableInput()) {
+            int inputRows = static_cast<int>(buildSelectableInputLines(maxWidth).size());
+            if (inputRows < 1) inputRows = 1;
+            int capacity = (contentH - 5) / lineHeight - inputRows;
+            if (capacity < 0) capacity = 0;
+            // Number of output rows that draw() will actually render.
+            int available = static_cast<int>(outputLines.size()) - scrollOffset;
+            if (available < 0) available = 0;
+            int drawn = available < capacity ? available : capacity;
+            if (drawn < 0) drawn = 0;
+            return drawn;
+        }
+#endif
+        (void)maxWidth;
+        int visibleRows = contentH / lineHeight;
+        if (visibleRows < 1) visibleRows = 1;
+        return visibleRows;
     }
 
     void Terminal::normalizedSelection(int &r0, int &c0, int &r1, int &c1) const {
@@ -505,9 +682,12 @@ namespace mx {
         int r0, c0, r1, c1;
         normalizedSelection(r0, c0, r1, c1);
         std::string out;
-        int total = static_cast<int>(outputLines.size());
+        SDL_Rect rc;
+        const_cast<Terminal*>(this)->Window::getRect(rc);
+        int maxWidth = rc.w - 10;
+        int total = selectableLineCount(maxWidth);
         for (int r = r0; r <= r1 && r < total; ++r) {
-            const std::string &line = outputLines[r];
+            std::string line = selectableLineText(r, maxWidth);
             int len = static_cast<int>(line.size());
             int startC = (r == r0) ? c0 : 0;
             int endC   = (r == r1) ? c1 : len;
@@ -544,17 +724,27 @@ namespace mx {
         if (!hasSelection) return;
         int r0, c0, r1, c1;
         normalizedSelection(r0, c0, r1, c1);
-        int total = static_cast<int>(outputLines.size());
+        int maxWidth = contentRect.w;
+        int total = selectableLineCount(maxWidth);
+        int outputCount = static_cast<int>(outputLines.size());
         int baseRow = altScreen ? 0 : scrollOffset;
+        int inputBaseRow = visibleOutputRowCapacity(lineHeight, maxWidth);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(app.ren, 80, 140, 220, 110);
+        SDL_SetRenderDrawColor(app.ren, 100, 100,200, 110);
         for (int r = r0; r <= r1 && r < total; ++r) {
-            int screenRow = r - baseRow;
-            if (screenRow < 0) continue;
-            int y = contentRect.y + 5 + screenRow * lineHeight;
+            int y = 0;
+            if (r < outputCount) {
+                int screenRow = r - baseRow;
+                if (screenRow < 0) continue;
+                y = contentRect.y + 5 + screenRow * lineHeight;
+            } else {
+                int inputRow = r - outputCount;
+                y = contentRect.y + 5 + (inputBaseRow + inputRow) * lineHeight;
+            }
             if (y + lineHeight <= contentRect.y) continue;
             if (y >= contentRect.y + contentRect.h) break;
-            int lineLen = static_cast<int>(outputLines[r].size());
+            std::string line = selectableLineText(r, maxWidth);
+            int lineLen = static_cast<int>(line.size());
             int startC = (r == r0) ? c0 : 0;
             int endC   = (r == r1) ? c1 : lineLen;
             if (startC < 0) startC = 0;

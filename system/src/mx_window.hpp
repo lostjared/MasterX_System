@@ -39,6 +39,7 @@ namespace mx {
         void setReload(bool r);
         void setCanResize(bool r);
         bool canResize() const;
+        bool isMaximized() const { return maximized; }
         void setSystemBar(SystemBar *s);
         void drawMenubar(mxApp &app);
         bool isPointInside(int x, int y);
