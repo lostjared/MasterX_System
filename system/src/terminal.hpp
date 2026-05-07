@@ -31,6 +31,14 @@
 
 namespace mx {
 
+        // Per-character visual style for ANSI-aware rendering.
+        struct CharStyle {
+            SDL_Color fg{255, 255, 255, 255};
+            SDL_Color bg{0, 0, 0, 0};  // a==0 means transparent (no background)
+            bool bold{false};
+            bool underline{false};
+        };
+
         std::string getLastDirectory(const std::string& fullPath);
         class Terminal :  public Window {
         public:
@@ -64,7 +72,7 @@ namespace mx {
                 std::string inputText;
                 int cursorPosition = 0;
                 std::vector<std::string> outputLines;
-                std::vector<std::vector<SDL_Color>> outputLineColors;
+                std::vector<std::vector<CharStyle>> outputLineColors;
                 void renderText(mxApp &app, const std::string &text, int x, int y);
                 void renderOutputLine(mxApp &app, int lineIndex, int x, int y);
                 void renderTextWrapped(mxApp &app, const std::string &prompt, const std::string &text, int &x, int &y, int maxWidth);
@@ -103,16 +111,46 @@ namespace mx {
 
                 // ANSI/VT100 stream state for shell output rendering.
                 std::vector<std::string> ansiLines;
-                std::vector<std::vector<SDL_Color>> ansiLineColors;
+                std::vector<std::vector<CharStyle>> ansiLineColors;
                 int ansiCursorRow = 0;
                 int ansiCursorCol = 0;
                 int ansiSavedRow = 0;
                 int ansiSavedCol = 0;
                 bool ansiInitialized = false;
                 SDL_Color ansiCurrentColor{255, 255, 255, 255};
+                SDL_Color ansiCurrentBg{0, 0, 0, 0};
+                bool ansiBold = false;
+                bool ansiUnderline = false;
                 void initAnsiState();
                 void syncAnsiToOutput();
                 void applyAnsiData(const std::string &input);
+
+                // TUI / full-screen application support (vim, nano, less, top, ...).
+                bool altScreen = false;     // alternate screen buffer active
+                bool decckm = false;        // DECCKM cursor-key application mode
+                bool keypadApp = false;     // keypad application mode (\e= / \e>)
+                int  scrollTop = 0;         // 0-based inclusive top of scroll region
+                int  scrollBot = -1;        // 0-based inclusive bottom; -1 = whole screen
+                int  termRows = 24;
+                int  termCols = 80;
+                int  lastReportedRows = -1;
+                int  lastReportedCols = -1;
+                // Saved primary screen state (restored on alt-screen exit).
+                std::vector<std::string>              savedLines;
+                std::vector<std::vector<CharStyle>>   savedLineColors;
+                int savedAltRow = 0;
+                int savedAltCol = 0;
+                SDL_Color savedAltFg{255,255,255,255};
+                SDL_Color savedAltBg{0,0,0,0};
+                bool savedAltBold = false;
+                bool savedAltUnderline = false;
+
+                void enterAltScreen();
+                void leaveAltScreen();
+                void writeToPty(const std::string &data);
+                void updatePtySize();
+                bool handleRawKeyEvent(mxApp &app, SDL_Event &e);
+                std::string keyToPtyBytes(SDL_Keycode sym, Uint16 mod);
 
                 std::atomic<bool> waitingForInput{false};
                 std::string inputResult;

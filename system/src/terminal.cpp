@@ -61,6 +61,200 @@ namespace mx {
         int windowPosY = (screenHeight - windowHeight) / 2;
         SDL_Rect rc={windowPosX, windowPosY, windowWidth, windowHeight};
         this->setRect(rc);
+        updatePtySize();
+    }
+
+    void Terminal::writeToPty(const std::string &data) {
+        if (data.empty()) return;
+#ifdef _WIN32
+        if (hChildStdinWr != INVALID_HANDLE_VALUE) {
+            DWORD written = 0;
+            WriteFile(hChildStdinWr, data.c_str(),
+                      static_cast<DWORD>(data.size()), &written, NULL);
+        }
+#elif !defined(FOR_WASM)
+        if (master_fd >= 0) {
+            ssize_t r = ::write(master_fd, data.c_str(), data.size());
+            (void)r;
+        }
+#endif
+    }
+
+    void Terminal::updatePtySize() {
+#if !defined(_WIN32) && !defined(FOR_WASM)
+        if (master_fd < 0 || !font) return;
+        SDL_Rect rc;
+        Window::getRect(rc);
+        int cellH = TTF_FontHeight(font);
+        int cellW = 0;
+        TTF_SizeText(font, "M", &cellW, nullptr);
+        if (cellW <= 0) cellW = 8;
+        if (cellH <= 0) cellH = 16;
+        int contentW = std::max(cellW, rc.w - 10);
+        int contentH = std::max(cellH, rc.h - 38);
+        termCols = std::max(20, contentW / cellW);
+        termRows = std::max(5, contentH / cellH);
+        if (termRows == lastReportedRows && termCols == lastReportedCols)
+            return;
+        lastReportedRows = termRows;
+        lastReportedCols = termCols;
+        struct winsize ws{};
+        ws.ws_row    = static_cast<unsigned short>(termRows);
+        ws.ws_col    = static_cast<unsigned short>(termCols);
+        ws.ws_xpixel = static_cast<unsigned short>(rc.w);
+        ws.ws_ypixel = static_cast<unsigned short>(rc.h);
+        ioctl(master_fd, TIOCSWINSZ, &ws);
+        if (altScreen) {
+            // Resize alternate-screen grid to match new dimensions.
+            if (static_cast<int>(ansiLines.size()) < termRows) {
+                ansiLines.resize(termRows);
+                ansiLineColors.resize(termRows);
+            }
+            if (scrollBot >= 0 && scrollBot >= termRows)
+                scrollBot = termRows - 1;
+        }
+#endif
+    }
+
+    void Terminal::enterAltScreen() {
+        if (altScreen) return;
+        if (!ansiInitialized) initAnsiState();
+        savedLines       = ansiLines;
+        savedLineColors  = ansiLineColors;
+        savedAltRow      = ansiCursorRow;
+        savedAltCol      = ansiCursorCol;
+        savedAltFg       = ansiCurrentColor;
+        savedAltBg       = ansiCurrentBg;
+        savedAltBold     = ansiBold;
+        savedAltUnderline= ansiUnderline;
+
+        altScreen = true;
+        ansiLines.assign(std::max(5, termRows), std::string{});
+        ansiLineColors.assign(ansiLines.size(), std::vector<CharStyle>{});
+        ansiCursorRow = 0;
+        ansiCursorCol = 0;
+        scrollTop = 0;
+        scrollBot = static_cast<int>(ansiLines.size()) - 1;
+        ansiCurrentColor = text_color;
+        ansiCurrentBg = {0,0,0,0};
+        ansiBold = false;
+        ansiUnderline = false;
+        scrollOffset = 0;
+        syncAnsiToOutput();
+    }
+
+    void Terminal::leaveAltScreen() {
+        if (!altScreen) return;
+        altScreen = false;
+        ansiLines       = savedLines;
+        ansiLineColors  = savedLineColors;
+        ansiCursorRow   = savedAltRow;
+        ansiCursorCol   = savedAltCol;
+        ansiCurrentColor= savedAltFg;
+        ansiCurrentBg   = savedAltBg;
+        ansiBold        = savedAltBold;
+        ansiUnderline   = savedAltUnderline;
+        savedLines.clear();
+        savedLineColors.clear();
+        scrollTop = 0;
+        scrollBot = -1;
+        decckm = false;
+        keypadApp = false;
+        syncAnsiToOutput();
+        scroll();
+    }
+
+    std::string Terminal::keyToPtyBytes(SDL_Keycode sym, Uint16 mod) {
+        const bool ctrl  = (mod & KMOD_CTRL)  != 0;
+        const bool alt   = (mod & KMOD_ALT)   != 0;
+        // Build optional ALT prefix (ESC) per xterm convention.
+        auto withAlt = [&](const std::string &s) -> std::string {
+            return alt ? std::string("\x1b") + s : s;
+        };
+        auto cursorSeq = [&](char letter) -> std::string {
+            return withAlt(decckm ? std::string("\x1bO") + letter
+                                  : std::string("\x1b[") + letter);
+        };
+        switch (sym) {
+            case SDLK_RETURN:    return withAlt("\r");
+            case SDLK_KP_ENTER:  return withAlt("\r");
+            case SDLK_TAB:       return withAlt("\t");
+            case SDLK_BACKSPACE: return withAlt("\x7f");
+            case SDLK_ESCAPE:    return std::string("\x1b");
+            case SDLK_UP:        return cursorSeq('A');
+            case SDLK_DOWN:      return cursorSeq('B');
+            case SDLK_RIGHT:     return cursorSeq('C');
+            case SDLK_LEFT:      return cursorSeq('D');
+            case SDLK_HOME:      return withAlt(decckm ? "\x1bOH" : "\x1b[H");
+            case SDLK_END:       return withAlt(decckm ? "\x1bOF" : "\x1b[F");
+            case SDLK_PAGEUP:    return withAlt("\x1b[5~");
+            case SDLK_PAGEDOWN:  return withAlt("\x1b[6~");
+            case SDLK_INSERT:    return withAlt("\x1b[2~");
+            case SDLK_DELETE:    return withAlt("\x1b[3~");
+            case SDLK_F1:        return withAlt("\x1bOP");
+            case SDLK_F2:        return withAlt("\x1bOQ");
+            case SDLK_F3:        return withAlt("\x1bOR");
+            case SDLK_F4:        return withAlt("\x1bOS");
+            case SDLK_F5:        return withAlt("\x1b[15~");
+            case SDLK_F6:        return withAlt("\x1b[17~");
+            case SDLK_F7:        return withAlt("\x1b[18~");
+            case SDLK_F8:        return withAlt("\x1b[19~");
+            case SDLK_F9:        return withAlt("\x1b[20~");
+            case SDLK_F10:       return withAlt("\x1b[21~");
+            case SDLK_F11:       return withAlt("\x1b[23~");
+            case SDLK_F12:       return withAlt("\x1b[24~");
+            default: break;
+        }
+        if (ctrl && sym >= SDLK_a && sym <= SDLK_z) {
+            char c = static_cast<char>((sym - SDLK_a + 1) & 0x1f);
+            return withAlt(std::string(1, c));
+        }
+        if (ctrl) {
+            switch (sym) {
+                case SDLK_SPACE:     return withAlt(std::string(1, '\0'));
+                case SDLK_LEFTBRACKET:  return withAlt("\x1b");
+                case SDLK_BACKSLASH:    return withAlt("\x1c");
+                case SDLK_RIGHTBRACKET: return withAlt("\x1d");
+                case SDLK_6:            return withAlt("\x1e");
+                case SDLK_MINUS:        return withAlt("\x1f");
+                default: break;
+            }
+        }
+        return std::string{};
+    }
+
+    bool Terminal::handleRawKeyEvent(mxApp &app, SDL_Event &e) {
+        (void)app;
+        if (e.type == SDL_TEXTINPUT) {
+            // Send plain typed text directly to the PTY.
+            writeToPty(e.text.text);
+            return true;
+        }
+        if (e.type == SDL_KEYDOWN) {
+            const Uint16 mod = e.key.keysym.mod;
+            const SDL_Keycode sym = e.key.keysym.sym;
+            // Let SDL_TEXTINPUT deliver printable characters for non-Ctrl/Alt
+            // keypresses so we don't double-send them here.
+            const bool printableKey =
+                (sym >= SDLK_SPACE && sym <= SDLK_z) || sym == SDLK_RETURN ||
+                sym == SDLK_TAB || sym == SDLK_BACKSPACE || sym == SDLK_ESCAPE;
+            const bool needsTranslation =
+                (mod & (KMOD_CTRL | KMOD_ALT)) != 0 ||
+                sym == SDLK_UP || sym == SDLK_DOWN || sym == SDLK_LEFT || sym == SDLK_RIGHT ||
+                sym == SDLK_HOME || sym == SDLK_END || sym == SDLK_PAGEUP || sym == SDLK_PAGEDOWN ||
+                sym == SDLK_INSERT || sym == SDLK_DELETE ||
+                sym == SDLK_RETURN || sym == SDLK_KP_ENTER ||
+                sym == SDLK_TAB || sym == SDLK_BACKSPACE || sym == SDLK_ESCAPE ||
+                (sym >= SDLK_F1 && sym <= SDLK_F12);
+            if (printableKey && !needsTranslation)
+                return false;  // wait for SDL_TEXTINPUT
+            std::string seq = keyToPtyBytes(sym, mod);
+            if (!seq.empty()) {
+                writeToPty(seq);
+                return true;
+            }
+        }
+        return false;
     }
 
     Terminal::Terminal(mxApp  &app) : Window(app) {
@@ -127,11 +321,20 @@ namespace mx {
         dup2(slave_fd, STDOUT_FILENO);
         dup2(slave_fd, STDERR_FILENO);
         close(slave_fd);  
+        // Identify ourselves as a real ANSI/xterm-compatible terminal so
+        // full-screen programs (vim, nano, less, top, ...) emit proper
+        // escape sequences instead of falling back to a dumb terminal.
+        setenv("TERM", "xterm-256color", 1);
+        setenv("COLORTERM", "truecolor", 1);
+        unsetenv("LINES");
+        unsetenv("COLUMNS");
         execlp("bash", "bash", NULL);
         perror("Failed to exec bash");
         exit(1);
     } else {
         close(slave_fd);  
+        // Push initial PTY window size so child knows our cell grid.
+        updatePtySize();
         std::string ps1 = R"(\[\e]0;BEGIN_PROMPT\u@\h:\WEND_PROMPT\a\]\u@\h:\W$ )";
         sendCommand("export PS1=\"" + ps1 + "\"\n");
     }
@@ -275,12 +478,29 @@ namespace mx {
         return fallback;
     }
 
+    static SDL_Color ansiBasicBgColor(int code) {
+        static const SDL_Color normal[8] = {
+            {0, 0, 0, 255},       {205, 49, 49, 255},  {13, 188, 121, 255},
+            {229, 229, 16, 255},  {36, 114, 200, 255}, {188, 63, 188, 255},
+            {17, 168, 205, 255},  {229, 229, 229, 255}};
+        static const SDL_Color bright[8] = {
+            {102, 102, 102, 255}, {241, 76, 76, 255},  {35, 209, 139, 255},
+            {245, 245, 67, 255},  {59, 142, 234, 255}, {214, 112, 214, 255},
+            {41, 184, 219, 255},  {255, 255, 255, 255}};
+        if (code >= 40 && code <= 47)
+            return normal[code - 40];
+        if (code >= 100 && code <= 107)
+            return bright[code - 100];
+        return {0, 0, 0, 0};
+    }
+
     void Terminal::initAnsiState() {
         ansiLines = outputLines;
         ansiLineColors.clear();
         ansiLineColors.reserve(ansiLines.size());
+        CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
         for (const auto &line : ansiLines) {
-            ansiLineColors.emplace_back(line.size(), text_color);
+            ansiLineColors.emplace_back(line.size(), defStyle);
         }
         if (ansiLines.empty()) {
             ansiLines.emplace_back("");
@@ -291,6 +511,9 @@ namespace mx {
         ansiSavedRow = ansiCursorRow;
         ansiSavedCol = ansiCursorCol;
         ansiCurrentColor = text_color;
+        ansiCurrentBg = {0, 0, 0, 0};
+        ansiBold = false;
+        ansiUnderline = false;
         ansiInitialized = true;
     }
 
@@ -330,11 +553,13 @@ namespace mx {
             if (col > static_cast<int>(ansiLines[row].size())) {
                 int pad = col - static_cast<int>(ansiLines[row].size());
                 ansiLines[row].append(static_cast<size_t>(pad), ' ');
+                CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
                 auto &colors = ansiLineColors[row];
-                colors.insert(colors.end(), static_cast<size_t>(pad), text_color);
+                colors.insert(colors.end(), static_cast<size_t>(pad), padStyle);
             }
             if (static_cast<int>(ansiLineColors[row].size()) < static_cast<int>(ansiLines[row].size())) {
-                ansiLineColors[row].resize(ansiLines[row].size(), text_color);
+                CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
+                ansiLineColors[row].resize(ansiLines[row].size(), padStyle);
             }
         };
 
@@ -349,16 +574,76 @@ namespace mx {
             }
         };
 
+        auto regionBounds = [&](int &top, int &bot) {
+            top = scrollTop;
+            int maxRow = static_cast<int>(ansiLines.size()) - 1;
+            if (scrollBot < 0)
+                bot = maxRow;
+            else
+                bot = std::min(scrollBot, maxRow);
+            if (top < 0) top = 0;
+            if (bot < top) bot = top;
+        };
+
+        auto scrollRegionUp = [&](int n) {
+            int top, bot; regionBounds(top, bot);
+            if (n <= 0) return;
+            int span = bot - top + 1;
+            if (n > span) n = span;
+            for (int k = 0; k < n; ++k) {
+                if (top < static_cast<int>(ansiLines.size())) {
+                    ansiLines.erase(ansiLines.begin() + top);
+                    ansiLineColors.erase(ansiLineColors.begin() + top);
+                }
+                if (bot < static_cast<int>(ansiLines.size())) {
+                    ansiLines.insert(ansiLines.begin() + bot, std::string{});
+                    ansiLineColors.insert(ansiLineColors.begin() + bot,
+                                          std::vector<CharStyle>{});
+                } else {
+                    ansiLines.emplace_back();
+                    ansiLineColors.emplace_back();
+                }
+            }
+        };
+
+        auto scrollRegionDown = [&](int n) {
+            int top, bot; regionBounds(top, bot);
+            if (n <= 0) return;
+            int span = bot - top + 1;
+            if (n > span) n = span;
+            for (int k = 0; k < n; ++k) {
+                if (bot < static_cast<int>(ansiLines.size())) {
+                    ansiLines.erase(ansiLines.begin() + bot);
+                    ansiLineColors.erase(ansiLineColors.begin() + bot);
+                }
+                ansiLines.insert(ansiLines.begin() + top, std::string{});
+                ansiLineColors.insert(ansiLineColors.begin() + top,
+                                      std::vector<CharStyle>{});
+            }
+        };
+
+        auto doNewline = [&]() {
+            int top, bot; regionBounds(top, bot);
+            if (ansiCursorRow >= bot && (altScreen || scrollBot >= 0)) {
+                scrollRegionUp(1);
+                ansiCursorRow = bot;
+            } else {
+                ansiCursorRow++;
+                ensureRow(ansiCursorRow);
+            }
+        };
+
         auto putChar = [&](char ch) {
             ensureCol(ansiCursorRow, ansiCursorCol);
             auto &line = ansiLines[ansiCursorRow];
             auto &colors = ansiLineColors[ansiCursorRow];
+            CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
             if (ansiCursorCol < static_cast<int>(line.size())) {
                 line[ansiCursorCol] = ch;
-                colors[ansiCursorCol] = ansiCurrentColor;
+                colors[ansiCursorCol] = cs;
             } else {
                 line.push_back(ch);
-                colors.push_back(ansiCurrentColor);
+                colors.push_back(cs);
             }
             ansiCursorCol++;
         };
@@ -411,6 +696,61 @@ namespace mx {
                     continue;
                 }
 
+                if (i + 1 < data.size() && data[i + 1] != '[') {
+                    // Non-CSI ESC sequences: ESC X (single char).
+                    char esc2 = data[i + 1];
+                    bool consumed = true;
+                    switch (esc2) {
+                        case 'D': // IND - line feed
+                            doNewline();
+                            break;
+                        case 'M': // RI - reverse line feed
+                            if (ansiCursorRow <= scrollTop)
+                                scrollRegionDown(1);
+                            else {
+                                ansiCursorRow--;
+                                if (ansiCursorRow < 0) ansiCursorRow = 0;
+                            }
+                            break;
+                        case 'E': // NEL - next line
+                            ansiCursorCol = 0;
+                            doNewline();
+                            break;
+                        case '7': // DECSC - save cursor + attrs
+                            ansiSavedRow = ansiCursorRow;
+                            ansiSavedCol = ansiCursorCol;
+                            savedAltFg = ansiCurrentColor;
+                            savedAltBg = ansiCurrentBg;
+                            savedAltBold = ansiBold;
+                            savedAltUnderline = ansiUnderline;
+                            break;
+                        case '8': // DECRC - restore cursor + attrs
+                            ansiCursorRow = ansiSavedRow;
+                            ansiCursorCol = ansiSavedCol;
+                            ansiCurrentColor = savedAltFg;
+                            ansiCurrentBg    = savedAltBg;
+                            ansiBold         = savedAltBold;
+                            ansiUnderline    = savedAltUnderline;
+                            ensureRow(ansiCursorRow);
+                            break;
+                        case '=': keypadApp = true; break;
+                        case '>': keypadApp = false; break;
+                        case 'H': /* HTS - tab set, ignore */ break;
+                        case 'c': /* RIS - full reset, ignore */ break;
+                        case '(': case ')': case '*': case '+':
+                            // Charset designation: G0/G1/G2/G3 - consume next byte.
+                            if (i + 2 < data.size()) i++;
+                            break;
+                        default:
+                            consumed = false;
+                            break;
+                    }
+                    if (consumed) {
+                        i += 2;
+                        continue;
+                    }
+                }
+
                 if (i + 1 < data.size() && data[i + 1] == '[') {
                     size_t j = i + 2;
                     while (j < data.size()) {
@@ -431,19 +771,51 @@ namespace mx {
                     auto nums = parseParams(params);
                     auto n0 = [&]() { return nums.empty() || nums[0] <= 0 ? 1 : nums[0]; };
 
-                    if (privateMode && cmd == 'h' && !nums.empty() && nums[0] == 25) {
+                    if (privateMode && (cmd == 'h' || cmd == 'l')) {
+                        bool set = (cmd == 'h');
+                        for (int code : nums) {
+                            switch (code) {
+                                case 25:
 #ifdef __linux__
-                        cursorVisible = true;
+                                    cursorVisible = set;
 #endif
-                    } else if (privateMode && cmd == 'l' && !nums.empty() && nums[0] == 25) {
-#ifdef __linux__
-                        cursorVisible = false;
-#endif
+                                    break;
+                                case 1:    decckm = set;     break;
+                                case 47:
+                                case 1047:
+                                case 1049:
+                                    if (set) enterAltScreen();
+                                    else     leaveAltScreen();
+                                    break;
+                                case 1048: // save/restore cursor
+                                    if (set) {
+                                        ansiSavedRow = ansiCursorRow;
+                                        ansiSavedCol = ansiCursorCol;
+                                    } else {
+                                        ansiCursorRow = ansiSavedRow;
+                                        ansiCursorCol = ansiSavedCol;
+                                    }
+                                    break;
+                                default: break;
+                            }
+                        }
                     } else if (cmd == 'm') {
                         for (size_t k = 0; k < nums.size(); ++k) {
                             int code = nums[k];
                             if (code == 0) {
                                 ansiCurrentColor = text_color;
+                                ansiCurrentBg = {0, 0, 0, 0};
+                                ansiBold = false;
+                                ansiUnderline = false;
+                                continue;
+                            }
+                            if (code == 1) { ansiBold = true; continue; }
+                            if (code == 22) { ansiBold = false; continue; }
+                            if (code == 4) { ansiUnderline = true; continue; }
+                            if (code == 24) { ansiUnderline = false; continue; }
+                            if (code == 49) { ansiCurrentBg = {0, 0, 0, 0}; continue; }
+                            if ((code >= 40 && code <= 47) || (code >= 100 && code <= 107)) {
+                                ansiCurrentBg = ansiBasicBgColor(code);
                                 continue;
                             }
                             if (code == 38 && k + 1 < nums.size()) {
@@ -476,6 +848,36 @@ namespace mx {
                                     continue;
                                 }
                             }
+                            if (code == 48 && k + 1 < nums.size()) {
+                                if (nums[k + 1] == 5 && k + 2 < nums.size()) {
+                                    int idx = nums[k + 2];
+                                    if (idx >= 16 && idx <= 231) {
+                                        idx -= 16;
+                                        int r = (idx / 36) % 6;
+                                        int g = (idx / 6) % 6;
+                                        int b = idx % 6;
+                                        ansiCurrentBg = SDL_Color{
+                                            static_cast<Uint8>(r == 0 ? 0 : r * 40 + 55),
+                                            static_cast<Uint8>(g == 0 ? 0 : g * 40 + 55),
+                                            static_cast<Uint8>(b == 0 ? 0 : b * 40 + 55),
+                                            255};
+                                    } else if (idx >= 232 && idx <= 255) {
+                                        Uint8 gray = static_cast<Uint8>((idx - 232) * 10 + 8);
+                                        ansiCurrentBg = SDL_Color{gray, gray, gray, 255};
+                                    }
+                                    k += 2;
+                                    continue;
+                                }
+                                if (nums[k + 1] == 2 && k + 4 < nums.size()) {
+                                    ansiCurrentBg = SDL_Color{
+                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 2]))),
+                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 3]))),
+                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 4]))),
+                                        255};
+                                    k += 4;
+                                    continue;
+                                }
+                            }
                             ansiCurrentColor = ansiBasicColor(code, ansiCurrentColor);
                         }
                     } else if (cmd == 'A') {
@@ -499,6 +901,7 @@ namespace mx {
                         int mode = nums.empty() ? 0 : nums[0];
                         ensureRow(ansiCursorRow);
                         ensureCol(ansiCursorRow, ansiCursorCol);
+                        CharStyle padStyle{text_color, {0,0,0,0}, false, false};
                         if (mode == 0) {
                             clearToLineEnd();
                         } else if (mode == 1) {
@@ -507,7 +910,7 @@ namespace mx {
                             int end = std::min(ansiCursorCol, static_cast<int>(line.size()));
                             for (int c = 0; c < end; ++c) {
                                 line[c] = ' ';
-                                colors[c] = text_color;
+                                colors[c] = padStyle;
                             }
                         } else if (mode == 2) {
                             ansiLines[ansiCursorRow].clear();
@@ -519,7 +922,7 @@ namespace mx {
                         ensureRow(ansiCursorRow);
                         if (mode == 2) {
                             ansiLines.assign(1, std::string{});
-                            ansiLineColors.assign(1, std::vector<SDL_Color>{});
+                            ansiLineColors.assign(1, std::vector<CharStyle>{});
                             ansiCursorRow = 0;
                             ansiCursorCol = 0;
                         } else if (mode == 0) {
@@ -535,10 +938,11 @@ namespace mx {
                             }
                             auto &line = ansiLines[ansiCursorRow];
                             auto &colors = ansiLineColors[ansiCursorRow];
+                            CharStyle padStyle{text_color, {0,0,0,0}, false, false};
                             int end = std::min(ansiCursorCol, static_cast<int>(line.size()));
                             for (int c = 0; c < end; ++c) {
                                 line[c] = ' ';
-                                colors[c] = text_color;
+                                colors[c] = padStyle;
                             }
                         }
                     } else if (cmd == 's') {
@@ -547,6 +951,71 @@ namespace mx {
                     } else if (cmd == 'u') {
                         ansiCursorRow = std::max(0, ansiSavedRow);
                         ansiCursorCol = std::max(0, ansiSavedCol);
+                        ensureRow(ansiCursorRow);
+                    } else if (cmd == 'r') {
+                        // DECSTBM: set scrolling region (1-based, inclusive).
+                        int top = (nums.size() > 0 && nums[0] > 0) ? nums[0] - 1 : 0;
+                        int bot = (nums.size() > 1 && nums[1] > 0) ? nums[1] - 1 : -1;
+                        scrollTop = std::max(0, top);
+                        scrollBot = bot;
+                        ansiCursorRow = scrollTop;
+                        ansiCursorCol = 0;
+                    } else if (cmd == 'L') {
+                        // IL: insert N lines at cursor (within scroll region).
+                        int n = n0();
+                        int savedTop = scrollTop;
+                        scrollTop = ansiCursorRow;
+                        scrollRegionDown(n);
+                        scrollTop = savedTop;
+                    } else if (cmd == 'M') {
+                        // DL: delete N lines at cursor.
+                        int n = n0();
+                        int savedTop = scrollTop;
+                        scrollTop = ansiCursorRow;
+                        scrollRegionUp(n);
+                        scrollTop = savedTop;
+                    } else if (cmd == 'P') {
+                        // DCH: delete N characters at cursor.
+                        int n = n0();
+                        ensureRow(ansiCursorRow);
+                        auto &line   = ansiLines[ansiCursorRow];
+                        auto &colors = ansiLineColors[ansiCursorRow];
+                        if (ansiCursorCol < static_cast<int>(line.size())) {
+                            int end = std::min(ansiCursorCol + n, (int)line.size());
+                            line.erase(line.begin() + ansiCursorCol, line.begin() + end);
+                            colors.erase(colors.begin() + ansiCursorCol, colors.begin() + end);
+                        }
+                    } else if (cmd == '@') {
+                        // ICH: insert N blank characters at cursor.
+                        int n = n0();
+                        ensureRow(ansiCursorRow);
+                        ensureCol(ansiCursorRow, ansiCursorCol);
+                        auto &line   = ansiLines[ansiCursorRow];
+                        auto &colors = ansiLineColors[ansiCursorRow];
+                        CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
+                        line.insert(line.begin() + ansiCursorCol, n, ' ');
+                        colors.insert(colors.begin() + ansiCursorCol, n, cs);
+                    } else if (cmd == 'X') {
+                        // ECH: erase N characters in place using current bg.
+                        int n = n0();
+                        ensureRow(ansiCursorRow);
+                        ensureCol(ansiCursorRow, ansiCursorCol + n);
+                        auto &line   = ansiLines[ansiCursorRow];
+                        auto &colors = ansiLineColors[ansiCursorRow];
+                        CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
+                        for (int k = 0; k < n &&
+                             (ansiCursorCol + k) < (int)line.size(); ++k) {
+                            line[ansiCursorCol + k]   = ' ';
+                            colors[ansiCursorCol + k] = cs;
+                        }
+                    } else if (cmd == 'S') {
+                        scrollRegionUp(n0());
+                    } else if (cmd == 'T') {
+                        scrollRegionDown(n0());
+                    } else if (cmd == 'd') {
+                        // VPA: vertical position absolute (1-based).
+                        int row = (nums.size() > 0 && nums[0] > 0) ? nums[0] - 1 : 0;
+                        ansiCursorRow = std::max(0, row);
                         ensureRow(ansiCursorRow);
                     }
 
@@ -558,9 +1027,9 @@ namespace mx {
             if (ch == '\r') {
                 ansiCursorCol = 0;
             } else if (ch == '\n') {
-                ansiCursorRow++;
-                ansiCursorCol = 0;
-                ensureRow(ansiCursorRow);
+                doNewline();
+                if (!altScreen)
+                    ansiCursorCol = 0;
             } else if (ch == '\b') {
                 ansiCursorCol = std::max(0, ansiCursorCol - 1);
             } else if (ch == '\t') {
@@ -675,7 +1144,7 @@ namespace mx {
     #endif
  
     #if defined(__linux__) || defined(__APPLE__)
-        if (!outputLines.empty()) {
+        if (!altScreen && !outputLines.empty()) {
             prompt = outputLines.back();
         }
     #elif defined(_WIN32)
@@ -683,6 +1152,9 @@ namespace mx {
     #endif
         SDL_Rect rc;
         Window::getRect(rc);
+        // Make sure the PTY always reflects the current window size; the
+        // initial constructor call ran before the window was sized.
+        updatePtySize();
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
         SDL_RenderCopy(app.ren, dim->getMatrix() ? dim->matrix_tex : wallpaper, nullptr, nullptr);
@@ -701,6 +1173,36 @@ namespace mx {
         int requiredInputLines = calculateWrappedLinesForText(inputText, maxWidth - promptWidth, promptWidth);
         if (requiredInputLines < 1) {
             requiredInputLines = 1;
+        }
+
+        // In alt-screen (vim/nano/...) we draw the program-owned grid only,
+        // with no input echo line, no scrollback offset, and a cursor that
+        // follows the program's reported (row,col) position.
+        if (altScreen) {
+            int startRow = 0;
+            int rows = static_cast<int>(outputLines.size());
+            for (int i = startRow; i < rows; ++i) {
+                if (y + lineHeight > rc.y + rc.h) break;
+                renderOutputLine(app, i, rc.x + 5, y);
+                y += lineHeight;
+            }
+            // Cursor: place at ansiCursorRow/Col using a fixed cell width.
+            int cellW = 0;
+            TTF_SizeText(font, "M", &cellW, nullptr);
+            if (cellW <= 0) cellW = 8;
+            int cur_y = rc.y + 5 + ansiCursorRow * lineHeight;
+            int cur_x = rc.x + 5 + ansiCursorCol * cellW;
+            Uint32 t = SDL_GetTicks();
+            if (t - cursorTimer >= cursorBlinkInterval) {
+                showCursor = !showCursor;
+                cursorTimer = t;
+            }
+            drawCursor(app, cur_x, cur_y, showCursor);
+            int totalLinesAlt = static_cast<int>(outputLines.size());
+            if (totalLinesAlt <= maxVisibleLines) {
+                scrollBarHeight = 0;
+            }
+            return;
         }
 
         for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
@@ -819,30 +1321,51 @@ namespace mx {
             return;
         }
 
-        const auto &colors = outputLineColors[lineIndex];
+        const auto &styles = outputLineColors[lineIndex];
+        const int lineH = TTF_FontHeight(font);
         int drawX = x;
         size_t i = 0;
         while (i < line.size()) {
-            SDL_Color runColor = colors[i];
+            const CharStyle &run = styles[i];
             size_t j = i + 1;
-            while (j < line.size() && colors[j].r == runColor.r && colors[j].g == runColor.g &&
-                   colors[j].b == runColor.b && colors[j].a == runColor.a) {
+            while (j < line.size() &&
+                   styles[j].fg.r == run.fg.r && styles[j].fg.g == run.fg.g &&
+                   styles[j].fg.b == run.fg.b && styles[j].fg.a == run.fg.a &&
+                   styles[j].bg.r == run.bg.r && styles[j].bg.g == run.bg.g &&
+                   styles[j].bg.b == run.bg.b && styles[j].bg.a == run.bg.a &&
+                   styles[j].bold == run.bold && styles[j].underline == run.underline) {
                 ++j;
             }
 
-            std::string run = line.substr(i, j - i);
-            if (!run.empty()) {
-                SDL_Surface *surface = TTF_RenderText_Blended(font, run.c_str(), runColor);
+            std::string text = line.substr(i, j - i);
+            if (!text.empty()) {
+                int ttfStyle = TTF_STYLE_NORMAL;
+                if (run.bold)      ttfStyle |= TTF_STYLE_BOLD;
+                if (run.underline) ttfStyle |= TTF_STYLE_UNDERLINE;
+                TTF_SetFontStyle(font, ttfStyle);
+
+                int textW = 0;
+                TTF_SizeText(font, text.c_str(), &textW, nullptr);
+
+                if (run.bg.a != 0) {
+                    SDL_Rect bgRect = {drawX, y, textW, lineH};
+                    SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+                    SDL_SetRenderDrawColor(app.ren, run.bg.r, run.bg.g, run.bg.b, run.bg.a);
+                    SDL_RenderFillRect(app.ren, &bgRect);
+                }
+
+                SDL_Surface *surface = TTF_RenderText_Blended(font, text.c_str(), run.fg);
                 if (surface) {
                     SDL_Texture *texture = SDL_CreateTextureFromSurface(app.ren, surface);
                     if (texture) {
                         SDL_Rect dstRect = {drawX, y, surface->w, surface->h};
                         SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
-                        drawX += surface->w;
                         SDL_DestroyTexture(texture);
                     }
                     SDL_FreeSurface(surface);
                 }
+                drawX += textW;
+                TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
             }
             i = j;
         }
@@ -1122,6 +1645,15 @@ namespace mx {
                 scroll();
             }
             return true;
+        }
+
+        // Full-screen TUI program (vim, nano, less, top, ...): pipe keys
+        // straight to the PTY. Mouse / window-chrome events still fall
+        // through so the window can be moved, resized, and closed.
+        if (altScreen &&
+            (e.type == SDL_KEYDOWN || e.type == SDL_TEXTINPUT)) {
+            if (handleRawKeyEvent(app, e))
+                return true;
         }
 
         if (e.type == SDL_TEXTINPUT) {
@@ -1601,6 +2133,7 @@ namespace mx {
         while(std::getline(stream, line)) {
             if (line.length() > 0) {
                 std::string currentLine;
+                CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
                 for (size_t i = 0; i < line.length(); ++i) {
                     currentLine += line[i];
                     TTF_SizeText(font, currentLine.c_str(), &w, &h);
@@ -1611,14 +2144,14 @@ namespace mx {
                             if(!part.empty()) {
                                 std::string cleanPart = trimR(part);
                                 outputLines.push_back(cleanPart);
-                                outputLineColors.emplace_back(cleanPart.size(), text_color);
+                                outputLineColors.emplace_back(cleanPart.size(), defStyle);
                             }
                             currentLine = currentLine.substr(lastSpace + 1);
                         } else {
                             if(!currentLine.empty()) {
                                 std::string cleanPart = trimR(currentLine);
                                 outputLines.push_back(cleanPart);
-                                outputLineColors.emplace_back(cleanPart.size(), text_color);
+                                outputLineColors.emplace_back(cleanPart.size(), defStyle);
                             }
                             currentLine.clear();
                         }
@@ -1627,7 +2160,7 @@ namespace mx {
                 if (!currentLine.empty()) {
                     std::string cleanPart = trimR(currentLine);
                     outputLines.push_back(cleanPart);
-                    outputLineColors.emplace_back(cleanPart.size(), text_color);
+                    outputLineColors.emplace_back(cleanPart.size(), defStyle);
                 }
                 scroll();
             }
@@ -1644,6 +2177,9 @@ namespace mx {
         ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
         ansiCursorCol = static_cast<int>(ansiLines.back().size());
         ansiCurrentColor = text_color;
+        ansiCurrentBg = {0, 0, 0, 0};
+        ansiBold = false;
+        ansiUnderline = false;
         ansiInitialized = true;
         scroll();
     }
