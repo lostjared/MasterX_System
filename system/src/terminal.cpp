@@ -2349,7 +2349,9 @@ namespace mx {
 
     void Terminal::stateChanged(bool min, bool max, bool closed) {
         isMaximized = max;
-        print("");
+        // Recompute wrap/scroll without rebuilding colors from plain text
+        // (print("") would discard ANSI color info captured during parsing).
+        scroll();
         Window::dragging = false;
     }
 
