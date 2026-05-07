@@ -2372,6 +2372,9 @@ namespace mx {
             }
             Sleep(10);
         }
+        SDL_Event quit_event;
+        quit_event.type = SDL_QUIT;
+        SDL_PushEvent(&quit_event);
         return 0;
     }
 #elif !defined(FOR_WASM)
@@ -2396,6 +2399,9 @@ namespace mx {
                     break;
                 }
             }
+            SDL_Event quit_event;
+            quit_event.type = SDL_QUIT;
+            SDL_PushEvent(&quit_event);
             return 0;
     }
                 
