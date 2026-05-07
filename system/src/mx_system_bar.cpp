@@ -364,8 +364,8 @@ namespace mx {
         lastTime = currentTime;
     }
 
-        SDL_Color gradBarStart = {240, 240, 240, 255}; 
-        SDL_Color gradBarEnd = {200, 200, 200, 255};   
+        SDL_Color gradBarStart = {210, 210, 210, 255};
+        SDL_Color gradBarEnd = {140, 140, 140, 255};   
         SDL_Rect barRect = {0, animationComplete == true ? app.height- barHeight : yPos, windowWidth, barHeight};
         for (int y = 0; y < barHeight; ++y) {
             float factor = static_cast<float>(y) / barHeight;
