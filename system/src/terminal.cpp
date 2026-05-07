@@ -330,6 +330,19 @@ namespace mx {
         if (isDraw() == false)
             return;
 
+        // If the editor is active, render it inside the window content
+        // area (below the title bar) and skip the regular terminal UI.
+        if (editor && editor->isActive()) {
+            SDL_Rect rc;
+            Window::getRect(rc);
+            rc.y += 28;
+            rc.h -= 28;
+            if (rc.h < 0) rc.h = 0;
+            Window::drawMenubar(app);
+            editor->draw(app, rc);
+            return;
+        }
+
  
     #ifndef FOR_WASM
         if (newData == true) {
@@ -744,6 +757,24 @@ namespace mx {
         if (!Window::isVisible())
            return false;
 
+        // If the built-in text editor is active, route events to it.
+        if (editor && editor->isActive()) {
+            // Allow the window chrome (drag, close, resize) to still work.
+            if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP ||
+                e.type == SDL_MOUSEMOTION) {
+                if (Window::event(app, e))
+                    return true;
+            }
+            editor->event(app, e);
+            if (!editor->isActive()) {
+                print("\n[ editor closed ]\n");
+                editor.reset();
+                print(prompt);
+                scroll();
+            }
+            return true;
+        }
+
         if (e.type == SDL_TEXTINPUT) {
             inputText.insert(cursorPosition, e.text.text);
             cursorPosition += strlen(e.text.text);
@@ -1076,6 +1107,14 @@ namespace mx {
         if(words.size()==0)
             return;
         
+        if (words[0] == "edit") {
+            std::string fname;
+            if (words.size() >= 2)
+                fname = words[1];
+            print(command + "\n");
+            launchEditor(fname);
+            return;
+        }
         if(command == "matrix") {
             dim->setMatrix(app, dim->matrix_tex, !dim->getMatrix());
             print(command + "\nNeo..\n");
@@ -1425,5 +1464,12 @@ namespace mx {
     }
                 
 #endif    
+
+    void Terminal::launchEditor(const std::string &filename) {
+        editor = std::make_unique<TextEditor>(font, text_color);
+        if (!filename.empty()) {
+            editor->open(filename);
+        }
+    }
 }
  

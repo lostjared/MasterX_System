@@ -3,6 +3,8 @@
 
 #include"window.hpp"
 #include"mx_window.hpp"
+#include"mx_editor.hpp"
+#include<memory>
 #ifdef _WIN32
 #include <windows.h>
 #elif !defined(FOR_WASM)
@@ -99,6 +101,11 @@ namespace mx {
                 
                 std::atomic<bool> waitingForInput{false};
                 std::string inputResult;
+
+                // Built-in nano-style text editor. When non-null the
+                // terminal routes events / drawing to it.
+                std::unique_ptr<TextEditor> editor;
+                void launchEditor(const std::string &filename);
 #ifndef FOR_WASM
                 std::mutex inputMutex;
                 std::condition_variable inputCondition;
