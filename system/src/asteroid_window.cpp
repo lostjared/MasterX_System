@@ -220,56 +220,52 @@ namespace mx {
         ship.speed *= 0.99;
     }
 
-    template<typename T>
-    T minx(const T &a, const T &b) {
-        return (a < b) ? a : b;
-    }
+    void AsteroidsWindow::drawShip(SDL_Renderer *renderer, int ship_x, int ship_y, float ship_angle) {
+        // Pseudo-3D wireframe fighter — all SDL_RenderDrawLine, no pixel loops.
+        float ang = ship_angle * M_PI / 180.f;
+        float cosA = std::cos(ang), sinA = std::sin(ang);
 
-    template<typename T>
-    T maxx(const T &a, const T&b) {
-        return (a > b) ? a : b;
-    }
+        // Rotate a ship-local (lx, ly) point to screen space
+        auto proj = [&](float lx, float ly) -> SDL_Point {
+            return { ship_x + static_cast<int>(lx * cosA - ly * sinA),
+                     ship_y + static_cast<int>(lx * sinA + ly * cosA) };
+        };
 
-    void AsteroidsWindow::drawShip(SDL_Renderer *renderer, int ship_x,int ship_y, float ship_angle) {
-        SDL_Color color_inner = {200, 200, 200, 255};  
-        SDL_Color color_outer = {100, 100, 100, 255};  
+        SDL_Point nose  = proj( 16.f,   0.f);   // nose tip
+        SDL_Point lWing = proj( -9.f, -12.f);   // left wing tip
+        SDL_Point rWing = proj( -9.f,  12.f);   // right wing tip
+        SDL_Point lTail = proj(-14.f,  -5.f);   // left tail corner
+        SDL_Point rTail = proj(-14.f,   5.f);   // right tail corner
+        SDL_Point cMid  = proj( -9.f,   0.f);   // rear center (engine)
+        SDL_Point cFwd  = proj(  0.f,   0.f);   // center fuselage mid
 
-        SDL_Point points[3];
-        points[0] = { static_cast<int>(ship_x + 15 * std::cos(ship_angle * M_PI / 180.0)),
-                    static_cast<int>(ship_y + 15 * std::sin(ship_angle * M_PI / 180.0)) };
-        points[1] = { static_cast<int>(ship_x + 15 * std::cos((ship_angle + 140) * M_PI / 180.0)),
-                    static_cast<int>(ship_y + 15 * std::sin((ship_angle + 140) * M_PI / 180.0)) };
-        points[2] = { static_cast<int>(ship_x + 15 * std::cos((ship_angle + 220) * M_PI / 180.0)),
-                    static_cast<int>(ship_y + 15 * std::sin((ship_angle + 220) * M_PI / 180.0)) };
+        // Leading edges nose→wings — bright cyan
+        SDL_SetRenderDrawColor(renderer, 0, 240, 200, 255);
+        SDL_RenderDrawLine(renderer, nose.x, nose.y, lWing.x, lWing.y);
+        SDL_RenderDrawLine(renderer, nose.x, nose.y, rWing.x, rWing.y);
 
-        int minY = minx(points[0].y, minx(points[1].y, points[2].y));
-        int maxY = maxx(points[0].y, maxx(points[1].y, points[2].y));
+        // Wing trailing edges wings→tail — medium blue
+        SDL_SetRenderDrawColor(renderer, 0, 160, 230, 255);
+        SDL_RenderDrawLine(renderer, lWing.x, lWing.y, lTail.x, lTail.y);
+        SDL_RenderDrawLine(renderer, rWing.x, rWing.y, rTail.x, rTail.y);
 
-        for (int y = minY; y <= maxY; y++) {
-            int startX = 640, endX = 0;
-            for (int i = 0; i < 3; i++) {
-                int next = (i + 1) % 3;
-                if ((points[i].y <= y && points[next].y > y) || (points[next].y <= y && points[i].y > y)) {
-                    float t = (float)(y - points[i].y) / (points[next].y - points[i].y);
-                    int x = points[i].x + t * (points[next].x - points[i].x);
-                    if (x < startX) {
-                        startX = x;
-                    }
-                    if (x > endX) {
-                        endX = x;
-                    }
-                }
-            }
+        // Tail cross piece — dim blue
+        SDL_SetRenderDrawColor(renderer, 0, 100, 180, 255);
+        SDL_RenderDrawLine(renderer, lTail.x, lTail.y, rTail.x, rTail.y);
 
-            for (int x = startX; x <= endX; x++) {
-                float t = (float)(x - startX) / (endX - startX);
-                Uint8 r = color_outer.r * (1 - t) + color_inner.r * t;
-                Uint8 g = color_outer.g * (1 - t) + color_inner.g * t;
-                Uint8 b = color_outer.b * (1 - t) + color_inner.b * t;
-                SDL_SetRenderDrawColor(renderer, r, g, b, 255);
-                SDL_RenderDrawPoint(renderer, x, y);
-            }
-        }
+        // Center spine nose→rear — near-white
+        SDL_SetRenderDrawColor(renderer, 200, 240, 255, 255);
+        SDL_RenderDrawLine(renderer, nose.x, nose.y, cMid.x, cMid.y);
+
+        // Fuselage cross-ribs — dim interior detail
+        SDL_SetRenderDrawColor(renderer, 0, 120, 180, 255);
+        SDL_RenderDrawLine(renderer, lWing.x, lWing.y, cFwd.x, cFwd.y);
+        SDL_RenderDrawLine(renderer, rWing.x, rWing.y, cFwd.x, cFwd.y);
+
+        // Engine glow — orange rect at rear center
+        SDL_SetRenderDrawColor(renderer, 255, 130, 0, 255);
+        SDL_Rect eng = { cMid.x - 2, cMid.y - 2, 5, 5 };
+        SDL_RenderFillRect(renderer, &eng);
     }
 
     void AsteroidsWindow::drawAsteroids(SDL_Renderer *renderer) {
@@ -283,21 +279,45 @@ namespace mx {
     }
 
     void AsteroidsWindow::draw_circle(SDL_Renderer *renderer, int center_x, int center_y, int radius) {
-        for (int y = -radius; y <= radius; y++) {
-            for (int x = -radius; x <= radius; x++) {
-                int dist_sq = x * x + y * y;  
-                if (dist_sq <= radius * radius) {
-                    float dist = std::sqrt(dist_sq);  
-                    float shade = 255 * (1 - (dist / radius));  
-                    
-                    
-                    if (shade < 0) shade = 0;
-                    if (shade > 255) shade = 255;
+        // Pseudo-3D wireframe sphere: draw latitude ellipses + a longitude meridian
+        // using SDL_RenderDrawLine — O(segs) calls instead of O(r²) point calls.
+        const int segs = 32;
+        float r = static_cast<float>(radius);
+        int cx = center_x, cy = center_y;
 
-                    SDL_SetRenderDrawColor(renderer, (Uint8)shade, (Uint8)shade, (Uint8)shade, 255);
-                    SDL_RenderDrawPoint(renderer, center_x + x, center_y + y);
-                }
+        auto drawEllipse = [&](float offY, float rx, float ry, Uint8 cr, Uint8 cg, Uint8 cb) {
+            SDL_SetRenderDrawColor(renderer, cr, cg, cb, 255);
+            float x0 = cx + rx, y0 = cy + offY;
+            for (int i = 1; i <= segs; ++i) {
+                float a = 2.f * M_PI * i / segs;
+                float x1 = cx + rx * std::cos(a);
+                float y1 = cy + offY + ry * std::sin(a);
+                SDL_RenderDrawLine(renderer,
+                    static_cast<int>(x0), static_cast<int>(y0),
+                    static_cast<int>(x1), static_cast<int>(y1));
+                x0 = x1; y0 = y1;
             }
+        };
+
+        // Equator — full circle, bright cyan
+        drawEllipse(0.f, r, r, 80, 210, 255);
+        // 30° north / south latitude — compressed flat ellipses
+        drawEllipse(-r * 0.50f, r * 0.866f, r * 0.13f, 50, 160, 220);
+        drawEllipse( r * 0.50f, r * 0.866f, r * 0.13f, 50, 160, 220);
+        // 60° north / south latitude — more compressed, dimmer
+        drawEllipse(-r * 0.87f, r * 0.50f,  r * 0.08f, 25, 100, 165);
+        drawEllipse( r * 0.87f, r * 0.50f,  r * 0.08f, 25, 100, 165);
+        // Vertical meridian (longitude line) — dim teal ellipse, compressed horizontally
+        SDL_SetRenderDrawColor(renderer, 35, 125, 185, 255);
+        float x0m = cx + r * 0.28f, y0m = static_cast<float>(cy);
+        for (int i = 1; i <= segs; ++i) {
+            float a = 2.f * M_PI * i / segs;
+            float x1 = cx + r * 0.28f * std::cos(a);
+            float y1 = cy + r * std::sin(a);
+            SDL_RenderDrawLine(renderer,
+                static_cast<int>(x0m), static_cast<int>(y0m),
+                static_cast<int>(x1), static_cast<int>(y1));
+            x0m = x1; y0m = y1;
         }
     }
 
