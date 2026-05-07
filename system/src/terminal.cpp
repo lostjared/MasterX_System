@@ -59,6 +59,8 @@ namespace mx {
         int windowHeight = static_cast<int>(505 * scaleY);
         int windowPosX = (screenWidth - windowWidth) / 2;
         int windowPosY = (screenHeight - windowHeight) / 2;
+        // Clamp so the window never covers the menu bar.
+        if (windowPosY < 26) windowPosY = 26;
         SDL_Rect rc={windowPosX, windowPosY, windowWidth, windowHeight};
         this->setRect(rc);
         updatePtySize();
@@ -1156,7 +1158,12 @@ namespace mx {
         SDL_RenderFillRect(app.ren, &rc);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         rc.y += 28;
+        rc.h -= 28;
+        if (rc.h < 0) rc.h = 0;
         Window::drawMenubar(app);
+        // Clip terminal contents to the window's content rect so text
+        // never spills outside when the user shrinks the window.
+        SDL_RenderSetClipRect(app.ren, &rc);
  
 
         int lineHeight = TTF_FontHeight(font);
@@ -1197,6 +1204,7 @@ namespace mx {
             if (totalLinesAlt <= maxVisibleLines) {
                 scrollBarHeight = 0;
             }
+            SDL_RenderSetClipRect(app.ren, nullptr);
             return;
         }
 
@@ -1232,7 +1240,11 @@ namespace mx {
                 showCursor = !showCursor;
                 cursorTimer = t;
             }
-            if (cur_y >= rc.y && cur_y + lineHeight <= rc.y + rc.h)
+            // Only draw the cursor if its row is within the actually
+            // rendered output range (cy is the y just past the last line
+            // we drew). Otherwise scrolling away from the prompt would
+            // draw a stray cursor in the reserved input area.
+            if (cur_y >= rc.y && cur_y + lineHeight <= cy)
                 drawCursor(app, cur_x, cur_y, showCursor);
         }
 #endif
@@ -1282,10 +1294,34 @@ namespace mx {
         int totalWrappedLines = calculateWrappedLinesForText(inputText, maxWidth - promptWidth, promptWidth);
         totalLines += totalWrappedLines;
 
+        // Recompute the visible-line capacity from the current content rect
+        // so a window resize (especially a horizontal-only one that doesn't
+        // call scroll()) immediately corrects the scrollbar geometry.
+        if (lineHeight > 0) {
+            maxVisibleLines = rc.h / lineHeight;
+            if (maxVisibleLines < 1) maxVisibleLines = 1;
+        }
+        // scrollOffset indexes outputLines directly. The drawing loop above
+        // reserves the bottom (requiredInputLines + 1) rows for the input
+        // line, so the largest scrollOffset that still fills the output
+        // area is outputLines.size() - (maxVisibleLines - requiredInputLines).
+        // Clamp against that so resizing larger doesn't leave blank space
+        // below the last line (which also pushed the cursor and scrollbar
+        // mid-window).
+        int outputCount = static_cast<int>(outputLines.size());
+        int visibleOutputRows = maxVisibleLines - (requiredInputLines + 1);
+        if (visibleOutputRows < 1) visibleOutputRows = 1;
+        int maxScroll = outputCount - visibleOutputRows;
+        if (maxScroll < 0) maxScroll = 0;
+        if (scrollOffset > maxScroll) scrollOffset = maxScroll;
+        if (scrollOffset < 0) scrollOffset = 0;
+
         if (totalLines > maxVisibleLines) {
             int offx = rc.x + rc.w;
             int offy = rc.y;
-            int availableHeight = rc.h - 28;
+            // rc has already been adjusted (rc.y += 28; rc.h -= 28) earlier
+            // so it is the content rect; the available height is just rc.h.
+            int availableHeight = rc.h;
 
             scrollBarHeight = (maxVisibleLines * availableHeight) / totalLines;
 
@@ -1293,7 +1329,10 @@ namespace mx {
                 scrollBarHeight = 10;
             }
 
-            scrollBarPosY = offy + (scrollOffset * (availableHeight - scrollBarHeight)) / (totalLines - maxVisibleLines);
+            // Use the same maxScroll that bounds scrollOffset so the bar
+            // reaches the bottom of the track exactly when content does.
+            int denom = maxScroll > 0 ? maxScroll : 1;
+            scrollBarPosY = offy + (scrollOffset * (availableHeight - scrollBarHeight)) / denom;
 
             if (scrollBarPosY + scrollBarHeight > rc.y + rc.h) {
                 scrollBarPosY = rc.y + rc.h - scrollBarHeight;
@@ -1303,6 +1342,7 @@ namespace mx {
             SDL_SetRenderDrawColor(app.ren, 100, 100, 100, 255);
             SDL_RenderFillRect(app.ren, &scrollBarRect);
         }
+        SDL_RenderSetClipRect(app.ren, nullptr);
     }
 
 
@@ -1344,6 +1384,12 @@ namespace mx {
 
         const auto &styles = outputLineColors[lineIndex];
         const int lineH = TTF_FontHeight(font);
+        // Use a fixed cell width so column alignment is preserved even
+        // when style runs (e.g. bold/colored directory names from `ls`)
+        // mix with regular text on the same line.
+        int cellW = 0;
+        TTF_SizeText(font, "M", &cellW, nullptr);
+        if (cellW <= 0) cellW = 8;
         int drawX = x;
         size_t i = 0;
         while (i < line.size()) {
@@ -1365,11 +1411,10 @@ namespace mx {
                 if (run.underline) ttfStyle |= TTF_STYLE_UNDERLINE;
                 TTF_SetFontStyle(font, ttfStyle);
 
-                int textW = 0;
-                TTF_SizeText(font, text.c_str(), &textW, nullptr);
+                int runW = static_cast<int>(text.size()) * cellW;
 
                 if (run.bg.a != 0) {
-                    SDL_Rect bgRect = {drawX, y, textW, lineH};
+                    SDL_Rect bgRect = {drawX, y, runW, lineH};
                     SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
                     SDL_SetRenderDrawColor(app.ren, run.bg.r, run.bg.g, run.bg.b, run.bg.a);
                     SDL_RenderFillRect(app.ren, &bgRect);
@@ -1385,7 +1430,7 @@ namespace mx {
                     }
                     SDL_FreeSurface(surface);
                 }
-                drawX += textW;
+                drawX += runW;
                 TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
             }
             i = j;
@@ -1959,16 +2004,26 @@ namespace mx {
             isScrolling = false;
         }
 
-        int totalLines = total_Lines();
-
         if (e.type == SDL_MOUSEMOTION && isScrolling) {
             int mouseY = e.motion.y;
             int newScrollPosY = mouseY - scrollBarDragOffset;
             int availableHeight = rc.h - 28;
             int scrollableRange = availableHeight - scrollBarHeight;
-            if (scrollableRange > 0 && totalLines > maxVisibleLines) {
-                scrollOffset = ((newScrollPosY - rc.y) * (totalLines - maxVisibleLines)) / scrollableRange;
-                scrollOffset = my_max(0, my_min(scrollOffset, (totalLines - maxVisibleLines)));
+            // Use the same maxScroll the draw and wheel paths use so the
+            // bar's drag range matches what the wheel/draw can reach.
+            int outputCount = static_cast<int>(outputLines.size());
+            int promptW = 0;
+            if (font) TTF_SizeText(font, prompt.c_str(), &promptW, nullptr);
+            int maxWidth = rc.w - 10;
+            int reqInput = calculateWrappedLinesForText(inputText, maxWidth - promptW, promptW);
+            if (reqInput < 1) reqInput = 1;
+            int visibleOutputRows = maxVisibleLines - (reqInput + 1);
+            if (visibleOutputRows < 1) visibleOutputRows = 1;
+            int maxScroll = outputCount - visibleOutputRows;
+            if (maxScroll < 0) maxScroll = 0;
+            if (scrollableRange > 0 && maxScroll > 0) {
+                scrollOffset = ((newScrollPosY - rc.y) * maxScroll) / scrollableRange;
+                scrollOffset = my_max(0, my_min(scrollOffset, maxScroll));
             }
             render_text = false;
         }
@@ -1987,8 +2042,23 @@ namespace mx {
 
     void Terminal::handleScrolling(int direction) {
         scrollOffset -= direction;
-        int totalLines = static_cast<int>(outputLines.size());
-         scrollOffset = my_max(0, my_min(scrollOffset, (totalLines - maxVisibleLines)));
+        // Match the draw-time clamp: the visible output area is
+        // maxVisibleLines minus the rows reserved for the (possibly
+        // wrapped) input echo, so the user can scroll until the last
+        // output line sits at the bottom of that area.
+        int outputCount = static_cast<int>(outputLines.size());
+        SDL_Rect rc;
+        Window::getRect(rc);
+        int promptW = 0;
+        if (font) TTF_SizeText(font, prompt.c_str(), &promptW, nullptr);
+        int maxWidth = rc.w - 10;
+        int reqInput = calculateWrappedLinesForText(inputText, maxWidth - promptW, promptW);
+        if (reqInput < 1) reqInput = 1;
+        int visibleOutputRows = maxVisibleLines - (reqInput + 1);
+        if (visibleOutputRows < 1) visibleOutputRows = 1;
+        int maxScroll = outputCount - visibleOutputRows;
+        if (maxScroll < 0) maxScroll = 0;
+        scrollOffset = my_max(0, my_min(scrollOffset, maxScroll));
     }
 
     void Terminal::processCommand(mxApp &app, std::string command) {

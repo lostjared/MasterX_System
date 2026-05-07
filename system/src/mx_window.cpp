@@ -128,13 +128,8 @@ namespace mx {
                     c->setWindowPos(x, y);
                     c->resizeWindow(w, h);
                 }
-            }
-                x = restoreTargetX;
-                y = restoreTargetY;
-                w = restoreTargetW;
-                h = restoreTargetH;
-                isRestoring = false; 
                 dragging = false;
+            }
         }
         SDL_Rect rc = {x, y, w, h};
 
@@ -386,6 +381,9 @@ namespace mx {
                     if (e.motion.y > 0) {
                         x = e.motion.x - dragOffsetX;
                         y = e.motion.y - dragOffsetY;
+                        // Clamp so the title bar never slides under the menu bar.
+                        const int topLimit = 26;
+                        if (y < topLimit) y = topLimit;
                         isMinimizing = false;
                         isRestoring = false;
                         return true;
@@ -572,6 +570,7 @@ namespace mx {
     }
 
     void Window::maximize(bool m) {
+        bool changed = false;
         if (m && !maximized) {
             oldX = x;
             oldY = y;
@@ -582,14 +581,24 @@ namespace mx {
             w = dim_w;
             h = dim_h-76;
             dragging = false;
+            changed = true;
         } else if (!m && maximized) {
             x = oldX;
             y = oldY;
             w = oldW;
             h = oldH;
             dragging = false;
+            changed = true;
         }
         maximized = m;
+        if (changed) {
+            for (auto &c : children) {
+                if (c->show) {
+                    c->setWindowPos(x, y);
+                    c->resizeWindow(w, h);
+                }
+            }
+        }
         stateChanged(false, maximized, false);
     }
 
