@@ -94,7 +94,7 @@ void draw_loading(mx::mxApp &app) {
  void eventProc() {
     static SDL_Event e;
     while (SDL_PollEvent(&e)) {
-        if (e.type == SDL_QUIT || (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)) {
+        if (e.type == SDL_QUIT) {
             p_app->active = false;
         }
         if (e.type == SDL_WINDOWEVENT &&
