@@ -469,7 +469,12 @@ namespace mx {
         }));
         termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/clipboard.png")), create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             Terminal *term = dynamic_cast<Terminal*>(win);
-            if (term) term->copyToClipboard();
+            if (term) {
+                if (term->hasSelectedText())
+                    term->copySelectionToClipboard();
+                else
+                    term->copyToClipboard();
+            }
             return true;
         }));
         termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/glueicon.png")), create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {

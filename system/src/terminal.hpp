@@ -57,6 +57,8 @@ namespace mx {
                 void sendCommand(const std::string &cmd);
                 void pasteFromClipboard();
                 void copyToClipboard();
+                void copySelectionToClipboard();
+                bool hasSelectedText() const { return hasSelection; }
                 void insertText(const std::string &text);
                 std::string getInput();
                 bool isWaitingForInput() const { return waitingForInput; }
@@ -154,6 +156,21 @@ namespace mx {
 
                 std::atomic<bool> waitingForInput{false};
                 std::string inputResult;
+
+                // Mouse text selection state. Selection coordinates are
+                // expressed as (row, col) inside outputLines using a fixed
+                // cell grid identical to the renderer.
+                bool selecting = false;       // mouse currently dragging
+                bool hasSelection = false;    // a finalized / live selection exists
+                int  selAnchorRow = 0;
+                int  selAnchorCol = 0;
+                int  selFocusRow  = 0;
+                int  selFocusCol  = 0;
+                bool pointToCell(int px, int py, int &row, int &col) const;
+                void normalizedSelection(int &r0, int &c0, int &r1, int &c1) const;
+                std::string getSelectedText() const;
+                void clearSelection();
+                void drawSelection(mxApp &app, const SDL_Rect &contentRect, int lineHeight, int cellW);
 
                 // Built-in nano-style text editor. When non-null the
                 // terminal routes events / drawing to it.

@@ -367,6 +367,52 @@ namespace mx {
         char* clipboardText = SDL_GetClipboardText();
         if (clipboardText && clipboardText[0] != '\0') {
             std::string pasteText(clipboardText);
+#if defined(__linux__) || defined(__APPLE__)
+            // PTY raw mode: send directly to the shell. Normalize CRLF/CR
+            // to LF so multi-line pastes are interpreted as Enter presses
+            // by the running program (just like xterm/gnome-terminal).
+            if (master_fd > 0 && !waitingForInput) {
+                std::string normalized;
+                normalized.reserve(pasteText.size());
+                for (size_t i = 0; i < pasteText.size(); ++i) {
+                    char c = pasteText[i];
+                    if (c == '\r') {
+                        normalized.push_back('\n');
+                        if (i + 1 < pasteText.size() && pasteText[i + 1] == '\n')
+                            ++i; // skip LF of CRLF
+                    } else {
+                        normalized.push_back(c);
+                    }
+                }
+                writeToPty(normalized);
+                SDL_free(clipboardText);
+                return;
+            }
+#elif defined(_WIN32)
+            // Windows: send to child stdin if a PTY-style pipe exists.
+            if (hChildStdinWr != INVALID_HANDLE_VALUE && !waitingForInput) {
+                std::string normalized;
+                normalized.reserve(pasteText.size());
+                for (size_t i = 0; i < pasteText.size(); ++i) {
+                    char c = pasteText[i];
+                    if (c == '\r') {
+                        normalized.push_back('\r');
+                        normalized.push_back('\n');
+                        if (i + 1 < pasteText.size() && pasteText[i + 1] == '\n')
+                            ++i;
+                    } else if (c == '\n') {
+                        normalized.push_back('\r');
+                        normalized.push_back('\n');
+                    } else {
+                        normalized.push_back(c);
+                    }
+                }
+                writeToPty(normalized);
+                SDL_free(clipboardText);
+                return;
+            }
+#endif
+            // Cooked / built-in input() mode fallback: edit local buffer.
             for (char c : pasteText) {
                 if (c != '\r' && c != '\n') {
                     inputText.insert(cursorPosition, 1, c);
@@ -403,6 +449,118 @@ namespace mx {
             }
         }
         scroll();
+    }
+
+    bool Terminal::pointToCell(int px, int py, int &row, int &col) const {
+        if (!font) return false;
+        SDL_Rect rc;
+        const_cast<Terminal*>(this)->Window::getRect(rc);
+        // Content rect: matches draw() (skip 28px title bar + 5px pad).
+        int contentX = rc.x + 5;
+        int contentY = rc.y + 28 + 5;
+        int contentW = rc.w - 10;
+        int contentH = rc.h - 28 - 10;
+        if (px < rc.x || px >= rc.x + rc.w) return false;
+        if (py < rc.y + 28 || py >= rc.y + rc.h) return false;
+        int lineH = TTF_FontHeight(const_cast<TTF_Font*>(font));
+        if (lineH <= 0) lineH = 16;
+        int cellW = 0;
+        TTF_SizeText(const_cast<TTF_Font*>(font), "M", &cellW, nullptr);
+        if (cellW <= 0) cellW = 8;
+        int relY = py - contentY;
+        int relX = px - contentX;
+        if (relY < 0) relY = 0;
+        if (relX < 0) relX = 0;
+        int visibleRow = relY / lineH;
+        int absRow = visibleRow + (altScreen ? 0 : scrollOffset);
+        int absCol = relX / cellW;
+        int total = static_cast<int>(outputLines.size());
+        if (total == 0) return false;
+        if (absRow < 0) absRow = 0;
+        if (absRow >= total) absRow = total - 1;
+        if (absCol < 0) absCol = 0;
+        row = absRow;
+        col = absCol;
+        (void)contentW; (void)contentH;
+        return true;
+    }
+
+    void Terminal::normalizedSelection(int &r0, int &c0, int &r1, int &c1) const {
+        r0 = selAnchorRow; c0 = selAnchorCol;
+        r1 = selFocusRow;  c1 = selFocusCol;
+        if (r1 < r0 || (r1 == r0 && c1 < c0)) {
+            std::swap(r0, r1);
+            std::swap(c0, c1);
+        }
+    }
+
+    std::string Terminal::getSelectedText() const {
+        if (!hasSelection) return "";
+        int r0, c0, r1, c1;
+        normalizedSelection(r0, c0, r1, c1);
+        std::string out;
+        int total = static_cast<int>(outputLines.size());
+        for (int r = r0; r <= r1 && r < total; ++r) {
+            const std::string &line = outputLines[r];
+            int len = static_cast<int>(line.size());
+            int startC = (r == r0) ? c0 : 0;
+            int endC   = (r == r1) ? c1 : len;
+            if (startC < 0) startC = 0;
+            if (endC > len) endC = len;
+            if (startC < endC)
+                out.append(line, startC, endC - startC);
+            if (r != r1) out.push_back('\n');
+        }
+        return out;
+    }
+
+    void Terminal::copySelectionToClipboard() {
+        std::string sel = getSelectedText();
+        if (sel.empty()) return;
+#ifdef FOR_WASM
+        EM_ASM({
+            var text = UTF8ToString($0);
+            navigator.clipboard.writeText(text).then(function() {}).catch(function(err) {});
+        }, sel.c_str());
+#else
+        SDL_SetClipboardText(sel.c_str());
+#endif
+    }
+
+    void Terminal::clearSelection() {
+        selecting = false;
+        hasSelection = false;
+        selAnchorRow = selAnchorCol = 0;
+        selFocusRow  = selFocusCol  = 0;
+    }
+
+    void Terminal::drawSelection(mxApp &app, const SDL_Rect &contentRect, int lineHeight, int cellW) {
+        if (!hasSelection) return;
+        int r0, c0, r1, c1;
+        normalizedSelection(r0, c0, r1, c1);
+        int total = static_cast<int>(outputLines.size());
+        int baseRow = altScreen ? 0 : scrollOffset;
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(app.ren, 80, 140, 220, 110);
+        for (int r = r0; r <= r1 && r < total; ++r) {
+            int screenRow = r - baseRow;
+            if (screenRow < 0) continue;
+            int y = contentRect.y + 5 + screenRow * lineHeight;
+            if (y + lineHeight <= contentRect.y) continue;
+            if (y >= contentRect.y + contentRect.h) break;
+            int lineLen = static_cast<int>(outputLines[r].size());
+            int startC = (r == r0) ? c0 : 0;
+            int endC   = (r == r1) ? c1 : lineLen;
+            if (startC < 0) startC = 0;
+            if (endC < startC) endC = startC;
+            if (r != r1 && endC == startC) endC = startC + 1; // visual hint for empty lines mid-selection
+            int x = contentRect.x + 5 + startC * cellW;
+            int w = (endC - startC) * cellW;
+            if (w < 1) w = 1;
+            SDL_Rect sr{ x, y, w, lineHeight };
+            SDL_RenderFillRect(app.ren, &sr);
+        }
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
     }
 
     std::string Terminal::getInput() {
@@ -1216,6 +1374,14 @@ namespace mx {
             y += lineHeight;
         }
 
+        // Selection overlay (drawn after text so highlighting blends on top).
+        {
+            int cellW = 0;
+            TTF_SizeText(font, "M", &cellW, nullptr);
+            if (cellW <= 0) cellW = 8;
+            drawSelection(app, rc, lineHeight, cellW);
+        }
+
         int cx = rc.x + 5;
         int cy = y;
 
@@ -1713,6 +1879,22 @@ namespace mx {
             return true;
         }
 
+        // Terminal-style copy / paste shortcuts. Use Ctrl+Shift+C/V so a
+        // bare Ctrl+C still reaches the foreground process via the PTY.
+        if (e.type == SDL_KEYDOWN) {
+            const Uint16 mod = e.key.keysym.mod;
+            const SDL_Keycode sym = e.key.keysym.sym;
+            const bool ctrlShift = (mod & KMOD_CTRL) && (mod & KMOD_SHIFT);
+            if (ctrlShift && sym == SDLK_c) {
+                if (hasSelection) copySelectionToClipboard();
+                return true;
+            }
+            if (ctrlShift && sym == SDLK_v) {
+                pasteFromClipboard();
+                return true;
+            }
+        }
+
         // Pipe every keystroke straight to the PTY so bash's own readline
         // performs line editing, history, tab completion, and signal
         // handling -- exactly like a real terminal emulator. We only fall
@@ -1993,15 +2175,48 @@ namespace mx {
         if (e.type == SDL_MOUSEBUTTONDOWN) {
             int mouseX = e.button.x;
             int mouseY = e.button.y;
-            
+
             if (mouseX >= rc.x+rc.w - scrollBarWidth && mouseY >= scrollBarPosY && mouseY <= scrollBarPosY + scrollBarHeight) {
                 isScrolling = true;
                 scrollBarDragOffset = mouseY - scrollBarPosY;
+            } else if (e.button.button == SDL_BUTTON_LEFT) {
+                int row, col;
+                if (pointToCell(mouseX, mouseY, row, col)) {
+                    selecting = true;
+                    hasSelection = true;
+                    selAnchorRow = selFocusRow = row;
+                    selAnchorCol = selFocusCol = col;
+                    render_text = false;
+                    return true;
+                } else {
+                    if (hasSelection) { clearSelection(); render_text = false; }
+                }
+            } else if (e.button.button == SDL_BUTTON_MIDDLE) {
+                // X11-style middle-click paste from clipboard.
+                pasteFromClipboard();
+                return true;
             }
         }
 
         if (e.type == SDL_MOUSEBUTTONUP) {
             isScrolling = false;
+            if (selecting && e.button.button == SDL_BUTTON_LEFT) {
+                selecting = false;
+                if (selAnchorRow == selFocusRow && selAnchorCol == selFocusCol) {
+                    hasSelection = false;
+                }
+                render_text = false;
+            }
+        }
+
+        if (e.type == SDL_MOUSEMOTION && selecting) {
+            int row, col;
+            if (pointToCell(e.motion.x, e.motion.y, row, col)) {
+                selFocusRow = row;
+                selFocusCol = col;
+                hasSelection = true;
+                render_text = false;
+            }
         }
 
         if (e.type == SDL_MOUSEMOTION && isScrolling) {
