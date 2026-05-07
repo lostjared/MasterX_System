@@ -64,7 +64,9 @@ namespace mx {
                 std::string inputText;
                 int cursorPosition = 0;
                 std::vector<std::string> outputLines;
+                std::vector<std::vector<SDL_Color>> outputLineColors;
                 void renderText(mxApp &app, const std::string &text, int x, int y);
+                void renderOutputLine(mxApp &app, int lineIndex, int x, int y);
                 void renderTextWrapped(mxApp &app, const std::string &prompt, const std::string &text, int &x, int &y, int maxWidth);
                 void processCommand(mxApp &app, std::string cmd);
                 void handleScrolling(int);
@@ -98,7 +100,20 @@ namespace mx {
                 std::string new_output;
                 std::string new_data;
                 std::atomic<bool> newData;
-                
+
+                // ANSI/VT100 stream state for shell output rendering.
+                std::vector<std::string> ansiLines;
+                std::vector<std::vector<SDL_Color>> ansiLineColors;
+                int ansiCursorRow = 0;
+                int ansiCursorCol = 0;
+                int ansiSavedRow = 0;
+                int ansiSavedCol = 0;
+                bool ansiInitialized = false;
+                SDL_Color ansiCurrentColor{255, 255, 255, 255};
+                void initAnsiState();
+                void syncAnsiToOutput();
+                void applyAnsiData(const std::string &input);
+
                 std::atomic<bool> waitingForInput{false};
                 std::string inputResult;
 

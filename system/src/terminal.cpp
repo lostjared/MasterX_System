@@ -4,6 +4,8 @@
 #include<iostream>
 #include<thread>
 #include<mutex>
+#include<cctype>
+#include<cstdlib>
 #include"mx_window.hpp"
 #include"dimension.hpp"
 #include"mx_system_bar.hpp"
@@ -254,33 +256,337 @@ namespace mx {
         return std::regex_replace(input, ps1LineRegex, "");
     }
 
+    static SDL_Color ansiBasicColor(int code, const SDL_Color &fallback) {
+        static const SDL_Color normal[8] = {
+            {0, 0, 0, 255},       {205, 49, 49, 255},  {13, 188, 121, 255},
+            {229, 229, 16, 255},  {36, 114, 200, 255}, {188, 63, 188, 255},
+            {17, 168, 205, 255},  {229, 229, 229, 255}};
+        static const SDL_Color bright[8] = {
+            {102, 102, 102, 255}, {241, 76, 76, 255},  {35, 209, 139, 255},
+            {245, 245, 67, 255},  {59, 142, 234, 255}, {214, 112, 214, 255},
+            {41, 184, 219, 255},  {255, 255, 255, 255}};
+
+        if (code >= 30 && code <= 37)
+            return normal[code - 30];
+        if (code >= 90 && code <= 97)
+            return bright[code - 90];
+        if (code == 39)
+            return fallback;
+        return fallback;
+    }
+
+    void Terminal::initAnsiState() {
+        ansiLines = outputLines;
+        ansiLineColors.clear();
+        ansiLineColors.reserve(ansiLines.size());
+        for (const auto &line : ansiLines) {
+            ansiLineColors.emplace_back(line.size(), text_color);
+        }
+        if (ansiLines.empty()) {
+            ansiLines.emplace_back("");
+            ansiLineColors.emplace_back();
+        }
+        ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
+        ansiCursorCol = static_cast<int>(ansiLines.back().size());
+        ansiSavedRow = ansiCursorRow;
+        ansiSavedCol = ansiCursorCol;
+        ansiCurrentColor = text_color;
+        ansiInitialized = true;
+    }
+
+    void Terminal::syncAnsiToOutput() {
+        outputLines = ansiLines;
+        outputLineColors = ansiLineColors;
+
+        std::ostringstream oss;
+        for (size_t i = 0; i < outputLines.size(); ++i) {
+            oss << outputLines[i];
+            if (i + 1 < outputLines.size())
+                oss << '\n';
+        }
+        orig_text = oss.str();
+        if (orig_text.length() > 4096)
+            orig_text = orig_text.substr(orig_text.size() - 4096);
+        scroll();
+    }
+
+    void Terminal::applyAnsiData(const std::string &input) {
+        if (!ansiInitialized)
+            initAnsiState();
+
+        auto ensureRow = [&](int row) {
+            while (row >= static_cast<int>(ansiLines.size())) {
+                ansiLines.emplace_back("");
+                ansiLineColors.emplace_back();
+            }
+            if (row < 0)
+                ansiCursorRow = 0;
+        };
+
+        auto ensureCol = [&](int row, int col) {
+            if (row < 0)
+                return;
+            ensureRow(row);
+            if (col > static_cast<int>(ansiLines[row].size())) {
+                int pad = col - static_cast<int>(ansiLines[row].size());
+                ansiLines[row].append(static_cast<size_t>(pad), ' ');
+                auto &colors = ansiLineColors[row];
+                colors.insert(colors.end(), static_cast<size_t>(pad), text_color);
+            }
+            if (static_cast<int>(ansiLineColors[row].size()) < static_cast<int>(ansiLines[row].size())) {
+                ansiLineColors[row].resize(ansiLines[row].size(), text_color);
+            }
+        };
+
+        auto clearToLineEnd = [&]() {
+            ensureRow(ansiCursorRow);
+            ensureCol(ansiCursorRow, ansiCursorCol);
+            if (ansiCursorCol < static_cast<int>(ansiLines[ansiCursorRow].size())) {
+                ansiLines[ansiCursorRow].erase(static_cast<size_t>(ansiCursorCol));
+                ansiLineColors[ansiCursorRow].erase(
+                    ansiLineColors[ansiCursorRow].begin() + ansiCursorCol,
+                    ansiLineColors[ansiCursorRow].end());
+            }
+        };
+
+        auto putChar = [&](char ch) {
+            ensureCol(ansiCursorRow, ansiCursorCol);
+            auto &line = ansiLines[ansiCursorRow];
+            auto &colors = ansiLineColors[ansiCursorRow];
+            if (ansiCursorCol < static_cast<int>(line.size())) {
+                line[ansiCursorCol] = ch;
+                colors[ansiCursorCol] = ansiCurrentColor;
+            } else {
+                line.push_back(ch);
+                colors.push_back(ansiCurrentColor);
+            }
+            ansiCursorCol++;
+        };
+
+        auto parseParams = [](const std::string &paramText) {
+            std::vector<int> out;
+            if (paramText.empty()) {
+                out.push_back(0);
+                return out;
+            }
+            std::string token;
+            for (char ch : paramText) {
+                if (ch == ';') {
+                    if (token.empty())
+                        out.push_back(0);
+                    else
+                        out.push_back(std::atoi(token.c_str()));
+                    token.clear();
+                } else {
+                    token.push_back(ch);
+                }
+            }
+            if (token.empty())
+                out.push_back(0);
+            else
+                out.push_back(std::atoi(token.c_str()));
+            return out;
+        };
+
+        const std::string data = cleanTerminalOutput(input);
+        size_t i = 0;
+        while (i < data.size()) {
+            unsigned char ch = static_cast<unsigned char>(data[i]);
+            if (ch == 0x1B) {
+                if (i + 1 < data.size() && data[i + 1] == ']') {
+                    // OSC: consume until BEL or ST.
+                    size_t j = i + 2;
+                    while (j < data.size()) {
+                        if (data[j] == '\a') {
+                            j++;
+                            break;
+                        }
+                        if (data[j] == 0x1B && (j + 1) < data.size() && data[j + 1] == '\\') {
+                            j += 2;
+                            break;
+                        }
+                        ++j;
+                    }
+                    i = j;
+                    continue;
+                }
+
+                if (i + 1 < data.size() && data[i + 1] == '[') {
+                    size_t j = i + 2;
+                    while (j < data.size()) {
+                        unsigned char cj = static_cast<unsigned char>(data[j]);
+                        if (cj >= 0x40 && cj <= 0x7E)
+                            break;
+                        ++j;
+                    }
+                    if (j >= data.size())
+                        break;
+
+                    const char cmd = data[j];
+                    std::string params = data.substr(i + 2, j - (i + 2));
+                    bool privateMode = !params.empty() && params[0] == '?';
+                    if (privateMode)
+                        params.erase(params.begin());
+
+                    auto nums = parseParams(params);
+                    auto n0 = [&]() { return nums.empty() || nums[0] <= 0 ? 1 : nums[0]; };
+
+                    if (privateMode && cmd == 'h' && !nums.empty() && nums[0] == 25) {
+#ifdef __linux__
+                        cursorVisible = true;
+#endif
+                    } else if (privateMode && cmd == 'l' && !nums.empty() && nums[0] == 25) {
+#ifdef __linux__
+                        cursorVisible = false;
+#endif
+                    } else if (cmd == 'm') {
+                        for (size_t k = 0; k < nums.size(); ++k) {
+                            int code = nums[k];
+                            if (code == 0) {
+                                ansiCurrentColor = text_color;
+                                continue;
+                            }
+                            if (code == 38 && k + 1 < nums.size()) {
+                                if (nums[k + 1] == 5 && k + 2 < nums.size()) {
+                                    int idx = nums[k + 2];
+                                    if (idx >= 16 && idx <= 231) {
+                                        idx -= 16;
+                                        int r = (idx / 36) % 6;
+                                        int g = (idx / 6) % 6;
+                                        int b = idx % 6;
+                                        ansiCurrentColor = SDL_Color{
+                                            static_cast<Uint8>(r == 0 ? 0 : r * 40 + 55),
+                                            static_cast<Uint8>(g == 0 ? 0 : g * 40 + 55),
+                                            static_cast<Uint8>(b == 0 ? 0 : b * 40 + 55),
+                                            255};
+                                    } else if (idx >= 232 && idx <= 255) {
+                                        Uint8 gray = static_cast<Uint8>((idx - 232) * 10 + 8);
+                                        ansiCurrentColor = SDL_Color{gray, gray, gray, 255};
+                                    }
+                                    k += 2;
+                                    continue;
+                                }
+                                if (nums[k + 1] == 2 && k + 4 < nums.size()) {
+                                    ansiCurrentColor = SDL_Color{
+                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 2]))),
+                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 3]))),
+                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 4]))),
+                                        255};
+                                    k += 4;
+                                    continue;
+                                }
+                            }
+                            ansiCurrentColor = ansiBasicColor(code, ansiCurrentColor);
+                        }
+                    } else if (cmd == 'A') {
+                        ansiCursorRow = std::max(0, ansiCursorRow - n0());
+                    } else if (cmd == 'B') {
+                        ansiCursorRow += n0();
+                        ensureRow(ansiCursorRow);
+                    } else if (cmd == 'C') {
+                        ansiCursorCol += n0();
+                    } else if (cmd == 'D') {
+                        ansiCursorCol = std::max(0, ansiCursorCol - n0());
+                    } else if (cmd == 'G') {
+                        ansiCursorCol = std::max(0, n0() - 1);
+                    } else if (cmd == 'H' || cmd == 'f') {
+                        int row = nums.size() > 0 ? std::max(1, nums[0]) : 1;
+                        int col = nums.size() > 1 ? std::max(1, nums[1]) : 1;
+                        ansiCursorRow = row - 1;
+                        ansiCursorCol = col - 1;
+                        ensureRow(ansiCursorRow);
+                    } else if (cmd == 'K') {
+                        int mode = nums.empty() ? 0 : nums[0];
+                        ensureRow(ansiCursorRow);
+                        ensureCol(ansiCursorRow, ansiCursorCol);
+                        if (mode == 0) {
+                            clearToLineEnd();
+                        } else if (mode == 1) {
+                            auto &line = ansiLines[ansiCursorRow];
+                            auto &colors = ansiLineColors[ansiCursorRow];
+                            int end = std::min(ansiCursorCol, static_cast<int>(line.size()));
+                            for (int c = 0; c < end; ++c) {
+                                line[c] = ' ';
+                                colors[c] = text_color;
+                            }
+                        } else if (mode == 2) {
+                            ansiLines[ansiCursorRow].clear();
+                            ansiLineColors[ansiCursorRow].clear();
+                            ansiCursorCol = 0;
+                        }
+                    } else if (cmd == 'J') {
+                        int mode = nums.empty() ? 0 : nums[0];
+                        ensureRow(ansiCursorRow);
+                        if (mode == 2) {
+                            ansiLines.assign(1, std::string{});
+                            ansiLineColors.assign(1, std::vector<SDL_Color>{});
+                            ansiCursorRow = 0;
+                            ansiCursorCol = 0;
+                        } else if (mode == 0) {
+                            clearToLineEnd();
+                            for (size_t r = static_cast<size_t>(ansiCursorRow + 1); r < ansiLines.size(); ++r) {
+                                ansiLines[r].clear();
+                                ansiLineColors[r].clear();
+                            }
+                        } else if (mode == 1) {
+                            for (int r = 0; r < ansiCursorRow; ++r) {
+                                ansiLines[r].clear();
+                                ansiLineColors[r].clear();
+                            }
+                            auto &line = ansiLines[ansiCursorRow];
+                            auto &colors = ansiLineColors[ansiCursorRow];
+                            int end = std::min(ansiCursorCol, static_cast<int>(line.size()));
+                            for (int c = 0; c < end; ++c) {
+                                line[c] = ' ';
+                                colors[c] = text_color;
+                            }
+                        }
+                    } else if (cmd == 's') {
+                        ansiSavedRow = ansiCursorRow;
+                        ansiSavedCol = ansiCursorCol;
+                    } else if (cmd == 'u') {
+                        ansiCursorRow = std::max(0, ansiSavedRow);
+                        ansiCursorCol = std::max(0, ansiSavedCol);
+                        ensureRow(ansiCursorRow);
+                    }
+
+                    i = j + 1;
+                    continue;
+                }
+            }
+
+            if (ch == '\r') {
+                ansiCursorCol = 0;
+            } else if (ch == '\n') {
+                ansiCursorRow++;
+                ansiCursorCol = 0;
+                ensureRow(ansiCursorRow);
+            } else if (ch == '\b') {
+                ansiCursorCol = std::max(0, ansiCursorCol - 1);
+            } else if (ch == '\t') {
+                int spaces = 4 - (ansiCursorCol % 4);
+                for (int s = 0; s < spaces; ++s)
+                    putChar(' ');
+            } else if (ch >= 32) {
+                putChar(static_cast<char>(ch));
+            }
+            ++i;
+        }
+
+        syncAnsiToOutput();
+    }
 
     std::string Terminal::parseTerminalData(const std::string &input) {
-        std::regex oscRegex(R"(\x1B\].*?(\x07|\x1B\\))");
-        std::string inputWithoutOSC = std::regex_replace(input, oscRegex, "");
-        std::regex cursorRegex(R"(\x1B\[\?25([hl]))");
-        std::smatch cursorMatch;
-        std::string tempInput = inputWithoutOSC;
-        while (std::regex_search(tempInput, cursorMatch, cursorRegex)) {
-            #ifdef __linux__
-            cursorVisible = (cursorMatch[1] == "h");
-            #endif
-            tempInput = cursorMatch.suffix();
-        }
-        std::string inputWithoutCursor = std::regex_replace(inputWithoutOSC, cursorRegex, "");
-        std::regex escapeRegex(R"(\x1B\[[0-9;?]*[ -/]*[@-~])");
-        std::string cleanedInput = std::regex_replace(inputWithoutCursor, escapeRegex, "");
-
-        cleanedInput = handleBackspaces(cleanedInput);
         std::regex promptRegex(R"(BEGIN_PROMPT(.*?)END_PROMPT)");
         std::smatch promptMatch;
-        std::string prompt = "";
-        if (std::regex_search(cleanedInput, promptMatch, promptRegex)) {
-            prompt = promptMatch[1].str();
-            cleanedInput = cleanedInput.substr(promptMatch.position() + promptMatch.length());
+        std::string promptText;
+        if (std::regex_search(input, promptMatch, promptRegex)) {
+            promptText = promptMatch[1].str();
         }
-        print(cleanTerminalOutput(cleanedInput));
-        return prompt;
+
+        std::string stream = std::regex_replace(input, promptRegex, "");
+        applyAnsiData(stream);
+        return promptText;
     }
 
     Terminal::~Terminal() {
@@ -401,7 +707,7 @@ namespace mx {
             if (y + lineHeight * (requiredInputLines + 1) > rc.y + rc.h) {
                 break;
             }
-            renderText(app, outputLines[i], rc.x + 5, y);
+            renderOutputLine(app, i, rc.x + 5, y);
             y += lineHeight;
         }
 
@@ -496,6 +802,49 @@ namespace mx {
 
             SDL_FreeSurface(surface);
             SDL_DestroyTexture(texture);
+        }
+    }
+
+    void Terminal::renderOutputLine(mxApp &app, int lineIndex, int x, int y) {
+        if (lineIndex < 0 || lineIndex >= static_cast<int>(outputLines.size()))
+            return;
+
+        const std::string &line = outputLines[lineIndex];
+        if (line.empty())
+            return;
+
+        if (lineIndex >= static_cast<int>(outputLineColors.size()) ||
+            outputLineColors[lineIndex].size() != line.size()) {
+            renderText(app, line, x, y);
+            return;
+        }
+
+        const auto &colors = outputLineColors[lineIndex];
+        int drawX = x;
+        size_t i = 0;
+        while (i < line.size()) {
+            SDL_Color runColor = colors[i];
+            size_t j = i + 1;
+            while (j < line.size() && colors[j].r == runColor.r && colors[j].g == runColor.g &&
+                   colors[j].b == runColor.b && colors[j].a == runColor.a) {
+                ++j;
+            }
+
+            std::string run = line.substr(i, j - i);
+            if (!run.empty()) {
+                SDL_Surface *surface = TTF_RenderText_Blended(font, run.c_str(), runColor);
+                if (surface) {
+                    SDL_Texture *texture = SDL_CreateTextureFromSurface(app.ren, surface);
+                    if (texture) {
+                        SDL_Rect dstRect = {drawX, y, surface->w, surface->h};
+                        SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
+                        drawX += surface->w;
+                        SDL_DestroyTexture(texture);
+                    }
+                    SDL_FreeSurface(surface);
+                }
+            }
+            i = j;
         }
     }
 
@@ -1243,10 +1592,11 @@ namespace mx {
         std::string line;
         SDL_Rect rc;
         Window::getRect(rc);
-        int maxWidth = rc.w - 10;  
+        int maxWidth = rc.w - 10;
         int w, h;
         outputLines.clear();
-	    std::string total = orig_text;
+        outputLineColors.clear();
+        std::string total = orig_text;
         std::istringstream stream(total);
         while(std::getline(stream, line)) {
             if (line.length() > 0) {
@@ -1255,29 +1605,46 @@ namespace mx {
                     currentLine += line[i];
                     TTF_SizeText(font, currentLine.c_str(), &w, &h);
                     if (w > maxWidth) {
-                    
                         size_t lastSpace = currentLine.find_last_of(' ');
                         if (lastSpace != std::string::npos) {
-                    
                             std::string part = currentLine.substr(0, lastSpace);
-                            if(!part.empty())
-                            outputLines.push_back(trimR(part));
-                            currentLine = currentLine.substr(lastSpace + 1);  
+                            if(!part.empty()) {
+                                std::string cleanPart = trimR(part);
+                                outputLines.push_back(cleanPart);
+                                outputLineColors.emplace_back(cleanPart.size(), text_color);
+                            }
+                            currentLine = currentLine.substr(lastSpace + 1);
                         } else {
-                    
-                            if(!currentLine.empty())
-                            outputLines.push_back(trimR(currentLine));
+                            if(!currentLine.empty()) {
+                                std::string cleanPart = trimR(currentLine);
+                                outputLines.push_back(cleanPart);
+                                outputLineColors.emplace_back(cleanPart.size(), text_color);
+                            }
                             currentLine.clear();
                         }
                     }
                 }
                 if (!currentLine.empty()) {
-                    outputLines.push_back(trimR(currentLine));
+                    std::string cleanPart = trimR(currentLine);
+                    outputLines.push_back(cleanPart);
+                    outputLineColors.emplace_back(cleanPart.size(), text_color);
                 }
-                scroll();  
+                scroll();
             }
-        
         }
+
+        if (outputLines.empty()) {
+            outputLines.push_back("");
+            outputLineColors.emplace_back();
+        }
+
+        // Keep ANSI parser state aligned when plain text output is used.
+        ansiLines = outputLines;
+        ansiLineColors = outputLineColors;
+        ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
+        ansiCursorCol = static_cast<int>(ansiLines.back().size());
+        ansiCurrentColor = text_color;
+        ansiInitialized = true;
         scroll();
     }
 
