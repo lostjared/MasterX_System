@@ -62,6 +62,26 @@ namespace mx {
                 void insertText(const std::string &text);
                 std::string getInput();
                 bool isWaitingForInput() const { return waitingForInput; }
+
+                // Background shader effects
+                enum class TermEffect : int {
+                    None = 0,
+                    Plasma,
+                    Vortex,
+                    ChromaticRipple,
+                    NeonGrid,
+                    Starfield,
+                    LiquidWave,
+                    Fractal,
+                    AcidSpiral,
+                    Aurora,
+                    Tunnel,
+                    Crystal,
+                    Fire,
+                    Hyperspace,
+                    kCount
+                };
+                void setEffect(TermEffect e, mxApp &app);
         private:
                 std::string prompt = "$ ";
 #if !defined(FOR_WASM) && !defined(WIN32)
@@ -93,6 +113,14 @@ namespace mx {
                 bool isMaximized = false;
                 TTF_Font *font;
                 SDL_Texture *wallpaper;
+
+                // --- Background shader effect state (private) ---
+                static constexpr int kEffectCount = static_cast<int>(TermEffect::kCount);
+                unsigned int effectProgs_[kEffectCount] = {};
+                TermEffect   activeEffect_  = TermEffect::None;
+                float        shaderTime_    = 0.0f;
+                Uint32       lastEffectMs_  = 0;
+                void drawEffectBackground(mxApp &app);
                 bool isScrolling = false;
                 int scrollBarWidth = 10;
                 int scrollBarHeight = 0;

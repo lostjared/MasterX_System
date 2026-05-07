@@ -484,11 +484,43 @@ namespace mx {
             return true;
         }));
 
-        Menu_ID hlp_hte_menu = termx->menu.addHeader(create_header("Help"));
-        termx->menu.addItem(hlp_hte_menu,termx->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Terminal", "(C) 2026 LostSideDead Software written by Jared Bruni");
-            return true;
-        }));
+        // Effects menu — shader backgrounds for the terminal
+        Menu_ID eff_menu = termx->menu.addHeader(create_header("Effects"));
+        auto makeEffectCallback = [](Terminal::TermEffect fx) {
+            return [fx](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                if (auto *t = dynamic_cast<Terminal *>(win))
+                    t->setEffect(fx, app);
+                return true;
+            };
+        };
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Off",              makeEffectCallback(Terminal::TermEffect::None)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Plasma",           makeEffectCallback(Terminal::TermEffect::Plasma)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Vortex",           makeEffectCallback(Terminal::TermEffect::Vortex)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Chromatic Ripple", makeEffectCallback(Terminal::TermEffect::ChromaticRipple)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Neon Grid",        makeEffectCallback(Terminal::TermEffect::NeonGrid)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("UFO 3D V2",        makeEffectCallback(Terminal::TermEffect::Starfield)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Liquid Wave",      makeEffectCallback(Terminal::TermEffect::LiquidWave)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Fractal",          makeEffectCallback(Terminal::TermEffect::Fractal)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Acid Spiral",      makeEffectCallback(Terminal::TermEffect::AcidSpiral)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Aurora",           makeEffectCallback(Terminal::TermEffect::Aurora)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Tunnel",           makeEffectCallback(Terminal::TermEffect::Tunnel)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Crystal",          makeEffectCallback(Terminal::TermEffect::Crystal)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("UFO 3D",           makeEffectCallback(Terminal::TermEffect::Fire)));
+        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+            create_menu_item("Hyperspace",       makeEffectCallback(Terminal::TermEffect::Hyperspace)));
 
         term->setMatrix(app, matrix_texture, false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
@@ -498,6 +530,13 @@ namespace mx {
             mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
+
+        Menu_ID hlp_hte_menu = termx->menu.addHeader(create_header("Help"));
+        termx->menu.addItem(hlp_hte_menu,termx->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Terminal", "(C) 2026 LostSideDead Software written by Jared Bruni");
+            return true;
+        }));
+
         SDL_Texture *rtex = loadTexture(app, "images/mp_dat/mp_wall.png");
         piece_cont->init(system_bar, "MastePiece", rtex);
         piece_cont->setActive(false);

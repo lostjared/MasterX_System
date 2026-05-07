@@ -631,4 +631,52 @@ namespace mx {
         return 0;
     }
 
+    // -----------------------------------------------------------------------
+    // Effect shader helpers
+    // -----------------------------------------------------------------------
+    unsigned int GLContext::buildEffectShader(const char *fragmentSrc) {
+        unsigned int vs = compile(GL_VERTEX_SHADER, kVS);
+        if (!vs) return 0;
+        unsigned int fs = compile(GL_FRAGMENT_SHADER, fragmentSrc);
+        if (!fs) { glDeleteShader(vs); return 0; }
+        unsigned int prog = link(vs, fs);
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        return prog; // 0 on failure; caller owns
+    }
+
+    void GLContext::applyEffect(Texture *t, unsigned int prog, float time) {
+        if (!prog) return;
+        applyTarget();
+        const int tw = currentTargetW(), th = currentTargetH();
+        if (tw <= 0 || th <= 0) return;
+
+        glUseProgram(prog);
+
+        // Projection: same encoding as uploadProj for the built-in shaders
+        int locProj = glGetUniformLocation(prog, "uProj");
+        if (locProj >= 0) {
+            const float flip = currentTargetFlipY() ? -1.0f : 1.0f;
+            const float yOff = currentTargetFlipY() ?  1.0f : -1.0f;
+            glUniform4f(locProj, 2.0f / tw, 2.0f / th, yOff, flip);
+        }
+        int locTime = glGetUniformLocation(prog, "uTime");
+        if (locTime >= 0) glUniform1f(locTime, time);
+        int locRes = glGetUniformLocation(prog, "uResolution");
+        if (locRes >= 0) glUniform2f(locRes, static_cast<float>(tw), static_cast<float>(th));
+
+        // Texture (optional – procedural effects may not declare uTex)
+        if (t && t->id) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, t->id);
+            int locTex = glGetUniformLocation(prog, "uTex");
+            if (locTex >= 0) glUniform1i(locTex, 0);
+        }
+
+        // Full-screen quad
+        issueQuad(0.0f, 0.0f,
+                  static_cast<float>(tw), static_cast<float>(th),
+                  0.0f, 0.0f, 1.0f, 1.0f);
+    }
+
 } // namespace mx

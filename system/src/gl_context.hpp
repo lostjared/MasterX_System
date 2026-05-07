@@ -66,6 +66,17 @@ namespace mx {
         Texture *createStreaming(int w, int h);
         void destroyTexture(Texture *t);
 
+        // Effect shader support.
+        // Build a custom shader reusing the built-in vertex shader + a custom
+        // GLES2 fragment shader source.  Returns 0 on failure; the caller
+        // owns the returned GL program id (call glDeleteProgram when done).
+        unsigned int buildEffectShader(const char *fragmentSrc);
+
+        // Render texture t full-screen through prog.
+        // Uniforms supplied automatically: uProj (vec4), uTex (sampler2D, slot 0),
+        // uTime (float), uResolution (vec2).
+        void applyEffect(Texture *t, unsigned int prog, float time);
+
         // Internal: bind whatever framebuffer corresponds to the current
         // render target and apply the matching viewport.
         void applyTarget();

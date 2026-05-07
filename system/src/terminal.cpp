@@ -1312,7 +1312,11 @@ namespace mx {
         updatePtySize();
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
-        SDL_RenderCopy(app.ren, dim->getMatrix() ? dim->matrix_tex : wallpaper, nullptr, nullptr);
+        if (activeEffect_ != TermEffect::None && !dim->getMatrix()) {
+            drawEffectBackground(app);
+        } else {
+            SDL_RenderCopy(app.ren, dim->getMatrix() ? dim->matrix_tex : wallpaper, nullptr, nullptr);
+        }
         SDL_RenderFillRect(app.ren, &rc);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         rc.y += 28;
@@ -2697,6 +2701,420 @@ namespace mx {
         if (!filename.empty()) {
             editor->open(filename);
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Background shader effects
+    // -----------------------------------------------------------------------
+    namespace {
+
+        // All shaders are GLES2 / GLSL ES 1.00.
+        // Vertex shader inputs: varying vec2 vUV (0..1, top-left origin)
+        // Common uniforms: uTime (float), uResolution (vec2), uTex (sampler2D)
+
+        const char *kFS_Plasma =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "void main() {\n"
+            "    vec2 uv = vUV * 2.0 - 1.0;\n"
+            "    uv.x *= uResolution.x / uResolution.y;\n"
+            "    float v = sin(uv.x * 4.0 + uTime * 0.7);\n"
+            "    v += sin(uv.y * 4.0 + uTime * 0.5);\n"
+            "    v += sin((uv.x + uv.y) * 3.0 + uTime * 0.8);\n"
+            "    v += sin(length(uv) * 6.0 - uTime);\n"
+            "    v *= 0.25;\n"
+            "    float pi = 3.14159;\n"
+            "    vec3 col;\n"
+            "    col.r = 0.5 + 0.5 * sin(v * pi + uTime * 0.3);\n"
+            "    col.g = 0.5 + 0.5 * sin(v * pi + uTime * 0.3 + 2.094);\n"
+            "    col.b = 0.5 + 0.5 * sin(v * pi + uTime * 0.3 + 4.189);\n"
+            "    gl_FragColor = vec4(col * 0.9, 1.0);\n"
+            "}\n";
+
+        const char *kFS_Vortex =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform sampler2D uTex;\n"
+            "void main() {\n"
+            "    vec2 uv = vUV - 0.5;\n"
+            "    float dist = length(uv);\n"
+            "    float angle = atan(uv.y, uv.x);\n"
+            "    float twist = uTime * 0.5 + dist * 5.0;\n"
+            "    vec2 warped = vec2(cos(angle + twist), sin(angle + twist)) * dist + 0.5;\n"
+            "    warped = clamp(warped, 0.0, 1.0);\n"
+            "    gl_FragColor = texture2D(uTex, warped);\n"
+            "}\n";
+
+        const char *kFS_ChromaticRipple =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform sampler2D uTex;\n"
+            "void main() {\n"
+            "    vec2 uv = vUV;\n"
+            "    float dist = length(uv - 0.5);\n"
+            "    float ripple = sin(dist * 20.0 - uTime * 2.5) * 0.012;\n"
+            "    vec2 dir = normalize(uv - 0.5 + vec2(0.001));\n"
+            "    vec2 uvR = clamp(uv + dir * ripple * 1.6, 0.0, 1.0);\n"
+            "    vec2 uvG = clamp(uv + dir * ripple, 0.0, 1.0);\n"
+            "    vec2 uvB = clamp(uv - dir * ripple * 0.6, 0.0, 1.0);\n"
+            "    float r = texture2D(uTex, uvR).r;\n"
+            "    float g = texture2D(uTex, uvG).g;\n"
+            "    float b = texture2D(uTex, uvB).b;\n"
+            "    gl_FragColor = vec4(r, g, b, 1.0);\n"
+            "}\n";
+
+        const char *kFS_NeonGrid =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "void main() {\n"
+            "    vec2 uv = vUV * vec2(uResolution.x / uResolution.y, 1.0) * 20.0;\n"
+            "    vec2 gv = fract(uv) - 0.5;\n"
+            "    float grid = min(abs(gv.x), abs(gv.y));\n"
+            "    float pulse = 0.5 + 0.5 * sin(uTime * 1.5);\n"
+            "    float line = smoothstep(0.05, 0.02, grid) * (0.3 + 0.7 * pulse);\n"
+            "    vec3 col;\n"
+            "    col.r = 0.1 + 0.9 * (0.5 + 0.5 * sin(uv.x * 0.4 + uTime * 0.3));\n"
+            "    col.g = 0.1 + 0.9 * (0.5 + 0.5 * sin(uv.y * 0.4 + uTime * 0.4 + 1.0));\n"
+            "    col.b = 0.6 + 0.4 * (0.5 + 0.5 * sin(uTime * 0.5 + 2.0));\n"
+            "    gl_FragColor = vec4(col * line, 1.0);\n"
+            "}\n";
+
+        // Starfield slot: ported from acidcam-gpu/shaders/g_ufo_3d_v2.glsl.
+        // 3D rotation + ping-pong scaling distortion of the wallpaper texture,
+        // with per-pixel angle modulation for a more chaotic warp.
+        const char *kFS_Starfield =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "uniform sampler2D uTex;\n"
+            "mat3 rotX(float a){float s=sin(a),c=cos(a);return mat3(1.0,0.0,0.0, 0.0,c,-s, 0.0,s,c);}\n"
+            "mat3 rotY(float a){float s=sin(a),c=cos(a);return mat3(c,0.0,s, 0.0,1.0,0.0, -s,0.0,c);}\n"
+            "mat3 rotZ(float a){float s=sin(a),c=cos(a);return mat3(c,-s,0.0, s,c,0.0, 0.0,0.0,1.0);}\n"
+            "void main(void) {\n"
+            "    float aspect = uResolution.x / max(uResolution.y, 1.0);\n"
+            "    vec2 ar = vec2(aspect, 1.0);\n"
+            "    vec2 m = vec2(0.5);\n"
+            "    vec2 p2 = (vUV - m) * ar;\n"
+            "    float ax = 0.25 * sin(uTime * 0.7 + vUV.x * 10.0);\n"
+            "    float ay = 0.25 * cos(uTime * 0.6 - vUV.y * 10.0);\n"
+            "    float az = uTime * 0.5;\n"
+            "    vec3 p3 = vec3(p2, 1.0);\n"
+            "    mat3 R = rotZ(az) * rotY(ay) * rotX(ax);\n"
+            "    vec3 r = R * p3;\n"
+            "    float k = 0.6;\n"
+            "    float zf = 1.0 / (1.0 + r.z * k);\n"
+            "    vec2 q = r.xy * zf;\n"
+            "    float dist = length(p2);\n"
+            "    float scale_factor = 0.2 * sin(dist * 15.0 - uTime * 2.0 + vUV.x * 5.0 + vUV.y * 5.0);\n"
+            "    q *= (1.0 + scale_factor);\n"
+            "    vec2 uv = q / ar + m;\n"
+            "    uv = clamp(uv, 0.0, 1.0);\n"
+            "    gl_FragColor = texture2D(uTex, uv);\n"
+            "}\n";
+
+        const char *kFS_LiquidWave =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform sampler2D uTex;\n"
+            "void main() {\n"
+            "    vec2 uv = vUV;\n"
+            "    float dx = sin(uv.y * 8.0 + uTime * 1.2) * 0.014\n"
+            "             + sin(uv.y * 15.0 - uTime * 0.7) * 0.007;\n"
+            "    float dy = sin(uv.x * 6.0 + uTime * 0.9) * 0.012\n"
+            "             + cos(uv.x * 12.0 + uTime * 1.3) * 0.005;\n"
+            "    vec2 warped = clamp(uv + vec2(dx, dy), 0.0, 1.0);\n"
+            "    vec4 c = texture2D(uTex, warped);\n"
+            "    c.r *= 0.85 + 0.15 * sin(uTime * 0.4);\n"
+            "    c.b *= 0.85 + 0.15 * sin(uTime * 0.3 + 1.0);\n"
+            "    gl_FragColor = c;\n"
+            "}\n";
+
+        const char *kFS_Fractal =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "void main() {\n"
+            "    vec2 uv = (vUV - 0.5) * 3.0;\n"
+            "    uv.x *= uResolution.x / uResolution.y;\n"
+            "    vec2 c = vec2(0.355 + sin(uTime * 0.1) * 0.1,\n"
+            "                  0.355 + cos(uTime * 0.13) * 0.1);\n"
+            "    vec2 z = uv;\n"
+            "    float iter = 0.0;\n"
+            "    for (int i = 0; i < 64; i++) {\n"
+            "        z = vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y) + c;\n"
+            "        if (dot(z, z) > 4.0) { iter = float(i); break; }\n"
+            "    }\n"
+            "    float t = iter / 64.0;\n"
+            "    vec3 col = vec3(0.0);\n"
+            "    if (t > 0.0) {\n"
+            "        col.r = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3);\n"
+            "        col.g = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3 + 2.094);\n"
+            "        col.b = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3 + 4.189);\n"
+            "    }\n"
+            "    gl_FragColor = vec4(col, 1.0);\n"
+            "}\n";
+
+        const char *kFS_AcidSpiral =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "uniform sampler2D uTex;\n"
+            "void main() {\n"
+            "    vec2 uv = vUV - 0.5;\n"
+            "    uv.x *= uResolution.x / uResolution.y;\n"
+            "    float angle = atan(uv.y, uv.x);\n"
+            "    float dist = length(uv);\n"
+            "    float segments = 6.0;\n"
+            "    float pi = 3.14159;\n"
+            "    float segAngle = pi * 2.0 / segments;\n"
+            "    angle = mod(angle + pi, segAngle * 2.0);\n"
+            "    angle = abs(angle - segAngle);\n"
+            "    vec2 folded = vec2(cos(angle), sin(angle)) * dist;\n"
+            "    float spiral = dist * 3.0 - uTime * 0.6;\n"
+            "    folded += vec2(sin(spiral) * 0.08, cos(spiral) * 0.08);\n"
+            "    vec2 tUV = clamp(folded + 0.5, 0.0, 1.0);\n"
+            "    gl_FragColor = texture2D(uTex, tUV);\n"
+            "}\n";
+
+        // Aurora Borealis: layered sine-wave bands in green/blue/purple
+        const char *kFS_Aurora =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "float band(vec2 uv, float offset, float t) {\n"
+            "    float w = sin(uv.x * 3.1 + t + offset) * 0.06\n"
+            "           + sin(uv.x * 5.7 - t * 1.3 + offset) * 0.04\n"
+            "           + sin(uv.x * 8.3 + t * 0.7 + offset) * 0.025;\n"
+            "    float cy = 0.32 + offset * 0.11 + w;\n"
+            "    float d = uv.y - cy;\n"
+            "    return exp(-d * d * 90.0) * (0.5 + 0.5 * sin(uv.x * 4.0 + t * 1.5 + offset));\n"
+            "}\n"
+            "void main() {\n"
+            "    float t = uTime * 0.22;\n"
+            "    vec3 col = vec3(0.0, 0.01, 0.04);\n"
+            "    col += vec3(0.05, 0.80, 0.30) * band(vUV, 0.0, t);\n"
+            "    col += vec3(0.10, 0.50, 0.80) * band(vUV, 1.0, t);\n"
+            "    col += vec3(0.50, 0.10, 0.80) * band(vUV, 2.0, t);\n"
+            "    col += vec3(0.05, 0.70, 0.40) * band(vUV, 3.0, t);\n"
+            "    col += vec3(0.15, 0.20, 0.90) * band(vUV, 4.0, t);\n"
+            "    float star = fract(sin(dot(floor(vUV * 160.0), vec2(127.1, 311.7))) * 43758.5);\n"
+            "    col += step(0.975, star) * 0.4;\n"
+            "    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n"
+            "}\n";
+
+        // Tunnel: fly through a rainbow-tiled infinite corridor
+        const char *kFS_Tunnel =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "void main() {\n"
+            "    vec2 uv = vUV - 0.5;\n"
+            "    uv.x *= uResolution.x / uResolution.y;\n"
+            "    float dist = length(uv);\n"
+            "    float angle = atan(uv.y, uv.x);\n"
+            "    float pi2 = 6.28318;\n"
+            "    float depth = 0.25 / max(dist, 0.001) + uTime * 0.6;\n"
+            "    float a = (angle / pi2) + 0.5;\n"
+            "    float tiles = floor(mod(depth * 4.0, 2.0)) + floor(mod(a * 8.0, 2.0));\n"
+            "    float check = mod(tiles, 2.0);\n"
+            "    float fog = smoothstep(0.0, 0.25, dist);\n"
+            "    float hue = a + uTime * 0.12;\n"
+            "    vec3 c1 = vec3(0.5 + 0.5 * sin(hue * pi2),\n"
+            "                   0.5 + 0.5 * sin(hue * pi2 + 2.094),\n"
+            "                   0.5 + 0.5 * sin(hue * pi2 + 4.189));\n"
+            "    vec3 c2 = c1 * 0.08;\n"
+            "    gl_FragColor = vec4(mix(c2, c1, check) * fog, 1.0);\n"
+            "}\n";
+
+        // Crystal: animated Voronoi diagram with jewel colours
+        const char *kFS_Crystal =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "vec2 hv2(vec2 p) {\n"
+            "    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));\n"
+            "    return fract(sin(p) * 43758.5453);\n"
+            "}\n"
+            "void main() {\n"
+            "    vec2 uv = vUV * vec2(uResolution.x / uResolution.y, 1.0) * 6.0;\n"
+            "    vec2 p = floor(uv);\n"
+            "    vec2 f = fract(uv);\n"
+            "    float md = 9.0, md2 = 9.0;\n"
+            "    vec2 cid = vec2(0.0);\n"
+            "    for (int j = -1; j <= 1; j++) {\n"
+            "        for (int i = -1; i <= 1; i++) {\n"
+            "            vec2 b = vec2(float(i), float(j));\n"
+            "            vec2 anim = sin(hv2(p + b) * 6.28 + uTime * 0.5) * 0.3;\n"
+            "            vec2 r = b - f + 0.5 + anim;\n"
+            "            float d = dot(r, r);\n"
+            "            if (d < md) { md2 = md; md = d; cid = b; }\n"
+            "            else if (d < md2) { md2 = d; }\n"
+            "        }\n"
+            "    }\n"
+            "    float edge = sqrt(md2) - sqrt(md);\n"
+            "    float hue = fract(dot(p + cid, vec2(0.317, 0.177)) + uTime * 0.07);\n"
+            "    vec3 col = vec3(0.5 + 0.5 * sin(hue * 6.28),\n"
+            "                    0.5 + 0.5 * sin(hue * 6.28 + 2.094),\n"
+            "                    0.5 + 0.5 * sin(hue * 6.28 + 4.189));\n"
+            "    col = col * smoothstep(0.0, 0.08, edge) + 0.9 * smoothstep(0.08, 0.0, edge);\n"
+            "    gl_FragColor = vec4(col, 1.0);\n"
+            "}\n";
+
+        // Fire slot: ported from acidcam-gpu/shaders/g_ufo_3d.glsl.
+        // Smooth 3D rotation + radial pulse warp of the wallpaper texture.
+        const char *kFS_Fire =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "uniform sampler2D uTex;\n"
+            "mat3 rotX(float a){float s=sin(a),c=cos(a);return mat3(1.0,0.0,0.0, 0.0,c,-s, 0.0,s,c);}\n"
+            "mat3 rotY(float a){float s=sin(a),c=cos(a);return mat3(c,0.0,s, 0.0,1.0,0.0, -s,0.0,c);}\n"
+            "mat3 rotZ(float a){float s=sin(a),c=cos(a);return mat3(c,-s,0.0, s,c,0.0, 0.0,0.0,1.0);}\n"
+            "void main(void) {\n"
+            "    float aspect = uResolution.x / max(uResolution.y, 1.0);\n"
+            "    vec2 ar = vec2(aspect, 1.0);\n"
+            "    vec2 m = vec2(0.5);\n"
+            "    vec2 p2 = (vUV - m) * ar;\n"
+            "    float ax = 0.25 * sin(uTime * 0.7);\n"
+            "    float ay = 0.25 * cos(uTime * 0.6);\n"
+            "    float az = uTime * 0.5;\n"
+            "    vec3 p3 = vec3(p2, 1.0);\n"
+            "    mat3 R = rotZ(az) * rotY(ay) * rotX(ax);\n"
+            "    vec3 r = R * p3;\n"
+            "    float k = 0.6;\n"
+            "    float zf = 1.0 / (1.0 + r.z * k);\n"
+            "    vec2 q = r.xy * zf;\n"
+            "    float dist = length(p2);\n"
+            "    float scale = 1.0 + 0.2 * sin(dist * 15.0 - uTime * 2.0);\n"
+            "    q *= scale;\n"
+            "    vec2 uv = q / ar + m;\n"
+            "    uv = clamp(uv, 0.0, 1.0);\n"
+            "    gl_FragColor = texture2D(uTex, uv);\n"
+            "}\n";
+
+        // Hyperspace: angular streaks at warp speed.  Uses a sector-based
+        // approach: divide circle into N sectors, animate each one's radial
+        // position.  No large per-pixel loop required.
+        const char *kFS_Hyperspace =
+            "#ifdef GL_ES\n"
+            "precision mediump float;\n"
+            "#endif\n"
+            "varying vec2 vUV;\n"
+            "uniform float uTime;\n"
+            "uniform vec2 uResolution;\n"
+            "float h11(float n) { return fract(sin(n * 91.345) * 47453.5453); }\n"
+            "void main() {\n"
+            "    vec2 uv = vUV - 0.5;\n"
+            "    uv.x *= uResolution.x / max(uResolution.y, 1.0);\n"
+            "    float dist  = length(uv);\n"
+            "    float angle = atan(uv.y, uv.x) / 6.28318 + 0.5;\n"
+            "    float sectors = 64.0;\n"
+            "    float a  = angle * sectors;\n"
+            "    float ai = floor(a);\n"
+            "    float af = fract(a) - 0.5;\n"
+            "    float seedA = h11(ai);\n"
+            "    float seedB = h11(ai + 91.0);\n"
+            "    float seedC = h11(ai + 17.0);\n"
+            "    float speed = 0.25 + seedA * 0.7;\n"
+            "    float t = fract(uTime * speed + seedB);\n"
+            "    float head = t * 0.95;\n"
+            "    float len  = 0.10 + seedC * 0.30;\n"
+            "    float radial = smoothstep(head - len, head - len * 0.2, dist)\n"
+            "                 * smoothstep(head + 0.01, head, dist);\n"
+            "    float width  = 0.06 + 0.20 * (1.0 - t);\n"
+            "    float angular = smoothstep(width, 0.0, abs(af));\n"
+            "    float fall = smoothstep(0.0, 0.15, t) * smoothstep(1.0, 0.75, t);\n"
+            "    float core = radial * angular * fall;\n"
+            "    vec3 tint = mix(vec3(0.7, 0.85, 1.0), vec3(1.0, 0.55, 0.95), seedC);\n"
+            "    vec3 col = core * tint * 1.6;\n"
+            "    col += vec3(0.0, 0.02, 0.10) * smoothstep(0.6, 0.0, dist);\n"
+            "    col += vec3(0.6, 0.8, 1.0) * smoothstep(0.04, 0.0, dist) * 0.6;\n"
+            "    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n"
+            "}\n";
+
+        static const char *kEffectFS[] = {
+            nullptr,             // None (0)
+            kFS_Plasma,          // 1
+            kFS_Vortex,          // 2
+            kFS_ChromaticRipple, // 3
+            kFS_NeonGrid,        // 4
+            kFS_Starfield,       // 5
+            kFS_LiquidWave,      // 6
+            kFS_Fractal,         // 7
+            kFS_AcidSpiral,      // 8
+            kFS_Aurora,          // 9
+            kFS_Tunnel,          // 10
+            kFS_Crystal,         // 11
+            kFS_Fire,            // 12
+            kFS_Hyperspace,      // 13
+        };
+
+    } // anonymous namespace
+
+    void Terminal::setEffect(TermEffect e, mxApp &app) {
+        activeEffect_ = e;
+        const int idx = static_cast<int>(e);
+        if (idx <= 0 || idx >= kEffectCount) return;
+        if (effectProgs_[idx] == 0) {
+            // Lazily compile the shader
+            effectProgs_[idx] =
+                app.ren->buildEffectShader(kEffectFS[idx]);
+        }
+        // Reset animation time when switching effects
+        shaderTime_ = 0.0f;
+        lastEffectMs_ = SDL_GetTicks();
+    }
+
+    void Terminal::drawEffectBackground(mxApp &app) {
+        const int idx = static_cast<int>(activeEffect_);
+        if (idx <= 0 || idx >= kEffectCount) return;
+        if (effectProgs_[idx] == 0) return;
+
+        // Advance shader time
+        Uint32 now = SDL_GetTicks();
+        if (lastEffectMs_ == 0) lastEffectMs_ = now;
+        shaderTime_ += static_cast<float>(now - lastEffectMs_) * 0.001f;
+        lastEffectMs_ = now;
+
+        // Use the wallpaper as the input texture (may be null for procedural effects)
+        app.ren->applyEffect(wallpaper, effectProgs_[idx], shaderTime_);
     }
 }
  
