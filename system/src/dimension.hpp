@@ -15,6 +15,11 @@
 namespace mx {
 
     extern bool cursor_shown;
+    // Set true by any handler that explicitly chose the OS cursor for the
+    // current SDL_MOUSEMOTION event. If still false at the end of motion
+    // dispatch, Dimension falls back to the default arrow so the cursor
+    // never gets stuck (e.g. as a resize cursor after leaving a window edge).
+    extern bool cursor_handled;
 
      class Window;
      class SystemBar;
@@ -103,7 +108,11 @@ namespace mx {
         Button *about_window_ok, *welcome_ok, *toggle_fullscreen, *toggle_matrix;
         Image *welcome_image;
         Label *about_window_info, *welcome_help_info;
-        SDL_Texture *hand_cursor, *reg_cursor;
+        // System cursors used for the desktop. Hand is shown when hovering
+        // an interactive element (icon/link); arrow is the default. These are
+        // real OS cursors set via SDL_SetCursor, not drawn textures.
+        SDL_Cursor *hand_cursor = nullptr;
+        SDL_Cursor *reg_cursor = nullptr;
         int cursor_x = 0, cursor_y = 0;
         Terminal *termx;
         DimensionContainer *piece_cont;

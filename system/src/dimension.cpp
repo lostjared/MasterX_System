@@ -21,6 +21,7 @@
 namespace mx {
 
     bool cursor_shown = false;
+    bool cursor_handled = false;
   
     DimensionContainer::DimensionContainer(mxApp &app) : wallpaper{nullptr} , events{app}, active{false} {}
 
@@ -641,33 +642,12 @@ namespace mx {
 
         setCurrentDimension(1);
         system_bar->activateDimension(1);
-        SDL_Surface *hand_cursor_surf = SDL_LoadBMP(getPath("images/hand.bmp").c_str());
-        if(hand_cursor_surf == nullptr) {
-            mx::system_err << "MasterX: Error loading cursor..\n";
-            exit(EXIT_FAILURE);
-        }
-        SDL_SetColorKey(hand_cursor_surf, SDL_TRUE, SDL_MapRGB(hand_cursor_surf->format, 0, 128, 128));
-        hand_cursor = SDL_CreateTextureFromSurface(app.ren, hand_cursor_surf);
-        SDL_FreeSurface(hand_cursor_surf);
-        if(hand_cursor == nullptr) {
-            mx::system_err << "MasterX System: Error creating texture from surface...\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        SDL_Surface *cursor_surf = SDL_LoadBMP(getPath("images/cursor.bmp").c_str());
-        if(cursor_surf == nullptr) {
-            mx::system_err << "MasterX: Error loading cursor..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        SDL_SetColorKey(cursor_surf, SDL_TRUE, SDL_MapRGB(cursor_surf->format, 0, 128, 128));
-        reg_cursor = SDL_CreateTextureFromSurface(app.ren, cursor_surf);
-        SDL_FreeSurface(cursor_surf);
-        if(reg_cursor == nullptr) {
-            mx::system_err << "MasterX System: Error creating texture from surface...\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
+        // Use real OS cursors instead of software-drawn cursor textures.
+        // SDL falls back to a built-in default if the platform theme has no
+        // entry for the requested kind, so these always succeed.
+        reg_cursor  = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+        hand_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+        if (reg_cursor) SDL_SetCursor(reg_cursor);
     }
 
     void Dimension::setCurrentDimension(int dim) {
@@ -684,10 +664,10 @@ namespace mx {
             SDL_DestroyTexture(wallpaper);
         }
         if(hand_cursor != nullptr) {
-            SDL_DestroyTexture(hand_cursor);
+            SDL_FreeCursor(hand_cursor);
         }
         if(reg_cursor != nullptr) {
-            SDL_DestroyTexture(reg_cursor);
+            SDL_FreeCursor(reg_cursor);
         }
         if(matrix_texture != nullptr) {
             SDL_DestroyTexture(matrix_texture);
@@ -767,14 +747,6 @@ namespace mx {
         for (auto &i : objects) {
             i->draw(app);
         }
-        SDL_SetRenderTarget(app.ren, app.tex);
-        SDL_Rect rc = { cursor_x, cursor_y, 32, 32 };
-        if(cursor_shown) { 
-            SDL_RenderCopy(app.ren, hand_cursor, nullptr, &rc);
-        } else {
-            SDL_RenderCopy(app.ren, reg_cursor, nullptr, &rc);
-        }
-        SDL_SetRenderTarget(app.ren, nullptr);
     }
 
    Screen *Dimension::getDimension() {
@@ -793,6 +765,13 @@ namespace mx {
     }
 
     bool Dimension::event(mxApp &app, SDL_Event &e) {
+        if (e.type == SDL_MOUSEMOTION) {
+            // Reset before dispatch so handlers can claim the cursor
+            // (window edges -> resize, system bar -> hand/arrow,
+            // dashboard icons -> hand/arrow). If no handler claims it,
+            // we fall back to the arrow at the end of this function.
+            cursor_handled = false;
+        }
         if (e.type == SDL_WINDOWEVENT &&
             (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
              e.window.event == SDL_WINDOWEVENT_RESIZED)) {
@@ -816,6 +795,7 @@ namespace mx {
             cursor_y = e.motion.y;
 
             if(getCurrentDimension() == 0) {
+                bool hovering_icon = false;
                 for(size_t i = 1;  i < dimensions.size(); ++i) {
                     DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions[i].get());
                     if(!con) {
@@ -826,9 +806,27 @@ namespace mx {
                     SDL_Point p = {e.motion.x, e.motion.y};
                     if(SDL_PointInRect(&p, &con->icon_rect)) {
                         con->underline = true;
+                        hovering_icon = true;
                     } else {
                         con->underline = false;
                     }
+                }
+                // Update the OS cursor based on icon hover. Done from the
+                // motion handler (rather than every frame) so it doesn't
+                // override the resize cursors set by Window edge hit-tests.
+                // Skip this entirely if a higher-priority handler (e.g. the
+                // SystemBar's Launch menu) already chose the cursor for this
+                // event — otherwise we'd clobber its hand cursor with arrow.
+                if (!cursor_handled) {
+                    SDL_Cursor *desired = hovering_icon ? hand_cursor : reg_cursor;
+                    if (desired) {
+                        SDL_SetCursor(desired);
+                        cursor_handled = true;
+                    }
+                } else if (hovering_icon && hand_cursor) {
+                    // Still allow hand-over-icon to override an arrow set by
+                    // a managed zone (rare overlap case).
+                    SDL_SetCursor(hand_cursor);
                 }
             }
         } else if(e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
@@ -846,6 +844,18 @@ namespace mx {
                     } 
                 }
             }
+        }
+        // Final fallback: if a mouse motion event reached this point and no
+        // handler chose a cursor, restore the default arrow. This prevents
+        // the resize cursor (set by Window edge hit-tests) from sticking
+        // when the mouse leaves the edge over a non-managed area.
+        if (e.type == SDL_MOUSEMOTION && !cursor_handled) {
+            if (reg_cursor) {
+                SDL_SetCursor(reg_cursor);
+            } else {
+                SDL_SetCursor(SDL_GetDefaultCursor());
+            }
+            cursor_handled = true;
         }
         return false;
     }

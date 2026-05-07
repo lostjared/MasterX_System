@@ -544,6 +544,7 @@ namespace mx {
                     if (SDL_PointInRect(&rc, &textRect)) {
                        chover = true;
                        hoverIndex = static_cast<int>(i);
+                       cursor_shown = true;
                        break;
                     }
                     yOffset += 30;  
@@ -661,6 +662,7 @@ namespace mx {
                             SDL_Point cur_point { mouseX, mouseY };
                         if (con->name != "Dashboard" && SDL_PointInRect(&cur_point, &closeButtonRect)) {
                             con->hoveringX = true; 
+                                cursor_shown = true;
                         } else {
                             con->hoveringX = false;
                         }
@@ -678,12 +680,66 @@ namespace mx {
             int targetYPos = app.height - barHeight;
 
             SDL_Rect startButtonRect = {windowWidth - startButtonSize, targetYPos, startButtonSize, barHeight};
+            SDL_Point mousePoint = {mouseX, mouseY};
+            bool wantsHand = false;
+            bool inManagedZone = false;
 
             if (mouseX >= startButtonRect.x && mouseX <= (startButtonRect.x + startButtonRect.w) &&
                 mouseY >= startButtonRect.y && mouseY <= (startButtonRect.y + startButtonRect.h)) {
                 isHovering = true;
+                cursor_shown = true;
+                wantsHand = true;
             } else {
                 isHovering = false;
+            }
+            if (SDL_PointInRect(&mousePoint, &startButtonRect) || mouseY >= targetYPos) {
+                inManagedZone = true;
+            }
+
+            // Launch menu items should always use the hand cursor while hovered.
+            if (menu->menuOpen && menu->itemClicked(app, mouseX, mouseY) != -1) {
+                cursor_shown = true;
+                wantsHand = true;
+            }
+            if (menu->menuOpen) {
+                int menuX = app.width - (app.width / 6) - 20;
+                int menuY = menu->currentY;
+                int menuWidth = app.width / 6;
+                int menuHeight = app.height / 2;
+                SDL_Rect menuRect = {menuX, menuY, menuWidth, menuHeight};
+                SDL_Point mp = {mouseX, mouseY};
+                if (SDL_PointInRect(&mp, &menuRect)) {
+                    cursor_shown = true;
+                    wantsHand = true;
+                    inManagedZone = true;
+                }
+            }
+
+            if (showMinimizedMenu) {
+                SDL_Rect minimizedMenuRect = {menu_x, menu_y, menu_width, menu_height};
+                if (SDL_PointInRect(&mousePoint, &minimizedMenuRect)) {
+                    inManagedZone = true;
+                    if (menuHover) {
+                        cursor_shown = true;
+                        wantsHand = true;
+                    }
+                }
+            }
+
+            // Force cursor state in managed system-bar zones so resize cursors
+            // from window edges do not get "stuck" when entering Launch/menu UI.
+            static SDL_Cursor *handCur = nullptr;
+            static SDL_Cursor *arrowCur = nullptr;
+            if (!handCur) handCur = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+            if (!arrowCur) arrowCur = SDL_GetDefaultCursor();
+            if (!arrowCur) arrowCur = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+            if (inManagedZone) {
+                if (wantsHand) {
+                    if (handCur) SDL_SetCursor(handCur);
+                } else {
+                    if (arrowCur) SDL_SetCursor(arrowCur);
+                }
+                cursor_handled = true;
             }
         } else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_LEAVE) {
             isHovering = false;

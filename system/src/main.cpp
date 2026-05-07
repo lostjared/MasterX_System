@@ -291,7 +291,9 @@ int main(int argc, char **argv) {
 
     atexit(quit);
 
-    SDL_ShowCursor(SDL_FALSE);
+    // Show the OS cursor: the system uses real SDL cursors (arrow / hand /
+    // resize) rather than a software-drawn cursor texture.
+    SDL_ShowCursor(SDL_TRUE);
 
     std::vector<std::unique_ptr<mx::Screen>> screen_obj;
     screens = &screen_obj;

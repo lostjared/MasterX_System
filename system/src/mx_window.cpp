@@ -3,10 +3,63 @@
 #include"mx_system_bar.hpp"
 #include"dimension.hpp"
 #include"mx_menu.hpp"
+#include"loadpng.hpp"
 
 namespace mx {
 
     extern bool cursor_shown;
+
+    namespace {
+        // Custom resize cursors loaded lazily on first hover. These are
+        // bundled PNGs (Adwaita, LGPL) under assets/images/cursors/. If
+        // loading fails we fall back to SDL's built-in system cursors.
+        struct ResizeCursorEntry {
+            const char *file;
+            int hotX;
+            int hotY;
+            SDL_SystemCursor fallback;
+        };
+
+        SDL_Cursor *g_resizeCursors[4] = {nullptr, nullptr, nullptr, nullptr};
+        bool g_resizeCursorsInitialized = false;
+
+        enum ResizeCursorKind {
+            kCursorEW   = 0,  // left/right
+            kCursorNS   = 1,  // top/bottom
+            kCursorNWSE = 2,  // TL/BR corner
+            kCursorNESW = 3,  // TR/BL corner
+        };
+
+        SDL_Cursor *createCursorFromPNG(const char *relPath, int hotX, int hotY) {
+            SDL_Surface *surf = mx::LoadPNG(getPath(relPath).c_str());
+            if (!surf) return nullptr;
+            SDL_Cursor *c = SDL_CreateColorCursor(surf, hotX, hotY);
+            SDL_FreeSurface(surf);
+            return c;
+        }
+
+        SDL_Cursor *getResizeCursor(ResizeCursorKind k) {
+            if (!g_resizeCursorsInitialized) {
+                g_resizeCursorsInitialized = true;
+                // Hotspots match the source cursors in /usr/share/icons/Adwaita
+                // (36x36 frames). Center for straight edges; visual midpoint
+                // for the diagonal arrows.
+                static const ResizeCursorEntry table[4] = {
+                    { "images/cursors/ew-resize.png",   18, 18, SDL_SYSTEM_CURSOR_SIZEWE   },
+                    { "images/cursors/ns-resize.png",   18, 19, SDL_SYSTEM_CURSOR_SIZENS   },
+                    { "images/cursors/nwse-resize.png", 16, 16, SDL_SYSTEM_CURSOR_SIZENWSE },
+                    { "images/cursors/nesw-resize.png", 16, 16, SDL_SYSTEM_CURSOR_SIZENESW },
+                };
+                for (int i = 0; i < 4; ++i) {
+                    g_resizeCursors[i] = createCursorFromPNG(table[i].file, table[i].hotX, table[i].hotY);
+                    if (!g_resizeCursors[i]) {
+                        g_resizeCursors[i] = SDL_CreateSystemCursor(table[i].fallback);
+                    }
+                }
+            }
+            return g_resizeCursors[k];
+        }
+    } // namespace
 
     Window::Window(mxApp &app) 
     : dim(nullptr),
@@ -284,37 +337,45 @@ namespace mx {
 
     int Window::hitTestEdges(int mx, int my) const {
         if (!can_resize || minimized || maximized || !shown) return 0;
+        // Only treat points inside the window frame as resize candidates.
+        // This prevents nearby UI (desktop icons, menu items) from being
+        // interpreted as edge-resize zones of overlapping windows.
+        if (mx < x || mx > x + w || my < y || my > y + h) return 0;
         const int b = kResizeBorder;
-        // Windows-style: only the four corners are resize handles. The straight
-        // edges (and the title bar in particular) are reserved for move-drag.
+        SDL_Point p{ mx, my };
+        // Corners take priority so diagonal resize works at the four extremes.
         SDL_Rect tl{ x - b,         y - b,         2 * b, 2 * b };
         SDL_Rect tr{ x + w - b,     y - b,         2 * b, 2 * b };
         SDL_Rect bl{ x - b,         y + h - b,     2 * b, 2 * b };
         SDL_Rect br{ x + w - b,     y + h - b,     2 * b, 2 * b };
-        SDL_Point p{ mx, my };
         if (SDL_PointInRect(&p, &tl)) return 1 | 4;
         if (SDL_PointInRect(&p, &tr)) return 2 | 4;
         if (SDL_PointInRect(&p, &bl)) return 1 | 8;
         if (SDL_PointInRect(&p, &br)) return 2 | 8;
+        // Straight edges. The top edge is intentionally a thin strip along the
+        // very top of the frame so the rest of the title bar still works as a
+        // move-drag handle.
+        SDL_Rect topEdge   { x + b,     y - b,     w - 2 * b, 2 * b };
+        SDL_Rect bottomEdge{ x + b,     y + h - b, w - 2 * b, 2 * b };
+        SDL_Rect leftEdge  { x - b,     y + b,     2 * b,     h - 2 * b };
+        SDL_Rect rightEdge { x + w - b, y + b,     2 * b,     h - 2 * b };
+        if (SDL_PointInRect(&p, &topEdge))    return 4;
+        if (SDL_PointInRect(&p, &bottomEdge)) return 8;
+        if (SDL_PointInRect(&p, &leftEdge))   return 1;
+        if (SDL_PointInRect(&p, &rightEdge))  return 2;
         return 0;
     }
 
     void Window::applyEdgeCursor(int edges) const {
-        SDL_SystemCursor id = SDL_SYSTEM_CURSOR_ARROW;
+        ResizeCursorKind kind;
         switch (edges) {
-            case 1: case 2:           id = SDL_SYSTEM_CURSOR_SIZEWE; break;
-            case 4: case 8:           id = SDL_SYSTEM_CURSOR_SIZENS; break;
-            case 1|4: case 2|8:       id = SDL_SYSTEM_CURSOR_SIZENWSE; break;
-            case 2|4: case 1|8:       id = SDL_SYSTEM_CURSOR_SIZENESW; break;
+            case 1: case 2:           kind = kCursorEW;   break;
+            case 4: case 8:           kind = kCursorNS;   break;
+            case 1|4: case 2|8:       kind = kCursorNWSE; break;
+            case 2|4: case 1|8:       kind = kCursorNESW; break;
             default:                  return;
         }
-        static SDL_SystemCursor lastId = SDL_SYSTEM_CURSOR_ARROW;
-        static SDL_Cursor *cur = nullptr;
-        if (id != lastId || !cur) {
-            if (cur) SDL_FreeCursor(cur);
-            cur = SDL_CreateSystemCursor(id);
-            lastId = id;
-        }
+        SDL_Cursor *cur = getResizeCursor(kind);
         if (cur) SDL_SetCursor(cur);
     }
 
@@ -391,7 +452,19 @@ namespace mx {
             }
             if (can_resize && !dragging && shown && !minimized && !maximized) {
                 int edges = hitTestEdges(e.motion.x, e.motion.y);
-                if (edges) applyEdgeCursor(edges);
+                // Use cursor_handled (reset each motion event by Dimension) so
+                // we react to *this* frame's prior dispatch (e.g. menu hover)
+                // instead of last frame's stale draw-time cursor_shown.
+                if (edges && !cursor_handled) {
+                    applyEdgeCursor(edges);
+                    cursor_handled = true;
+                } else if (isPointInside(e.motion.x, e.motion.y) && !cursor_handled) {
+                    // Cursor is over the window but not on an edge; restore
+                    // the default arrow so it doesn't stay stuck as a resize
+                    // cursor after leaving an edge.
+                    SDL_SetCursor(SDL_GetDefaultCursor());
+                    cursor_handled = true;
+                }
             }
         } 
         

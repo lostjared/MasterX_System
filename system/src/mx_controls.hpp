@@ -8,6 +8,7 @@
 namespace mx {
 
     extern bool cursor_shown;
+    extern bool cursor_handled;
 
     class Label : public Control {
     public:

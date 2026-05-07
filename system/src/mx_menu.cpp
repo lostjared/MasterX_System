@@ -75,7 +75,17 @@ namespace mx {
             int x = 15 + padding; 
             int y = 7;  
             for (auto &header : menu) {
-                SDL_Surface* headerSurface = TTF_RenderText_Blended(app.font, header.window_menu ? win->title.c_str() : header.text.c_str(), {0, 0, 0, 255});
+                // Hovered (or open) headers render in blue+underlined,
+                // matching the dropdown item hover style. Open headers stay
+                // highlighted while their menu is shown.
+                bool hovered = header.underline || header.visible;
+                if (hovered) {
+                    TTF_SetFontStyle(app.font, TTF_STYLE_UNDERLINE | TTF_STYLE_BOLD);
+                } else {
+                    TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
+                }
+                SDL_Color hcol = hovered ? SDL_Color{0, 0, 255, 255} : SDL_Color{0, 0, 0, 255};
+                SDL_Surface* headerSurface = TTF_RenderText_Blended(app.font, header.window_menu ? win->title.c_str() : header.text.c_str(), hcol);
                 SDL_Texture* headerTexture = SDL_CreateTextureFromSurface(app.ren, headerSurface);
                 SDL_QueryTexture(headerTexture, NULL, NULL, &header.header_rect.w, &header.header_rect.h);
                 header.header_rect.x = x;
@@ -84,6 +94,7 @@ namespace mx {
                     SDL_RenderCopy(app.ren, headerTexture, NULL, &header.header_rect);
                     header.text_rect = header.header_rect;
                 }
+                TTF_SetFontStyle(app.font, TTF_STYLE_BOLD);
                 SDL_FreeSurface(headerSurface);
                 SDL_DestroyTexture(headerTexture);
                 header.header_rect.x -= 5;
@@ -130,15 +141,37 @@ namespace mx {
         }
 
         bool Menu::event(mxApp &app, SDL_Event &e) {
+            // Lazily-created hand cursor used for hovering over menu headers
+            // and visible drop-down items so the OS cursor reflects clickability.
+            static SDL_Cursor *menu_hand_cursor = nullptr;
+            if (e.type == SDL_MOUSEMOTION && menu_hand_cursor == nullptr) {
+                menu_hand_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+            }
+
             if (menu_active) {
                 if (e.type == SDL_MOUSEMOTION) {
                     SDL_Point p = {e.motion.x, e.motion.y};
+                    bool over_menu = false;
                     for (auto &header : menu) {
                         if (SDL_PointInRect(&p, &header.text_rect)) {
                             for (auto &h : menu) { h.visible = false; }
                             header.visible = true;
-                            return true;
+                            over_menu = true;
                         }
+                        if (header.visible) {
+                            for (auto &item : header.items) {
+                                if (SDL_PointInRect(&p, &item.item_rect)) {
+                                    over_menu = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (over_menu) {
+                        if (menu_hand_cursor) SDL_SetCursor(menu_hand_cursor);
+                        cursor_shown = true;
+                        cursor_handled = true;
+                        return true;
                     }
                 }
 
@@ -184,16 +217,26 @@ namespace mx {
 
             if (e.type == SDL_MOUSEMOTION) {
                 SDL_Point p = {e.motion.x, e.motion.y};
+                bool over_header_or_item = false;
                 for (auto &header : menu) {
+                    bool over_header = SDL_PointInRect(&p, &header.text_rect);
+                    header.underline = over_header;
+                    if (over_header) over_header_or_item = true;
                     if (header.visible) {
                         for (auto &item : header.items) {
                             if (SDL_PointInRect(&p, &item.item_rect)) {
                                 item.underline = true;
+                                over_header_or_item = true;
                             } else {
                                 item.underline = false;
                             }
                         }
                     }
+                }
+                if (over_header_or_item) {
+                    if (menu_hand_cursor) SDL_SetCursor(menu_hand_cursor);
+                    cursor_shown = true;
+                    cursor_handled = true;
                 }
             }
             return false;
