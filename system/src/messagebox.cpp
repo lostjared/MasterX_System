@@ -157,7 +157,7 @@ namespace mx {
         msgbox->text = text;
         msgbox->createControls(app);
         msgbox->removeAtClose(true);
-        msgbox->setCanResize(false);
+        msgbox->setCanResize(true);
         msgbox->show(true);
         boxes.push_back(msgbox);
         box = boxes[0];
@@ -180,7 +180,7 @@ namespace mx {
         msgbox->text = text;
         msgbox->createControlsOkCancel(app);
         msgbox->removeAtClose(true);
-        msgbox->setCanResize(false);
+        msgbox->setCanResize(true);
         msgbox->show(true);
         msgbox->event_ = event_cb;
         boxes.push_back(msgbox);

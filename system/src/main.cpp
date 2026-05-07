@@ -71,6 +71,7 @@ void draw(mx::mxApp &app) {
     SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
     SDL_RenderClear(app.ren);
     (*screens)[cur_screen]->draw(app);
+    SDL_SetRenderTarget(app.ren, nullptr);
     SDL_RenderCopy(app.ren, app.tex, nullptr, nullptr);
     SDL_RenderPresent(app.ren);
 }
@@ -95,6 +96,15 @@ void draw_loading(mx::mxApp &app) {
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT || (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)) {
             p_app->active = false;
+        }
+        if (e.type == SDL_WINDOWEVENT &&
+            (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+             e.window.event == SDL_WINDOWEVENT_RESIZED)) {
+            int nw = e.window.data1;
+            int nh = e.window.data2;
+            if (nw > 0 && nh > 0 && p_app != nullptr) {
+                p_app->resize(nw, nh);
+            }
         }
         if(screens != nullptr && p_app != nullptr)
             (*screens)[cur_screen]->event(*p_app, e);

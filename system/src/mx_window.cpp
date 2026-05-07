@@ -43,7 +43,7 @@ namespace mx {
         maximizeButton = {0, 0, 0, 0}; 
         dim_w = app.width;
         dim_h = app.height; 
-        setCanResize(false);
+        setCanResize(true);
     }
 
     Window::~Window() {
@@ -287,6 +287,42 @@ namespace mx {
         h = rc.h;
     }
 
+    int Window::hitTestEdges(int mx, int my) const {
+        if (!can_resize || minimized || maximized || !shown) return 0;
+        const int b = kResizeBorder;
+        // Windows-style: only the four corners are resize handles. The straight
+        // edges (and the title bar in particular) are reserved for move-drag.
+        SDL_Rect tl{ x - b,         y - b,         2 * b, 2 * b };
+        SDL_Rect tr{ x + w - b,     y - b,         2 * b, 2 * b };
+        SDL_Rect bl{ x - b,         y + h - b,     2 * b, 2 * b };
+        SDL_Rect br{ x + w - b,     y + h - b,     2 * b, 2 * b };
+        SDL_Point p{ mx, my };
+        if (SDL_PointInRect(&p, &tl)) return 1 | 4;
+        if (SDL_PointInRect(&p, &tr)) return 2 | 4;
+        if (SDL_PointInRect(&p, &bl)) return 1 | 8;
+        if (SDL_PointInRect(&p, &br)) return 2 | 8;
+        return 0;
+    }
+
+    void Window::applyEdgeCursor(int edges) const {
+        SDL_SystemCursor id = SDL_SYSTEM_CURSOR_ARROW;
+        switch (edges) {
+            case 1: case 2:           id = SDL_SYSTEM_CURSOR_SIZEWE; break;
+            case 4: case 8:           id = SDL_SYSTEM_CURSOR_SIZENS; break;
+            case 1|4: case 2|8:       id = SDL_SYSTEM_CURSOR_SIZENWSE; break;
+            case 2|4: case 1|8:       id = SDL_SYSTEM_CURSOR_SIZENESW; break;
+            default:                  return;
+        }
+        static SDL_SystemCursor lastId = SDL_SYSTEM_CURSOR_ARROW;
+        static SDL_Cursor *cur = nullptr;
+        if (id != lastId || !cur) {
+            if (cur) SDL_FreeCursor(cur);
+            cur = SDL_CreateSystemCursor(id);
+            lastId = id;
+        }
+        if (cur) SDL_SetCursor(cur);
+    }
+
     void Window::removeAtClose(bool value) {
         remove_on = value;
     }
@@ -299,6 +335,53 @@ namespace mx {
             minimizeHovered = SDL_PointInRect(&mousePoint, &minimizeButton);
             closeHovered = SDL_PointInRect(&mousePoint, &closeButton);
             maximizeHovered = SDL_PointInRect(&mousePoint, &maximizeButton);
+            if (resizing_) {
+                int dx = e.motion.x - resizeMouseX_;
+                int dy = e.motion.y - resizeMouseY_;
+                int nx = resizeStartX_, ny = resizeStartY_;
+                int nw = resizeStartW_, nh = resizeStartH_;
+                if (resizeEdges_ & 1) { nx = resizeStartX_ + dx; nw = resizeStartW_ - dx; }
+                if (resizeEdges_ & 2) { nw = resizeStartW_ + dx; }
+                if (resizeEdges_ & 4) { ny = resizeStartY_ + dy; nh = resizeStartH_ - dy; }
+                if (resizeEdges_ & 8) { nh = resizeStartH_ + dy; }
+                if (nw < kMinW) {
+                    if (resizeEdges_ & 1) nx -= (kMinW - nw);
+                    nw = kMinW;
+                }
+                if (nh < kMinH) {
+                    if (resizeEdges_ & 4) ny -= (kMinH - nh);
+                    nh = kMinH;
+                }
+                // Clamp to screen so the user can't drag the window offscreen.
+                // Top edge stays below the menu bar (y >= 26); bottom stays above
+                // the system bar (handled via dim_h - 50, mirroring maximize()).
+                const int screenW = dim_w > 0 ? dim_w : nw;
+                const int screenH = dim_h > 0 ? dim_h : nh;
+                const int topLimit = 26;
+                const int bottomLimit = screenH - 50;
+                if (resizeEdges_ & 1) {
+                    if (nx < 0) { nw += nx; nx = 0; if (nw < kMinW) nw = kMinW; }
+                }
+                if (resizeEdges_ & 2) {
+                    if (nx + nw > screenW) nw = screenW - nx;
+                    if (nw < kMinW) nw = kMinW;
+                }
+                if (resizeEdges_ & 4) {
+                    if (ny < topLimit) { nh += (ny - topLimit); ny = topLimit; if (nh < kMinH) nh = kMinH; }
+                }
+                if (resizeEdges_ & 8) {
+                    if (ny + nh > bottomLimit) nh = bottomLimit - ny;
+                    if (nh < kMinH) nh = kMinH;
+                }
+                x = nx; y = ny; w = nw; h = nh;
+                for (auto &c : children) {
+                    if (c->show) {
+                        c->setWindowPos(x, y);
+                        c->resizeWindow(w, h);
+                    }
+                }
+                return true;
+            }
             if (dragging) {
                     if (e.motion.y > 0) {
                         x = e.motion.x - dragOffsetX;
@@ -307,12 +390,28 @@ namespace mx {
                         isRestoring = false;
                         return true;
                     }
-            }          
+            }
+            if (can_resize && !dragging && shown && !minimized && !maximized) {
+                int edges = hitTestEdges(e.motion.x, e.motion.y);
+                if (edges) applyEdgeCursor(edges);
+            }
         } 
         
         if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
             SDL_Point mousePoint = {e.button.x, e.button.y};
             SDL_Rect titleBarRect = {x, y, w, 30};
+
+            // Edge-drag resize: takes priority over title-bar drag so corners that
+            // overlap the title bar still resize instead of moving.
+            int edges = hitTestEdges(e.button.x, e.button.y);
+            if (edges) {
+                resizing_ = true;
+                resizeEdges_ = edges;
+                resizeStartX_ = x; resizeStartY_ = y;
+                resizeStartW_ = w; resizeStartH_ = h;
+                resizeMouseX_ = e.button.x; resizeMouseY_ = e.button.y;
+                return true;
+            }
 
             if (SDL_PointInRect(&mousePoint, &titleBarRect) &&
                 !SDL_PointInRect(&mousePoint, &minimizeButton) &&
@@ -362,6 +461,11 @@ namespace mx {
             dragging = false;
             isMinimizing = false;
             isRestoring = false;
+            if (resizing_) {
+                resizing_ = false;
+                resizeEdges_ = 0;
+                return true;
+            }
         }
 
         if (!shown || minimized) {

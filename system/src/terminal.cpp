@@ -328,19 +328,21 @@ namespace mx {
         setenv("COLORTERM", "truecolor", 1);
         unsetenv("LINES");
         unsetenv("COLUMNS");
+        // Set PS1 via the environment so bash's *first* prompt already
+        // uses our format -- avoids the double-prompt that resulted from
+        // running an `export PS1=...` line after bash had already drawn
+        // its default prompt.
+        setenv("PS1", "\\u@\\h:\\W\\$ ", 1);
         execlp("bash", "bash", NULL);
         perror("Failed to exec bash");
         exit(1);
     } else {
-        close(slave_fd);  
+        close(slave_fd);
         // Push initial PTY window size so child knows our cell grid.
         updatePtySize();
-        std::string ps1 = R"(\[\e]0;BEGIN_PROMPT\u@\h:\WEND_PROMPT\a\]\u@\h:\W$ )";
-        sendCommand("export PS1=\"" + ps1 + "\"\n");
     }
     bashThread = SDL_CreateThread(bashReaderThread, "bashReaderThread", this);
     #endif
-        print("MasterX System - Logged in...\n");
     }
 
      void Terminal::setWallpaper(SDL_Texture *tex) {
@@ -1123,19 +1125,12 @@ namespace mx {
         if (newData == true) {
             std::lock_guard<std::mutex> lock(outputMutex);
             std::string temp = new_data;
+            parseTerminalData(temp);
 #if defined(__linux__) || defined(__APPLE__)
-           static int cnt = 0;
-            if(cnt == 0) {
-                cnt ++;
-                sendCommand("\n");
-            } else {
-                parseTerminalData(temp);
-                if(temp.find("password for") != std::string::npos || temp.find("Password:") != std::string::npos) {
-                    echo_enabled = false;
-                }
+            if (temp.find("password for") != std::string::npos ||
+                temp.find("Password:") != std::string::npos) {
+                echo_enabled = false;
             }
-#elif !defined(FOR_WASM)
-                parseTerminalData(temp);
 #endif
             newData = false;
             new_data = "";
@@ -1215,7 +1210,33 @@ namespace mx {
 
         int cx = rc.x + 5;
         int cy = y;
-        
+
+#if defined(__linux__) || defined(__APPLE__)
+        // PTY-driven session: bash already echoes typed characters and
+        // draws its own prompt as part of its output stream, so all we
+        // need to do here is place a blinking cursor at bash's reported
+        // cell position. We must NOT redraw `prompt + inputText` -- that
+        // produced the doubled prompt the user used to see.
+        if (!waitingForInput) {
+            int cellW = 0;
+            TTF_SizeText(font, "M", &cellW, nullptr);
+            if (cellW <= 0) cellW = 8;
+            // ansiCursorRow is an absolute row in outputLines; translate
+            // to a screen Y by subtracting the current scrollOffset.
+            int curRow = ansiCursorRow - scrollOffset;
+            int curCol = ansiCursorCol;
+            int cur_y = rc.y + 5 + curRow * lineHeight;
+            int cur_x = rc.x + 5 + curCol * cellW;
+            Uint32 t = SDL_GetTicks();
+            if (t - cursorTimer >= cursorBlinkInterval) {
+                showCursor = !showCursor;
+                cursorTimer = t;
+            }
+            if (cur_y >= rc.y && cur_y + lineHeight <= rc.y + rc.h)
+                drawCursor(app, cur_x, cur_y, showCursor);
+        }
+#endif
+
 #ifdef FOR_WASM
         if (waitingForInput && !orig_text.empty() && orig_text.back() != '\n') {
             int lastLineY = y - lineHeight;
@@ -1242,17 +1263,17 @@ namespace mx {
             }
             drawCursor(app, inputStartX + inputWidth, lastLineY, showCursor);
         } else {
-#endif
-#if defined(__linux__) || defined(__APPLE__)
-        if(echo_enabled == true) {
-#endif
             std::string displayPrompt = waitingForInput ? "" : prompt;
             renderTextWrapped(app, displayPrompt, inputText, cx, cy, maxWidth);
-#if defined(__linux__) || defined(__APPLE__)
         }
-#endif
-#ifdef FOR_WASM
-        }
+#elif defined(_WIN32)
+        // Windows path still uses cooked-mode line editing locally.
+        std::string displayPrompt = waitingForInput ? "" : prompt;
+        renderTextWrapped(app, displayPrompt, inputText, cx, cy, maxWidth);
+#else
+        // Linux / macOS: PTY raw mode -- nothing to draw here; bash owns
+        // the input line. The block above placed the cursor.
+        (void)cx; (void)cy;
 #endif
 
 
@@ -1647,14 +1668,24 @@ namespace mx {
             return true;
         }
 
-        // Full-screen TUI program (vim, nano, less, top, ...): pipe keys
-        // straight to the PTY. Mouse / window-chrome events still fall
-        // through so the window can be moved, resized, and closed.
+        // Pipe every keystroke straight to the PTY so bash's own readline
+        // performs line editing, history, tab completion, and signal
+        // handling -- exactly like a real terminal emulator. We only fall
+        // back to local cooked-mode line editing for built-in input prompts
+        // (input()) and on platforms without a PTY (Windows / WASM).
+#if defined(__linux__) || defined(__APPLE__)
+        if (master_fd > 0 && !waitingForInput &&
+            (e.type == SDL_KEYDOWN || e.type == SDL_TEXTINPUT)) {
+            if (handleRawKeyEvent(app, e))
+                return true;
+        }
+#else
         if (altScreen &&
             (e.type == SDL_KEYDOWN || e.type == SDL_TEXTINPUT)) {
             if (handleRawKeyEvent(app, e))
                 return true;
         }
+#endif
 
         if (e.type == SDL_TEXTINPUT) {
             inputText.insert(cursorPosition, e.text.text);

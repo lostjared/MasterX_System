@@ -140,7 +140,7 @@ namespace mx {
                     SDL_RenderCopy(app.ren, matrix_tex, nullptr, nullptr);
                 }
                 else {
-                   SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
+                    SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
                 }
             }
         }
@@ -306,7 +306,7 @@ namespace mx {
 
         settings_window->show(true);
         settings_window->setReload(true);
-        settings_window->setCanResize(false);
+        settings_window->setCanResize(true);
         settings_window->removeAtClose(false);
         settings_window->children.push_back(std::make_unique<Button>(app));
         toggle_fullscreen = dynamic_cast<Button *>(settings_window->getControl());
@@ -377,7 +377,7 @@ namespace mx {
         welcome_help->create(welcome, "Info", app.width-360, 25, 320, 240);
         welcome_help->show(true);
         welcome_help->setReload(false);
-        welcome_help->setCanResize(false);
+        welcome_help->setCanResize(true);
         welcome_help->removeAtClose(true);
 
         welcome_help->children.push_back(std::make_unique<Label>(app));
@@ -425,7 +425,7 @@ namespace mx {
         about_window_info->create_multi(about_window, info_text, { 255,255,255,255}, 25, 25 );
         about_window_info->loadFont(app.system_font, 36);
         about_window_info->linkMode(false);
-        about_window->setCanResize(false);
+        about_window->setCanResize(true);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         term = dynamic_cast<DimensionContainer *>(getDimension());
         if(!term) {
@@ -788,6 +788,16 @@ namespace mx {
     }
 
     bool Dimension::event(mxApp &app, SDL_Event &e) {
+        if (e.type == SDL_WINDOWEVENT &&
+            (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+             e.window.event == SDL_WINDOWEVENT_RESIZED)) {
+            int nw = e.window.data1;
+            int nh = e.window.data2;
+            for (auto &d : dimensions) {
+                DimensionContainer *con = dynamic_cast<DimensionContainer *>(d.get());
+                if (con) con->resizeEvent(nw, nh);
+            }
+        }
         for (auto &i : objects) {
             if(i->event(app, e))
                 return true;

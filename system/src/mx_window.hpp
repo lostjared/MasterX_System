@@ -48,6 +48,18 @@ namespace mx {
         bool minimized = false;
         bool dragging = false;
     private:
+        // Edge-drag resize state (active only when canResize() is true).
+        // resizeEdges_ is a bitmask of (1=left, 2=right, 4=top, 8=bottom).
+        int resizeEdges_ = 0;
+        int resizeStartX_ = 0, resizeStartY_ = 0;
+        int resizeStartW_ = 0, resizeStartH_ = 0;
+        int resizeMouseX_ = 0, resizeMouseY_ = 0;
+        bool resizing_ = false;
+        static constexpr int kResizeBorder = 6;
+        static constexpr int kMinW = 160;
+        static constexpr int kMinH = 80;
+        int hitTestEdges(int mx, int my) const;
+        void applyEdgeCursor(int edges) const;
         int x,y,w,h;
         int dim_w = 0, dim_h = 0;
         bool shown = false;

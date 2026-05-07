@@ -5,18 +5,22 @@ namespace mx {
 
     void mxApp::resize(int w, int h) {
       SDL_SetWindowSize(win, w, h);
-      SDL_RenderSetLogicalSize(ren, w, h);
       width = w;
       height = h;
-      SDL_DestroyTexture(tex);
-      tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
-        if (tex == nullptr) {
-            mx::system_err << "SDL_CreateTexture Error: " << SDL_GetError() << std::endl;
-            SDL_DestroyRenderer(ren);
-            SDL_DestroyWindow(win);
-            SDL_Quit();
-            exit(EXIT_FAILURE);
-        }
+      if (ren) ren->setLogicalSize(w, h);
+      if (tex) {
+          DestroyTexture(tex);
+          tex = nullptr;
+      }
+      if (ren) {
+          tex = ren->createTarget(w, h);
+          if (tex == nullptr) {
+              mx::system_err << "GLContext::createTarget failed\n";
+              SDL_DestroyWindow(win);
+              SDL_Quit();
+              exit(EXIT_FAILURE);
+          }
+      }
     }
     
     bool mxApp::init(const std::string &name, int w, int h) {
@@ -32,27 +36,30 @@ namespace mx {
         mx::system_out << "MasterX System v" << version << " Loading .... \n";
         mx::system_out << "(C) 2026 LostSideDead Software\n";
         
-        win = SDL_CreateWindow(name.c_str(), 
-                                        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
-                                        w, h, SDL_WINDOW_SHOWN);
+        // Pure-GL backend: create an SDL window with SDL_WINDOW_OPENGL,
+        // then build our own GL context via mx::GLContext.
+        win = SDL_CreateWindow(name.c_str(),
+                                        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                        w, h,
+                                        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
         if (win == nullptr) {
             mx::system_err << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
             SDL_Quit();
             return false;
         }
 
-        ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-        if (ren == nullptr) {
-            mx::system_err << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
+        ren = new mx::GLContext();
+        if (!ren->init(win)) {
+            mx::system_err << "GLContext init failed\n";
             SDL_DestroyWindow(win);
             SDL_Quit();
             return false;
         }
 
-        tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+        tex = ren->createTarget(w, h);
         if (tex == nullptr) {
-            mx::system_err << "SDL_CreateTexture Error: " << SDL_GetError() << std::endl;
-            SDL_DestroyRenderer(ren);
+            mx::system_err << "GLContext::createTarget failed\n";
+            delete ren; ren = nullptr;
             SDL_DestroyWindow(win);
             SDL_Quit();
             return false;
@@ -60,6 +67,7 @@ namespace mx {
         init_ = true;
         width = w;
         height = h;
+
         font = TTF_OpenFont(getPath(system_font).c_str(), 14);
         if(!font) {
             mx::system_err << "MasterX System: font: " << getPath(system_font) << " Could not be loaded.\n";
@@ -75,27 +83,19 @@ namespace mx {
     }
 
     SDL_Texture* mxApp::convertToStreamingTexture(SDL_Texture* originalTexture) {
-        int width, height;
-        Uint32 format;
-        SDL_QueryTexture(originalTexture, &format, nullptr, &width, &height);
-        SDL_Texture* streamingTexture = SDL_CreateTexture(ren, format, SDL_TEXTUREACCESS_STREAMING, width, height);
-        if (!streamingTexture) {
-            mx::system_err << "Error creating streaming texture: " << SDL_GetError() << "\n";
-            return nullptr;
-        }
-        SDL_SetRenderTarget(ren, streamingTexture);
-        SDL_RenderCopy(ren, originalTexture, nullptr, nullptr);
-        SDL_SetRenderTarget(ren, nullptr);
-        return streamingTexture;
+        // Streaming textures aren't actually used in the GL backend.
+        // Just return the original texture so callers that retain the
+        // pointer keep working.
+        return originalTexture;
     }
 
     void mxApp::release() {
         if(init_ == true) {
             releaseMatrix();
             mx::system_out << "MasterX: Releasing System Objects\n";
-            SDL_DestroyTexture(icon);
-            SDL_DestroyTexture(tex);
-            SDL_DestroyRenderer(ren);
+            if (icon) { DestroyTexture(icon); icon = nullptr; }
+            if (tex)  { DestroyTexture(tex);  tex  = nullptr; }
+            if (ren)  { delete ren; ren = nullptr; }
             SDL_DestroyWindow(win);
             init_ = false;
         }

@@ -3,6 +3,8 @@
 
 #include"SDL.h"
 #include"SDL_ttf.h"
+#include"gl_context.hpp"
+#include"mx_render_compat.hpp"
 
 #include<string>
 #include<iostream>
