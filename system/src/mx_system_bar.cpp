@@ -168,8 +168,8 @@ namespace mx {
                     if (dim != nullptr && dim->isActive()) { 
 
                         const std::string &name = dim->name;
-                        SDL_Color white = {255, 255, 255, 255};
-                        SDL_Surface* textSurface = TTF_RenderText_Blended(font, name.c_str(), white);
+                        SDL_Color textColor = (static_cast<int>(i) == cur_dim) ? SDL_Color{255, 255, 255, 255} : SDL_Color{0, 0, 0, 255};
+                        SDL_Surface* textSurface = TTF_RenderText_Blended(font, name.c_str(), textColor);
                         if (textSurface == nullptr) {
                             continue;
                         }
