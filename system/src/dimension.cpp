@@ -1,5 +1,6 @@
 #include "dimension.hpp"
 #include "terminal.hpp"
+#include "terminal_tabs.hpp"
 #include "mx_controls.hpp"
 #include "window.hpp"
 #include "SDL_rect.h"
@@ -440,13 +441,14 @@ namespace mx {
         term->setVisible(false);
         system_bar->activateDimension(1);
         system_bar->activateDimension(0);
-        term->objects.push_back(std::make_unique<Terminal>(app)); 
-        termx = dynamic_cast<Terminal*>(term->objects[0].get());
-        if(!termx) {
+        term->objects.push_back(std::make_unique<TerminalTabs>(app));
+        termtabs = dynamic_cast<TerminalTabs*>(term->objects[0].get());
+        if(!termtabs) {
             mx::system_err << "MasterX System: Bad cast..\n";
             mx::system_err.flush();
             exit(EXIT_FAILURE);
         }
+        termx = termtabs->activeTab();
         const int baseWidth = 1280;
         const int baseHeight = 720;
         int screenWidth = app.width;
@@ -457,69 +459,78 @@ namespace mx {
         int windowHeight = static_cast<int>(505 * scaleY);
         int windowPosX = (screenWidth - windowWidth) / 2;
         int windowPosY = (screenHeight - windowHeight) / 2;
-        termx->create(term, "mXTerm", windowPosX, windowPosY, windowWidth, windowHeight);
-        term->events.addWindow(termx);
+        termtabs->create(term, "mXTerm", windowPosX, windowPosY, windowWidth, windowHeight);
+        term->events.addWindow(termtabs);
         term->setIcon(loadTexture(app, "images/term.png"));
-        termx->setReload(true);
-        termx->setIcon(loadTexture(app, "images/term.png"));
-        Menu_ID term_file = termx->menu.addHeader(create_header("File"));
-        Menu_ID term_edit = termx->menu.addHeader(create_header("Edit"));
-        termx->menu.addItem(term_file, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")), create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        termtabs->setReload(true);
+        termtabs->setIcon(loadTexture(app, "images/term.png"));
+        Menu_ID term_file = termtabs->menu.addHeader(create_header("File"));
+        Menu_ID term_edit = termtabs->menu.addHeader(create_header("Edit"));
+        termtabs->menu.addItem(term_file, termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("New Tab", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
+                tt->newTab(app);
+            return true;
+        }));
+        termtabs->menu.addItem(term_file, termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("Close Tab", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
+                tt->closeTab(-1); // -1 = currently active tab
+            return true;
+        }));
+        termtabs->menu.addItem(term_file, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")), create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             win->dim->setMatrix(app, win->dim->matrix_tex, !win->dim->getMatrix());
             return true;
         }));
-        termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/clipboard.png")), create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            Terminal *term = dynamic_cast<Terminal*>(win);
-            if (term) {
-                if (term->hasSelectedText())
-                    term->copySelectionToClipboard();
+        termtabs->menu.addItem(term_edit, termtabs->menu.addIcon(loadTexture(app, "images/clipboard.png")), create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (auto *tt = dynamic_cast<TerminalTabs*>(win)) {
+                if (tt->hasSelectedText())
+                    tt->copySelectionToClipboard();
                 else
-                    term->copyToClipboard();
+                    tt->copyToClipboard();
             }
             return true;
         }));
-        termx->menu.addItem(term_edit, termx->menu.addIcon(loadTexture(app, "images/glueicon.png")), create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            Terminal *term = dynamic_cast<Terminal*>(win);
-            if (term) term->pasteFromClipboard();
+        termtabs->menu.addItem(term_edit, termtabs->menu.addIcon(loadTexture(app, "images/glueicon.png")), create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
+                tt->pasteFromClipboard();
             return true;
         }));
 
         // Effects menu — shader backgrounds for the terminal
-        Menu_ID eff_menu = termx->menu.addHeader(create_header("Effects"));
+        Menu_ID eff_menu = termtabs->menu.addHeader(create_header("Effects"));
         auto makeEffectCallback = [](Terminal::TermEffect fx) {
             return [fx](mxApp &app, Window *win, SDL_Event &e) -> bool {
-                if (auto *t = dynamic_cast<Terminal *>(win))
-                    t->setEffect(fx, app);
+                if (auto *tt = dynamic_cast<TerminalTabs *>(win))
+                    tt->setEffect(fx, app);
                 return true;
             };
         };
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Off",              makeEffectCallback(Terminal::TermEffect::None)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Plasma",           makeEffectCallback(Terminal::TermEffect::Plasma)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Vortex",           makeEffectCallback(Terminal::TermEffect::Vortex)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Chromatic Ripple", makeEffectCallback(Terminal::TermEffect::ChromaticRipple)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Neon Grid",        makeEffectCallback(Terminal::TermEffect::NeonGrid)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("UFO 3D V2",        makeEffectCallback(Terminal::TermEffect::Starfield)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Liquid Wave",      makeEffectCallback(Terminal::TermEffect::LiquidWave)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Fractal",          makeEffectCallback(Terminal::TermEffect::Fractal)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Acid Spiral",      makeEffectCallback(Terminal::TermEffect::AcidSpiral)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Aurora",           makeEffectCallback(Terminal::TermEffect::Aurora)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Tunnel",           makeEffectCallback(Terminal::TermEffect::Tunnel)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Crystal",          makeEffectCallback(Terminal::TermEffect::Crystal)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("UFO 3D",           makeEffectCallback(Terminal::TermEffect::Fire)));
-        termx->menu.addItem(eff_menu, termx->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
             create_menu_item("Hyperspace",       makeEffectCallback(Terminal::TermEffect::Hyperspace)));
 
         term->setMatrix(app, matrix_texture, false);
@@ -531,8 +542,8 @@ namespace mx {
             exit(EXIT_FAILURE);
         }
 
-        Menu_ID hlp_hte_menu = termx->menu.addHeader(create_header("Help"));
-        termx->menu.addItem(hlp_hte_menu,termx->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+        Menu_ID hlp_hte_menu = termtabs->menu.addHeader(create_header("Help"));
+        termtabs->menu.addItem(hlp_hte_menu,termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Terminal", "(C) 2026 LostSideDead Software written by Jared Bruni");
             return true;
         }));
@@ -669,12 +680,12 @@ namespace mx {
         tetris_window->setSystemBar(system_bar);
         asteroid_window->setSystemBar(system_bar);
         piece->setSystemBar(system_bar);
-        termx->setWallpaper(term_tex);
+        termtabs->setWallpaper(term_tex);
         system_bar->setDimensions(&dimensions);
         welcome_window->setSystemBar(system_bar);
         welcome_help->setSystemBar(system_bar);
         about_window->setSystemBar(system_bar);
-        termx->setSystemBar(system_bar);
+        termtabs->setSystemBar(system_bar);
 
         PacWindow::main(app, this);
         PongWindow::main(app, this);

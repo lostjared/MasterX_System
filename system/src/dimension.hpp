@@ -71,6 +71,7 @@ namespace mx {
     };
     
     class Terminal;
+    class TerminalTabs;
     class Label;
     class Button;
     class Image;
@@ -115,6 +116,7 @@ namespace mx {
         SDL_Cursor *reg_cursor = nullptr;
         int cursor_x = 0, cursor_y = 0;
         Terminal *termx;
+        TerminalTabs *termtabs;
         DimensionContainer *piece_cont;
         MasterPiece *piece;
         AsteroidsWindow *asteroid_window;

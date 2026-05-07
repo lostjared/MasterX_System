@@ -14,7 +14,7 @@ CMD_PATH = ../cmd
 CMD_INCLUDE = -I$(CMD_PATH)/include
 
 OUTPUT = MasterX.html
-SOURCES = src/dimension.cpp src/main.cpp src/splash.cpp src/window.cpp src/gl_context.cpp src/terminal.cpp src/mx_editor.cpp src/mx_controls.cpp src/mx_window.cpp src/mx_system_bar.cpp src/mx_event.cpp src/loadpng.cpp src/masterpiece.cpp src/cfg.cpp src/matrix.cpp src/mx_menu.cpp src/asteroid_window.cpp src/tetris_window.cpp src/messagebox.cpp src/pac_window.cpp src/pong_window.cpp
+SOURCES = src/dimension.cpp src/main.cpp src/splash.cpp src/window.cpp src/gl_context.cpp src/terminal.cpp src/terminal_tabs.cpp src/mx_editor.cpp src/mx_controls.cpp src/mx_window.cpp src/mx_system_bar.cpp src/mx_event.cpp src/loadpng.cpp src/masterpiece.cpp src/cfg.cpp src/matrix.cpp src/mx_menu.cpp src/asteroid_window.cpp src/tetris_window.cpp src/messagebox.cpp src/pac_window.cpp src/pong_window.cpp
 CMD_SOURCES = src/apps/cmd/cmd_shell.cpp 
 CMD_LIB_SOURCES = $(CMD_PATH)/src/command.cpp $(CMD_PATH)/src/scanner.cpp $(CMD_PATH)/src/string_buffer.cpp $(CMD_PATH)/src/types.cpp $(CMD_PATH)/src/ast.cpp $(CMD_PATH)/src/html.cpp $(CMD_PATH)/src/command_reg.cpp
 OBJECTS = $(SOURCES:.cpp=.o)

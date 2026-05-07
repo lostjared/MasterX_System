@@ -82,7 +82,27 @@ namespace mx {
                     kCount
                 };
                 void setEffect(TermEffect e, mxApp &app);
+
+                // Embedded mode: when true, the Terminal does not draw its
+                // own window chrome (title bar / menu bar) and does not
+                // consume window-level events (drag / resize / close /
+                // min / max). The owning container (TerminalTabs) is
+                // responsible for those, and for sizing this Terminal's
+                // rect via setRect() so its content lands in the area it
+                // allocated.
+                void setEmbedded(bool b) { embedded_ = b; }
+                bool isEmbedded() const { return embedded_; }
+
+                // Bash session liveness check used by the owning
+                // TerminalTabs to detect when a child shell exited (e.g.
+                // user typed `exit`) so the tab can be auto-closed.
+                bool sessionAlive() const;
+
+                // Public access to the prompt string so the owning
+                // TerminalTabs can show a meaningful tab title.
+                const std::string &currentPrompt() const { return prompt; }
         private:
+                bool embedded_ = false;
                 std::string prompt = "$ ";
 #if !defined(FOR_WASM) && !defined(WIN32)
                 int master_fd, slave_fd;

@@ -11,7 +11,7 @@ find_package(PNG REQUIRED)
 find_package(OpenGL REQUIRED COMPONENTS GLES2)
 include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS} /usr/include /usr/include/SDL2 /usr/local/include /usr/local/include/SDL2 ${ZLIB_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
 link_directories(/usr/lib /usr/local/lib)
-add_executable(MasterX src/main.cpp src/window.cpp src/gl_context.cpp src/splash.cpp src/dimension.cpp src/terminal.cpp src/mx_editor.cpp src/mx_controls.cpp src/mx_window.cpp src/mx_system_bar.cpp src/mx_event.cpp src/loadpng.cpp src/masterpiece.cpp src/cfg.cpp src/matrix.cpp src/mx_menu.cpp src/asteroid_window.cpp src/tetris_window.cpp src/messagebox.cpp src/pac_window.cpp src/pong_window.cpp) 
+add_executable(MasterX src/main.cpp src/window.cpp src/gl_context.cpp src/splash.cpp src/dimension.cpp src/terminal.cpp src/terminal_tabs.cpp src/mx_editor.cpp src/mx_controls.cpp src/mx_window.cpp src/mx_system_bar.cpp src/mx_event.cpp src/loadpng.cpp src/masterpiece.cpp src/cfg.cpp src/matrix.cpp src/mx_menu.cpp src/asteroid_window.cpp src/tetris_window.cpp src/messagebox.cpp src/pac_window.cpp src/pong_window.cpp) 
 target_link_libraries(MasterX ${SDL2_LIBRARIES} SDL2_ttf ${PNG_LIBRARIES} ${ZLIB_LIBRARIES} OpenGL::GLES2)
 
 # Install the executable to /usr/local/bin (default CMAKE_INSTALL_PREFIX).

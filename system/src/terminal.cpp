@@ -49,6 +49,12 @@ namespace mx {
 
     void Terminal::screenResize(int w, int h) {
         Window::screenResize(w, h);
+        if (embedded_) {
+            // The owning TerminalTabs controls the rect; only update the
+            // PTY size so the running shell sees the new cell grid.
+            updatePtySize();
+            return;
+        }
         const int baseWidth = 1280;
         const int baseHeight = 720;
         int screenWidth = w;
@@ -1262,7 +1268,8 @@ namespace mx {
         g_activeTerminal = this;
 #endif
 
-        Window::draw(app);
+        if (!embedded_)
+            Window::draw(app);
 
         if (isDraw() == false)
             return;
@@ -1275,7 +1282,8 @@ namespace mx {
             rc.y += 28;
             rc.h -= 28;
             if (rc.h < 0) rc.h = 0;
-            Window::drawMenubar(app);
+            if (!embedded_)
+                Window::drawMenubar(app);
             editor->draw(app, rc);
             return;
         }
@@ -1314,15 +1322,26 @@ namespace mx {
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
         if (activeEffect_ != TermEffect::None && !dim->getMatrix()) {
             drawEffectBackground(app);
-        } else {
+        } else if (!embedded_) {
             SDL_RenderCopy(app.ren, dim->getMatrix() ? dim->matrix_tex : wallpaper, nullptr, nullptr);
         }
-        SDL_RenderFillRect(app.ren, &rc);
+        // Translucent dark overlay for the terminal content area. When
+        // embedded, the parent draws title bar / tab strip on top of us
+        // afterwards, so restrict the overlay to our content rect to
+        // keep the shader/wallpaper showing through above the chrome.
+        SDL_Rect fillRect = rc;
+        if (embedded_) {
+            fillRect.y += 28;
+            fillRect.h -= 28;
+            if (fillRect.h < 0) fillRect.h = 0;
+        }
+        SDL_RenderFillRect(app.ren, &fillRect);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         rc.y += 28;
         rc.h -= 28;
         if (rc.h < 0) rc.h = 0;
-        Window::drawMenubar(app);
+        if (!embedded_)
+            Window::drawMenubar(app);
         // Clip terminal contents to the window's content rect so text
         // never spills outside when the user shrinks the window.
         SDL_RenderSetClipRect(app.ren, &rc);
@@ -1868,8 +1887,9 @@ namespace mx {
         // If the built-in text editor is active, route events to it.
         if (editor && editor->isActive()) {
             // Allow the window chrome (drag, close, resize) to still work.
-            if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP ||
-                e.type == SDL_MOUSEMOTION) {
+            if (!embedded_ &&
+                (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP ||
+                 e.type == SDL_MOUSEMOTION)) {
                 if (Window::event(app, e))
                     return true;
             }
@@ -2253,7 +2273,7 @@ namespace mx {
             return true;
         }
         
-        if(Window::event(app, e))
+        if (!embedded_ && Window::event(app, e))
             return true;
 
         return false; 
@@ -2644,6 +2664,23 @@ namespace mx {
         Window::dragging = false;
     }
 
+    bool Terminal::sessionAlive() const {
+#ifdef _WIN32
+        if (procInfo.hProcess == NULL) return false;
+        DWORD code = 0;
+        if (!GetExitCodeProcess(procInfo.hProcess, &code)) return false;
+        return code == STILL_ACTIVE;
+#elif !defined(FOR_WASM)
+        if (bashPID <= 0) return false;
+        int status = 0;
+        pid_t r = ::waitpid(bashPID, &status, WNOHANG);
+        // r == 0 means still running; r == bashPID means exited; -1 error.
+        return r == 0;
+#else
+        return true;
+#endif
+    }
+
 #ifdef _WIN32
     DWORD WINAPI Terminal::bashReaderThread(LPVOID param) {
         Terminal* terminal = static_cast<Terminal*>(param);
@@ -2661,9 +2698,11 @@ namespace mx {
             }
             Sleep(10);
         }
-        SDL_Event quit_event;
-        quit_event.type = SDL_QUIT;
-        SDL_PushEvent(&quit_event);
+        if (!terminal->isEmbedded()) {
+            SDL_Event quit_event;
+            quit_event.type = SDL_QUIT;
+            SDL_PushEvent(&quit_event);
+        }
         return 0;
     }
 #elif !defined(FOR_WASM)
@@ -2688,9 +2727,11 @@ namespace mx {
                     break;
                 }
             }
-            SDL_Event quit_event;
-            quit_event.type = SDL_QUIT;
-            SDL_PushEvent(&quit_event);
+            if (!terminal->isEmbedded()) {
+                SDL_Event quit_event;
+                quit_event.type = SDL_QUIT;
+                SDL_PushEvent(&quit_event);
+            }
             return 0;
     }
                 
