@@ -1,0 +1,37 @@
+object Game {
+    section object { SDLCore, Text, Input }
+    section data {
+        export int running = 1
+        int delay_ms = 16
+    }
+    section code {
+    function init:
+        call SDLCore.init
+        call Text.init
+        ret
+    function cleanup:
+        call Text.release
+        call SDLCore.shutdown
+        invoke quit
+        ret
+    function frame:
+        call SDLCore.begin_frame
+        call Text.draw
+        call SDLCore.end_frame
+        ret
+    function loop:
+        mov running, 1
+    lp:
+        cmp running, 1
+        jne lpend
+    ev:
+        call Input.handle
+        cmp Input.event_type, 0
+        jne ev
+        call frame
+        invoke delay, delay_ms
+        jmp lp
+    lpend:
+        ret
+    }
+}

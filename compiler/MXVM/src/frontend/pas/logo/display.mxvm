@@ -1,0 +1,285 @@
+program AppSkeleton {
+	section module {
+ 		sdl,
+		std
+	}
+	section data {
+		int rax = 0
+		int rbx = 0
+		int rcx = 0
+		int rdx = 0
+		int rsi = 0
+		int rdi = 0
+		int r8 = 0
+		int r9 = 0
+		int r10 = 0
+		int r11 = 0
+		int r12 = 0
+		ptr arg0 = null
+		string str_0 = "Logo"
+		string str_1 = "logo.bmp"
+		string str_2 = "failed to init SDL"
+		string str_3 = "Could not create window"
+		string str_4 = "could not create  renderer"
+		string str_5 = "could not create render target"
+		string str_6 = "failed to open: "
+		string fmt_str = "%s "
+		string newline = "\n"
+		ptr title = null
+		ptr filename = null
+		int running = 0
+		int event_type_result = 0
+		int window_id = 0
+		int renderer = 0
+		int target_id = 0
+		int logo_id = 0
+		ptr init_title = null
+		int init_x = 0
+		int init_y = 0
+		int init_w = 0
+		int init_h = 0
+		int init_result = 0
+	}
+	section code {
+	start:
+		mov title, str_0
+		mov filename, str_1
+		mov arg0, title
+		mov rbx, 100
+		mov rcx, 100
+		mov rdx, 1280
+		mov rsi, 720
+		call PROC_init
+		mov rbx, 1
+		mov running, rbx
+	WHILE_0:
+		mov rcx, 1
+		mov rsi, rcx
+		cmp running, rsi
+		je CMP_TRUE_2
+		mov rdx, 0
+		jmp CMP_END_3
+	CMP_TRUE_2:
+		mov rdx, 1
+	CMP_END_3:
+		cmp rdx, 0
+		je ENDWHILE_1
+	WHILE_4:
+		invoke poll_event
+		return rsi
+		mov r8, rsi
+		cmp r8, 0
+		jne CMP_TRUE_6
+		mov rdi, 0
+		jmp CMP_END_7
+	CMP_TRUE_6:
+		mov rdi, 1
+	CMP_END_7:
+		cmp rdi, 0
+		je ENDWHILE_5
+		invoke get_event_type
+		return r8
+		mov event_type_result, r8
+		cmp event_type_result, 256
+		je CMP_TRUE_10
+		mov r9, 0
+		jmp CMP_END_11
+	CMP_TRUE_10:
+		mov r9, 1
+	CMP_END_11:
+		cmp r9, 0
+		je ELSE_8
+		mov r9, 0
+		mov running, r9
+		jmp ENDIF_9
+	ELSE_8:
+	ENDIF_9:
+		cmp event_type_result, 768
+		je CMP_TRUE_14
+		mov r9, 0
+		jmp CMP_END_15
+	CMP_TRUE_14:
+		mov r9, 1
+	CMP_END_15:
+		invoke get_key_code
+		return r10
+		mov r12, r10
+		cmp r12, 27
+		je CMP_TRUE_16
+		mov r11, 0
+		jmp CMP_END_17
+	CMP_TRUE_16:
+		mov r11, 1
+	CMP_END_17:
+		cmp r9, 0
+		je AND_ZERO_18
+		cmp r11, 0
+		je AND_ZERO_18
+		mov r10, 1
+		jmp AND_END_19
+	AND_ZERO_18:
+		mov r10, 0
+	AND_END_19:
+		cmp r10, 0
+		je ELSE_12
+		mov r9, 0
+		mov running, r9
+		jmp ENDIF_13
+	ELSE_12:
+	ENDIF_13:
+		jmp WHILE_4
+	ENDWHILE_5:
+		invoke set_draw_color, renderer, 0, 0, 0, 255
+		invoke clear, renderer
+		call PROC_render
+		invoke present_scaled, renderer, target_id, 1280, 720
+		jmp WHILE_0
+	ENDWHILE_1:
+		call PROC_cleanup
+		done
+	function PROC_render:
+		invoke set_render_target, renderer, target_id
+		mov rbx, 0
+		sub rbx, 1
+		mov rcx, 0
+		sub rcx, 1
+		mov rdx, 0
+		sub rdx, 1
+		mov rsi, 0
+		sub rsi, 1
+		invoke render_texture, renderer, logo_id, rbx, rcx, rdx, rsi, 0, 0, 640, 480
+	PROC_END_render:
+		ret
+	function PROC_init:
+		mov init_title, arg0
+		mov init_x, rbx
+		mov init_y, rcx
+		mov init_w, rdx
+		mov init_h, rsi
+		invoke init
+		return rbx
+		mov init_result, rbx
+		cmp init_result, 0
+		jne CMP_TRUE_22
+		mov rcx, 0
+		jmp CMP_END_23
+	CMP_TRUE_22:
+		mov rcx, 1
+	CMP_END_23:
+		cmp rcx, 0
+		je ELSE_20
+		print fmt_str, str_2
+		print newline
+		exit 1
+		jmp ENDIF_21
+	ELSE_20:
+	ENDIF_21:
+		invoke create_window, title, init_x, init_y, init_w, init_h, 4
+		return rdx
+		mov window_id, rdx
+		mov rsi, 0
+		sub rsi, 1
+		mov r8, rsi
+		cmp window_id, r8
+		je CMP_TRUE_26
+		mov rdi, 0
+		jmp CMP_END_27
+	CMP_TRUE_26:
+		mov rdi, 1
+	CMP_END_27:
+		cmp rdi, 0
+		je ELSE_24
+		print fmt_str, str_3
+		print newline
+		invoke quit
+		exit 1
+		jmp ENDIF_25
+	ELSE_24:
+	ENDIF_25:
+		mov r8, 0
+		sub r8, 1
+		invoke create_renderer, window_id, r8, 2
+		return r9
+		mov renderer, r9
+		mov r8, 0
+		sub r8, 1
+		mov r10, r8
+		cmp renderer, r10
+		je CMP_TRUE_30
+		mov r9, 0
+		jmp CMP_END_31
+	CMP_TRUE_30:
+		mov r9, 1
+	CMP_END_31:
+		cmp r9, 0
+		je ELSE_28
+		print fmt_str, str_4
+		print newline
+		invoke destroy_window, window_id
+		invoke quit
+		exit 1
+		jmp ENDIF_29
+	ELSE_28:
+	ENDIF_29:
+		invoke create_render_target, renderer, 640, 480
+		return r9
+		mov target_id, r9
+		mov r9, 0
+		sub r9, 1
+		mov r11, r9
+		cmp target_id, r11
+		je CMP_TRUE_34
+		mov r10, 0
+		jmp CMP_END_35
+	CMP_TRUE_34:
+		mov r10, 1
+	CMP_END_35:
+		cmp r10, 0
+		je ELSE_32
+		print fmt_str, str_5
+		print newline
+		invoke destroy_window, window_id
+		invoke destroy_renderer, renderer
+		exit 1
+		invoke quit
+		jmp ENDIF_33
+	ELSE_32:
+	ENDIF_33:
+		invoke get_ticks
+		return r9
+		invoke srand, r9
+		invoke load_texture, renderer, filename
+		return r9
+		mov logo_id, r9
+		mov r9, 0
+		sub r9, 1
+		mov r11, r9
+		cmp logo_id, r11
+		je CMP_TRUE_38
+		mov r10, 0
+		jmp CMP_END_39
+	CMP_TRUE_38:
+		mov r10, 1
+	CMP_END_39:
+		cmp r10, 0
+		je ELSE_36
+		print fmt_str, str_6
+		print fmt_str, filename
+		print newline
+		exit 1
+		jmp ENDIF_37
+	ELSE_36:
+	ENDIF_37:
+	PROC_END_init:
+		ret
+	function PROC_cleanup:
+		invoke destroy_texture, logo_id
+		invoke destroy_render_target, target_id
+		invoke destroy_renderer, renderer
+		invoke destroy_window, window_id
+		invoke quit
+	PROC_END_cleanup:
+		ret
+	}
+}
+

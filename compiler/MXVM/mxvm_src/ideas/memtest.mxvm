@@ -1,0 +1,15 @@
+program MemTest {
+
+    section data {
+        ptr data = null
+    }
+
+    section code {
+    start:
+        alloc data, 1, 1
+	free data
+	done
+        # no free compiler should complain
+    }
+
+}

@@ -1,0 +1,237 @@
+program Pong {
+    section module { sdl }
+
+    section data {
+        string title      = "MXVM SDL Pong"
+        int x             = 100
+        int y             = 100
+        int w             = 800
+        int h             = 600
+        int flags         = 0
+
+        int window_id     = 0
+        int renderer_id   = 0
+
+        int black         = 0
+        int white         = 255
+
+        int paddle_w      = 20
+        int paddle_h      = 100
+        int paddle1_x     = 50
+        int paddle1_y     = 250
+        int paddle2_x     = 730
+        int paddle2_y     = 250
+
+        int ball_size     = 20
+        int ball_x        = 390
+        int ball_y        = 290
+        int ball_vel_x    = 4
+        int ball_vel_y    = 4
+
+        int event_buf     = 0
+        int event_type    = 0
+        int tmp           = 0
+        int tmp2          = 0
+        int rax           = 0
+        
+        # Timing variables
+        int last_tick     = 0
+        int cur_tick      = 0
+        int delta         = 0
+        
+        # Movement speed
+        int move_speed    = 12
+        int ai_speed      = 12
+    }
+
+    section code {
+    start:
+        # init SDL
+        invoke init
+        return rax
+        cmp rax, 0
+        jl quit
+
+        # create window
+        invoke create_window, title, x, y, w, h, flags
+        return window_id
+        # create renderer
+        invoke create_renderer, window_id, -1, 0
+        return renderer_id
+
+        # Initialize timing
+        invoke get_ticks
+        return last_tick
+
+    Loop:
+        # poll all events
+        invoke poll_event
+        return rax
+        cmp rax, 1
+        jne after_events
+
+    process_events:
+        invoke get_event_type
+        return rax
+        # quit on SDL_QUIT
+        cmp rax, 256
+        je quit
+        # on keydown, check for controls
+        cmp rax, 768
+        jne next_event
+        invoke get_key_code
+        return rax
+        cmp rax, 27    # SDLK_ESCAPE
+        je quit
+        cmp rax, 1073741906
+        jne check_down
+        sub paddle1_y, move_speed
+        jmp next_event
+    check_down:
+        cmp rax, 1073741905
+        jne next_event
+        add paddle1_y, move_speed
+    next_event:
+        invoke poll_event
+        return rax
+        cmp rax, 1
+        je process_events
+
+    after_events:
+        # --- Clamp Player 1 paddle ---
+        cmp paddle1_y, 0
+        jge paddle1_bottom_check
+        mov paddle1_y, 0
+    paddle1_bottom_check:
+        mov tmp, h
+        sub tmp, paddle_h
+        cmp paddle1_y, tmp
+        jle ai_logic
+        mov paddle1_y, tmp
+
+    ai_logic:
+        # --- AI for paddle2: follow the ball center ---
+        mov tmp, ball_y      # Get ball's center
+        add tmp, 10          # ball_size / 2
+        mov tmp2, paddle2_y  # Get paddle's center
+        add tmp2, 50         # paddle_h / 2
+        
+        cmp tmp2, tmp        # if paddle_center == ball_center, do nothing
+        je check_ball_update
+        jl ai_move_down      # if paddle_center < ball_center, move down
+        
+        # Move up
+        sub paddle2_y, ai_speed
+        jmp ai_bounds_check
+    ai_move_down:
+        # Move down
+        add paddle2_y, ai_speed
+
+    ai_bounds_check:
+        # --- Clamp AI paddle ---
+        cmp paddle2_y, 0
+        jge ai_bottom_check
+        mov paddle2_y, 0
+    ai_bottom_check:
+        mov tmp, h
+        sub tmp, paddle_h
+        cmp paddle2_y, tmp
+        jle check_ball_update
+        mov paddle2_y, tmp
+
+    check_ball_update:
+        # Slow down ball using get_ticks
+        invoke get_ticks
+        return cur_tick
+        mov delta, cur_tick
+        sub delta, last_tick
+        cmp delta, 16         # ~60 FPS (16ms per frame)
+        jl draw_frame
+        mov last_tick, cur_tick
+
+        # update ball
+        add ball_x, ball_vel_x
+        add ball_y, ball_vel_y
+
+        # bounce y (top and bottom walls)
+        cmp ball_y, 0
+        jl bounce_y_top
+        mov tmp, h
+        sub tmp, ball_size
+        cmp ball_y, tmp
+        jg bounce_y_bottom
+        # bounce left paddle
+        mov tmp, paddle1_x
+        add tmp, paddle_w
+        cmp ball_x, tmp
+        jg check_right_paddle
+        mov tmp2, paddle1_y
+        sub tmp2, ball_size
+        cmp ball_y, tmp2
+        jl check_right_paddle
+        mov tmp2, paddle1_y
+        add tmp2, paddle_h
+        cmp ball_y, tmp2
+        jg check_right_paddle
+        # Ball hit left paddle
+        neg ball_vel_x
+        mov ball_x, tmp  # Push ball away from paddle
+
+    check_right_paddle:
+        # bounce right paddle
+        mov tmp, paddle2_x
+        cmp ball_x, tmp
+        jl draw_frame
+        mov tmp2, paddle2_y
+        sub tmp2, ball_size
+        cmp ball_y, tmp2
+        jl draw_frame
+        mov tmp2, paddle2_y
+        add tmp2, paddle_h
+        cmp ball_y, tmp2
+        jg draw_frame
+        # Ball hit right paddle
+        neg ball_vel_x
+        mov ball_x, tmp  # Push ball away from paddle
+
+    draw_frame:
+        # clear screen
+        invoke set_draw_color, renderer_id, black, black, black, white
+        invoke clear, renderer_id
+        invoke fill_rect, renderer_id, 0, 0, w, h
+
+        # draw left paddle (filled white)
+        invoke set_draw_color, renderer_id, white, white, white, white
+        invoke fill_rect, renderer_id, paddle1_x, paddle1_y, paddle_w, paddle_h
+
+        # draw right paddle (filled white)
+        invoke set_draw_color, renderer_id, white, white, white, white
+        invoke fill_rect, renderer_id, paddle2_x, paddle2_y, paddle_w, paddle_h
+
+        # draw ball (filled white)
+        invoke set_draw_color, renderer_id, white, white, white, white
+        invoke fill_rect, renderer_id, ball_x, ball_y, ball_size, ball_size
+
+        # present
+        invoke present, renderer_id
+        jmp Loop
+
+    bounce_y_top:
+        mov ball_y, 0
+        neg ball_vel_y
+        jmp draw_frame
+
+    bounce_y_bottom:
+        mov tmp, h
+        sub tmp, ball_size
+        mov ball_y, tmp
+        neg ball_vel_y
+        jmp draw_frame
+
+    quit:
+        invoke destroy_renderer, renderer_id
+        invoke destroy_window, window_id
+        invoke quit
+        done
+    }
+}

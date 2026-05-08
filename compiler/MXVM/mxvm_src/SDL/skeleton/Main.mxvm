@@ -1,0 +1,11 @@
+program Main {
+    section module { sdl, string, io }
+    section object { SDLCore, Text, Input, Game }
+    section code {
+    start:
+        call Game.init
+        call Game.loop
+        call Game.cleanup
+        done
+    }
+}

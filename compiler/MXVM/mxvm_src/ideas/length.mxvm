@@ -1,0 +1,14 @@
+program Len {
+    section module { string }
+    section data {
+        string value = "Hello"
+        int len = 0
+        string fmt = "the value is: %d\n"
+    }
+    section code {
+        invoke strlen, value
+        return len
+        print fmt, len
+        done
+    }
+}

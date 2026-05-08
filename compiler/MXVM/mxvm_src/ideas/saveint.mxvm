@@ -1,0 +1,60 @@
+program SaveInt {
+        section module {
+                io
+        }
+        section data {
+                ptr data = null
+                int data_size = 5
+                int data_index = 0
+                int data_actual_index = 0
+                int data_number = 0
+                int data_size_index = 0
+                int total = 0
+                string input_buffer, 256
+                string ask = "How many integers to store? "
+                string fmt = "Value is: %d\n"
+                string err_msg = "Error invalid input\n"
+                string enter_value = "Enter a number: "
+                string enter_msg = "Collecting: %d numbers at %p\n"
+                string output_msg = "Collected %d numbers:\n"
+                string the_total = "The total is: %d\n"
+                string filename = "text.txt"
+                string rb_mode = "w"
+                string data_w = "value"
+        }
+	section code {
+                print ask
+                getline input_buffer
+                to_int data_size, input_buffer
+                cmp data_size, 0
+                jle error_out
+                alloc data, 8, data_size
+                print enter_msg, data_size, data
+                mov data_index, 0
+                start:
+                print enter_value
+                getline input_buffer
+                to_int data_number, input_buffer
+                store data_number, data,  data_index, 8
+                add data_index, 1
+                cmp data_index, data_size
+                jl start
+                mov data_index, 0
+                print output_msg, data_size
+                mov total, 0
+        print_loop:
+                load data_number, data, data_index
+                add total, data_number
+                add data_index, 1
+                print fmt, data_number
+                cmp data_index, data_size
+                jl print_loop
+                print the_total, total
+                stop:
+                free data
+                done 
+        error_out:
+                print err_msg
+                exit 1
+        }
+}

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MXVM: Custom RISC-style virtual machine and compiler sandbox in C++. Explore VM architecture, AST parsing, and code generation.">
+  <meta name="keywords" content="MXVM, virtual machine, RISC, compiler, interpreter, bytecode, C++">
+  <title>MXVM - Virtual Machine & Compiler</title>
+  <style>
+    body { background-color: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; line-height: 1.6; }
+    main { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+    header { text-align: center; padding: 60px 20px 20px; }
+    header h1 { font-size: 3rem; margin: 0; }
+    header p { font-size: 1.2rem; color: #ccc; margin-top: 8px; }
+    section { margin-bottom: 40px; }
+    h2 { border-bottom: 2px solid #444; padding-bottom: 0.2em; margin-bottom: 0.5em; font-size: 1.8rem; }
+    h3 { font-size: 1.4rem; margin-top: 1em; margin-bottom: 0.5em; }
+    p, ul, pre, code, table, ol { margin-bottom: 1em; }
+    code, pre { background-color: #111; color: #0f0; padding: 4px 6px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
+    pre { overflow-x: auto; padding: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #444; padding: 8px 12px; text-align: left; }
+    th { background-color: #222; }
+    ul, ol { padding-left: 1.2em; }
+    footer { text-align: center; padding: 20px; border-top: 1px solid #444; color: #666; font-size: 0.9rem; margin-top: 40px; }
+    a { color: #fff; text-decoration: underline; }
+    a:hover { color: #ccc; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MXVM</h1>
+    <p>Custom RISC-style VM & Compiler Sandbox (C++)</p>
+  </header>
+  <main>
+    <section>
+      <h2>Project Purpose</h2>
+      <p><strong>Not for production use.</strong> Use MXVM to explore:</p>
+      <ul>
+        <li>VM architecture &amp; instruction execution</li>
+        <li>Code parsing &amp; AST generation</li>
+        <li>Modular design &amp; dynamic loading</li>
+        <li>C++ code organization &amp; CMake</li>
+        <li>Cross-platform builds</li>
+        <li>Debugging &amp; memory management</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Features</h2>
+      <ul>
+        <li><strong>Custom VM:</strong> Small instruction set (arithmetic, control flow, memory, string).</li>
+        <li><strong>Parser &amp; AST:</strong> Grammar → AST → intermediate code.</li>
+        <li><strong>Interpreter &amp; JIT:</strong> Stack VM or native x86_64 code.</li>
+        <li><strong>Modular System:</strong> Load IO, string, math modules via <code>invoke</code>.</li>
+        <li><strong>Debugging:</strong> HTML output, memory dumps, verbose errors.</li>
+        <li><strong>CMake Build:</strong> Linux, macOS &amp; Windows support.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>RISC-Style Bytecode</h2>
+      <ul>
+        <li><strong>Load/Store Architecture:</strong> <code>load</code> / <code>store</code> only for memory access.</li>
+        <li><strong>Orthogonal Instructions:</strong> Single-purpose opcodes (e.g., <code>add</code>, <code>jmp</code>).</li>
+        <li><strong>Fixed Format:</strong> One instruction per line; destination operand first.</li>
+        <li><strong>Explicit Control Flow:</strong> <code>cmp</code> sets flags; branches via <code>je</code>, <code>jne</code>, etc.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Language Overview</h2>
+      <pre><code>program MyApp {
+  section data {
+    int counter = 0
+    string msg = "Hello, MXVM!\n"
+  }
+  section module { io, string }
+  section code {
+  start:
+    print msg
+    add counter, counter, 1
+    cmp counter, 10
+    jl start
+    done
+  }
+}</code></pre>
+      <p><strong>data:</strong> Declare <code>int</code>, <code>ptr</code>, <code>byte</code>, <code>string</code>.</p>
+      <p><strong>module:</strong> List modules for <code>invoke</code>.</p>
+      <p><strong>code:</strong> Labeled, one instruction per line; operands: destination first.</p>
+    </section>
+    <section>
+      <h2>Instruction Set Reference</h2>
+      <h3>Arithmetic &amp; Logic</h3>
+      <table>
+        <thead><tr><th>Instruction</th><th>Operands</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>mov</td><td>dest, src</td><td>Copy value</td></tr>
+          <tr><td>add</td><td>dest, a, b</td><td>dest = a + b</td></tr>
+          <tr><td>sub</td><td>dest, a, b</td><td>dest = a - b</td></tr>
+          <tr><td>mul</td><td>dest, a, b</td><td>dest = a * b</td></tr>
+          <tr><td>div</td><td>dest, a, b</td><td>dest = a / b</td></tr>
+          <tr><td>mod</td><td>dest, a, b</td><td>dest = a % b</td></tr>
+          <tr><td>neg</td><td>dest, a</td><td>dest = -a</td></tr>
+          <tr><td>or</td><td>dest, a, b</td><td>Bitwise OR</td></tr>
+          <tr><td>and</td><td>dest, a, b</td><td>Bitwise AND</td></tr>
+          <tr><td>xor</td><td>dest, a, b</td><td>Bitwise XOR</td></tr>
+          <tr><td>not</td><td>dest, a</td><td>Bitwise NOT</td></tr>
+        </tbody>
+      </table>
+      <h3>Comparison &amp; Branching</h3>
+      <table>
+        <thead><tr><th>Instruction</th><th>Operands</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>cmp</td><td>a, b</td><td>Set flags from a - b</td></tr>
+          <tr><td>jmp</td><td>label</td><td>Unconditional jump</td></tr>
+          <tr><td>je/jne/jl/jle/jg/jge</td><td>label</td><td>Conditional jumps</td></tr>
+        </tbody>
+      </table>
+      <h3>Memory &amp; Stack</h3>
+      <table>
+        <thead><tr><th>Instruction</th><th>Operands</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>load</td><td>dest, ptr, idx, size</td><td>dest = *(ptr + idx*size)</td></tr>
+          <tr><td>store</td><td>src, ptr, idx, size</td><td>*(ptr + idx*size) = src</td></tr>
+          <tr><td>alloc</td><td>ptr, bsize, count</td><td>Allocate memory</td></tr>
+          <tr><td>free</td><td>ptr</td><td>Release memory</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section>
+      <h2>I/O &amp; Modules</h2>
+      <table>
+        <thead><tr><th>Instruction</th><th>Operands</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>print</td><td>fmt, args…</td><td>Formatted output</td></tr>
+          <tr><td>getline</td><td>ptr</td><td>Read line into buffer</td></tr>
+          <tr><td>invoke</td><td>func, args…</td><td>Call external function</td></tr>
+          <tr><td>call</td><td>Module.Func</td><td>Internal function call</td></tr>
+          <tr><td>ret</td><td>—</td><td>Return from function</td></tr>
+          <tr><td>done</td><td>—</td><td>End program</td></tr>
+          <tr><td>exit</td><td>code</td><td>Terminate VM</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section>
+      <h2>Conversion & Misc</h2>
+      <table>
+        <thead><tr><th>Instruction</th><th>Operands</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>to_int</td><td>dest, ptr</td><td>Convert string to integer</td></tr>
+          <tr><td>to_float</td><td>dest, ptr</td><td>Convert string to float</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section>
+      <h2>Module System</h2>
+      <p>Place compiled modules (<code>.so</code>/<code>.dll</code>) into <code>modules/</code>. Then:</p>
+      <pre><code>section module { io, string, math }
+invoke fopen, filename, mode
+invoke strlen, mystr</code></pre>
+    </section>
+    <section>
+      <h2>Project Structure</h2>
+      <pre><code>MXVM-main/
+├── CMakeLists.txt   # Build rules
+├── LICENSE          # Apache-2.0 License
+├── README.md        # Project overview
+├── about.html       # Browser demo & docs
+├── include/mxvm/    # Public headers
+├── src/             # VM & codegen implementation
+├── modules/         # Extension modules
+└── mxvm_src/        # Example programs (.mxvm)</code></pre>
+    </section>
+    <section>
+      <h2>Building &amp; Running</h2>
+      <pre><code>git clone https://github.com/yourname/MXVM.git
+cd MXVM
+mkdir build && cd build
+cmake .. && make && sudo make install
+</code></pre>
+      <p><strong>Interpreter:</strong> <code>mxvmc hello_world.mxvm --path /usr/local/lib --object-path . </code></p>
+      <p><strong>Compile:</strong> <code>mxvmc fibonacci.mxvm --path /usr/local/lib --object-path . --action translate</code></p>
+    </section>
+    <section>
+      <h2>Contributing</h2>
+      <ol>
+        <li>Fork the repository</li>
+        <li>Create a feature branch</li>
+        <li>Commit &amp; push changes</li>
+        <li>Open a Pull Request</li>
+      </ol>
+    </section>
+    <section>
+    </section>
+  </main>
+  <footer>© 2025 MXVM Project</footer>
+</body>
+</html>

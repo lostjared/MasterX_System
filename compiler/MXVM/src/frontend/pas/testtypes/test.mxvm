@@ -1,0 +1,1132 @@
+program TestArray {
+	section module {
+ 
+	}
+	section data {
+		int rax = 0
+		int rbx = 0
+		int rcx = 0
+		int rdx = 0
+		int rsi = 0
+		int rdi = 0
+		int r8 = 0
+		int r9 = 0
+		int r10 = 0
+		int r11 = 0
+		int r12 = 0
+		int r13 = 0
+		int r14 = 0
+		int r15 = 0
+		float xmm0 = 0.0
+		float xmm1 = 0.0
+		float xmm2 = 0.0
+		float xmm3 = 0.0
+		float xmm4 = 0.0
+		float xmm5 = 0.0
+		float xmm6 = 0.0
+		float xmm7 = 0.0
+		float xmm8 = 0.0
+		float xmm9 = 0.0
+		ptr _tmpptr0 = null
+		ptr _tmpptr1 = null
+		ptr _tmpptr10 = null
+		ptr _tmpptr11 = null
+		ptr _tmpptr12 = null
+		ptr _tmpptr13 = null
+		ptr _tmpptr14 = null
+		ptr _tmpptr15 = null
+		ptr _tmpptr16 = null
+		ptr _tmpptr17 = null
+		ptr _tmpptr18 = null
+		ptr _tmpptr19 = null
+		ptr _tmpptr2 = null
+		ptr _tmpptr20 = null
+		ptr _tmpptr21 = null
+		ptr _tmpptr22 = null
+		ptr _tmpptr23 = null
+		ptr _tmpptr24 = null
+		ptr _tmpptr25 = null
+		ptr _tmpptr26 = null
+		ptr _tmpptr27 = null
+		ptr _tmpptr28 = null
+		ptr _tmpptr29 = null
+		ptr _tmpptr3 = null
+		ptr _tmpptr30 = null
+		ptr _tmpptr31 = null
+		ptr _tmpptr32 = null
+		ptr _tmpptr33 = null
+		ptr _tmpptr34 = null
+		ptr _tmpptr35 = null
+		ptr _tmpptr36 = null
+		ptr _tmpptr37 = null
+		ptr _tmpptr38 = null
+		ptr _tmpptr39 = null
+		ptr _tmpptr4 = null
+		ptr _tmpptr40 = null
+		ptr _tmpptr41 = null
+		ptr _tmpptr42 = null
+		ptr _tmpptr43 = null
+		ptr _tmpptr44 = null
+		ptr _tmpptr45 = null
+		ptr _tmpptr46 = null
+		ptr _tmpptr47 = null
+		ptr _tmpptr48 = null
+		ptr _tmpptr49 = null
+		ptr _tmpptr5 = null
+		ptr _tmpptr50 = null
+		ptr _tmpptr51 = null
+		ptr _tmpptr52 = null
+		ptr _tmpptr53 = null
+		ptr _tmpptr54 = null
+		ptr _tmpptr55 = null
+		ptr _tmpptr56 = null
+		ptr _tmpptr57 = null
+		ptr _tmpptr58 = null
+		ptr _tmpptr6 = null
+		ptr _tmpptr7 = null
+		ptr _tmpptr8 = null
+		ptr _tmpptr9 = null
+		ptr arg0 = null
+		float real_const_8 = 2.5
+		float real_const_9 = 3.75
+		float real_const_7 = 1.25
+		float real_const_6 = 6.0
+		float real_const_5 = 5.0
+		float real_const_3 = 3.0
+		float real_const_2 = 2.0
+		float real_const_1 = 1.0
+		float real_const_4 = 4.0
+		float real_const_0 = 9.5
+		string str_0 = "Pascal"
+		string str_1 = "rec.id="
+		string str_2 = "rec.inner.a="
+		string str_3 = "rec.inner.b[1]="
+		string str_4 = "rec.grid[0][2]="
+		string str_5 = "SumGrid(rec)="
+		string str_6 = "arrRec[12].inner.b[2]="
+		string str_7 = "arrRec[10].grid[1][3]="
+		string str_8 = "DotFirstRow(mat)="
+		string str_9 = "books[1].title="
+		string str_10 = "books[1].ratings[5]="
+		string str_11 = "outer!"
+		string fmt_int = "%lld "
+		string fmt_str = "%s "
+		string fmt_float = "%.6f "
+		string newline = "\n"
+		ptr rec = null
+		int rec_grid = 0
+		ptr arrRec = null
+		ptr mat = null
+		ptr books = null
+		int total = 0
+		float sumR = 0.0
+		ptr InitOuter_o = null
+		ptr BumpBook_b = null
+		ptr SumGrid_o = null
+		int SumGrid_s = 0
+		int SumGrid_i = 0
+		int SumGrid_j = 0
+		ptr DotFirstRow_m = null
+	}
+	section code {
+	start:
+		alloc rec, 96, 1
+		alloc rec_grid, 24, 2
+		store rec_grid, rec, 48, 1
+		alloc arrRec, 96, 3
+		alloc mat, 24, 2
+		alloc books, 48, 2
+		mov arg0, rec
+		call PROC_InitOuter
+		mov rbx, 3
+		mov rcx, rbx
+		cmp rcx, 2
+		jl IDX_OOB_1
+		cmp rcx, 4
+		jg IDX_OOB_1
+		jmp IDX_OK_0
+	IDX_OOB_1:
+		exit 1
+	IDX_OK_0:
+		mov rcx, 3
+		sub rcx, 2
+		mov rdx, 0
+		cmp rdx, 0
+		jl IDX_OOB_3
+		cmp rdx, 1
+		jg IDX_OOB_3
+		jmp IDX_OK_2
+	IDX_OOB_3:
+		exit 1
+	IDX_OK_2:
+		mov rdx, 0
+		mov rsi, rdx
+		mul rsi, 24
+		mov _tmpptr0, rec
+		add _tmpptr0, 48
+		mov rdx, rsi
+		mul rdx, 24
+		mov _tmpptr1, _tmpptr0
+		add _tmpptr1, rdx
+		store 11, _tmpptr1, rcx, 8
+		mov rcx, 2
+		mov rdx, rcx
+		cmp rdx, 2
+		jl IDX_OOB_5
+		cmp rdx, 4
+		jg IDX_OOB_5
+		jmp IDX_OK_4
+	IDX_OOB_5:
+		exit 1
+	IDX_OK_4:
+		mov rdx, 2
+		sub rdx, 2
+		mov rsi, 1
+		cmp rsi, 0
+		jl IDX_OOB_7
+		cmp rsi, 1
+		jg IDX_OOB_7
+		jmp IDX_OK_6
+	IDX_OOB_7:
+		exit 1
+	IDX_OK_6:
+		mov rsi, 1
+		mov rdi, rsi
+		mul rdi, 24
+		mov _tmpptr2, rec
+		add _tmpptr2, 48
+		mov rsi, rdi
+		mul rsi, 24
+		mov _tmpptr3, _tmpptr2
+		add _tmpptr3, rsi
+		store 12, _tmpptr3, rdx, 8
+		mov rdx, 10
+		cmp rdx, 10
+		jl IDX_OOB_9
+		cmp rdx, 12
+		jg IDX_OOB_9
+		jmp IDX_OK_8
+	IDX_OOB_9:
+		exit 1
+	IDX_OK_8:
+		mov rdx, 10
+		sub rdx, 10
+		mov rsi, rdx
+		mul rsi, 96
+		mov _tmpptr4, arrRec
+		add _tmpptr4, rsi
+		mov arg0, _tmpptr4
+		call PROC_InitOuter
+		mov rdx, 11
+		cmp rdx, 10
+		jl IDX_OOB_11
+		cmp rdx, 12
+		jg IDX_OOB_11
+		jmp IDX_OK_10
+	IDX_OOB_11:
+		exit 1
+	IDX_OK_10:
+		mov rdx, 11
+		sub rdx, 10
+		mov rsi, rdx
+		mul rsi, 96
+		mov _tmpptr5, arrRec
+		add _tmpptr5, rsi
+		mov arg0, _tmpptr5
+		call PROC_InitOuter
+		mov rdx, 12
+		cmp rdx, 10
+		jl IDX_OOB_13
+		cmp rdx, 12
+		jg IDX_OOB_13
+		jmp IDX_OK_12
+	IDX_OOB_13:
+		exit 1
+	IDX_OK_12:
+		mov rdx, 12
+		sub rdx, 10
+		mov rsi, rdx
+		mul rsi, 96
+		mov _tmpptr6, arrRec
+		add _tmpptr6, rsi
+		mov arg0, _tmpptr6
+		call PROC_InitOuter
+		mov xmm0, real_const_0
+		mov rdx, 2
+		mov rsi, rdx
+		cmp rsi, 1
+		jl IDX_OOB_15
+		cmp rsi, 3
+		jg IDX_OOB_15
+		jmp IDX_OK_14
+	IDX_OOB_15:
+		exit 1
+	IDX_OK_14:
+		mov rsi, 2
+		sub rsi, 1
+		mov rdi, 12
+		cmp rdi, 10
+		jl IDX_OOB_17
+		cmp rdi, 12
+		jg IDX_OOB_17
+		jmp IDX_OK_16
+	IDX_OOB_17:
+		exit 1
+	IDX_OK_16:
+		mov rdi, 12
+		sub rdi, 10
+		mov r8, rdi
+		mul r8, 96
+		mov _tmpptr7, arrRec
+		add _tmpptr7, r8
+		mov _tmpptr8, _tmpptr7
+		add _tmpptr8, 16
+		mov _tmpptr9, _tmpptr8
+		add _tmpptr9, 8
+		store xmm0, _tmpptr9, rsi, 8
+		mov rsi, 3
+		mov rdi, rsi
+		cmp rdi, 2
+		jl IDX_OOB_19
+		cmp rdi, 4
+		jg IDX_OOB_19
+		jmp IDX_OK_18
+	IDX_OOB_19:
+		exit 1
+	IDX_OK_18:
+		mov rdi, 3
+		sub rdi, 2
+		mov r8, 1
+		cmp r8, 0
+		jl IDX_OOB_21
+		cmp r8, 1
+		jg IDX_OOB_21
+		jmp IDX_OK_20
+	IDX_OOB_21:
+		exit 1
+	IDX_OK_20:
+		mov r8, 1
+		mov r9, r8
+		mul r9, 24
+		mov r8, 10
+		cmp r8, 10
+		jl IDX_OOB_23
+		cmp r8, 12
+		jg IDX_OOB_23
+		jmp IDX_OK_22
+	IDX_OOB_23:
+		exit 1
+	IDX_OK_22:
+		mov r8, 10
+		sub r8, 10
+		mov r10, r8
+		mul r10, 96
+		mov _tmpptr10, arrRec
+		add _tmpptr10, r10
+		mov _tmpptr11, _tmpptr10
+		add _tmpptr11, 48
+		mov r8, r9
+		mul r8, 24
+		mov _tmpptr12, _tmpptr11
+		add _tmpptr12, r8
+		store 33, _tmpptr12, rdi, 8
+		mov arg0, rec
+		call FUNC_SumGrid
+		mov rdi, rax
+		mov total, rdi
+		mov xmm1, real_const_1
+		mov r8, 0
+		sub r8, 1
+		mov r9, r8
+		mov r10, r9
+		cmp r10, -1
+		jl IDX_OOB_25
+		cmp r10, 1
+		jg IDX_OOB_25
+		jmp IDX_OK_24
+	IDX_OOB_25:
+		exit 1
+	IDX_OK_24:
+		mov r10, r8
+		sub r10, -1
+		mov r11, 1
+		cmp r11, 1
+		jl IDX_OOB_27
+		cmp r11, 2
+		jg IDX_OOB_27
+		jmp IDX_OK_26
+	IDX_OOB_27:
+		exit 1
+	IDX_OK_26:
+		mov r11, 1
+		sub r11, 1
+		mov r12, r11
+		mul r12, 24
+		mov r11, r12
+		mul r11, 24
+		mov _tmpptr13, mat
+		add _tmpptr13, r11
+		store xmm1, _tmpptr13, r10, 8
+		mov xmm2, real_const_2
+		mov r10, 0
+		mov r11, r10
+		cmp r11, -1
+		jl IDX_OOB_29
+		cmp r11, 1
+		jg IDX_OOB_29
+		jmp IDX_OK_28
+	IDX_OOB_29:
+		exit 1
+	IDX_OK_28:
+		mov r11, 0
+		sub r11, -1
+		mov r12, 1
+		cmp r12, 1
+		jl IDX_OOB_31
+		cmp r12, 2
+		jg IDX_OOB_31
+		jmp IDX_OK_30
+	IDX_OOB_31:
+		exit 1
+	IDX_OK_30:
+		mov r12, 1
+		sub r12, 1
+		mov r13, r12
+		mul r13, 24
+		mov r12, r13
+		mul r12, 24
+		mov _tmpptr14, mat
+		add _tmpptr14, r12
+		store xmm2, _tmpptr14, r11, 8
+		mov xmm3, real_const_3
+		mov r11, 1
+		mov r12, r11
+		cmp r12, -1
+		jl IDX_OOB_33
+		cmp r12, 1
+		jg IDX_OOB_33
+		jmp IDX_OK_32
+	IDX_OOB_33:
+		exit 1
+	IDX_OK_32:
+		mov r12, 1
+		sub r12, -1
+		mov r13, 1
+		cmp r13, 1
+		jl IDX_OOB_35
+		cmp r13, 2
+		jg IDX_OOB_35
+		jmp IDX_OK_34
+	IDX_OOB_35:
+		exit 1
+	IDX_OK_34:
+		mov r13, 1
+		sub r13, 1
+		mov r14, r13
+		mul r14, 24
+		mov r13, r14
+		mul r13, 24
+		mov _tmpptr15, mat
+		add _tmpptr15, r13
+		store xmm3, _tmpptr15, r12, 8
+		mov xmm4, real_const_4
+		mov r12, 0
+		sub r12, 1
+		mov r13, r12
+		mov r14, r13
+		cmp r14, -1
+		jl IDX_OOB_37
+		cmp r14, 1
+		jg IDX_OOB_37
+		jmp IDX_OK_36
+	IDX_OOB_37:
+		exit 1
+	IDX_OK_36:
+		mov r14, r12
+		sub r14, -1
+		mov r15, 2
+		cmp r15, 1
+		jl IDX_OOB_39
+		cmp r15, 2
+		jg IDX_OOB_39
+		jmp IDX_OK_38
+	IDX_OOB_39:
+		exit 1
+	IDX_OK_38:
+		mov r15, 2
+		sub r15, 1
+		mov r10, r15
+		mul r10, 24
+		mov r15, r10
+		mul r15, 24
+		mov _tmpptr16, mat
+		add _tmpptr16, r15
+		store xmm4, _tmpptr16, r14, 8
+		mov xmm5, real_const_5
+		mov r10, 0
+		mov r12, r10
+		cmp r12, -1
+		jl IDX_OOB_41
+		cmp r12, 1
+		jg IDX_OOB_41
+		jmp IDX_OK_40
+	IDX_OOB_41:
+		exit 1
+	IDX_OK_40:
+		mov r12, 0
+		sub r12, -1
+		mov r14, 2
+		cmp r14, 1
+		jl IDX_OOB_43
+		cmp r14, 2
+		jg IDX_OOB_43
+		jmp IDX_OK_42
+	IDX_OOB_43:
+		exit 1
+	IDX_OK_42:
+		mov r14, 2
+		sub r14, 1
+		mov r15, r14
+		mul r15, 24
+		mov r14, r15
+		mul r14, 24
+		mov _tmpptr17, mat
+		add _tmpptr17, r14
+		store xmm5, _tmpptr17, r12, 8
+		mov xmm6, real_const_6
+		mov r12, 1
+		mov r14, r12
+		cmp r14, -1
+		jl IDX_OOB_45
+		cmp r14, 1
+		jg IDX_OOB_45
+		jmp IDX_OK_44
+	IDX_OOB_45:
+		exit 1
+	IDX_OK_44:
+		mov r14, 1
+		sub r14, -1
+		mov r15, 2
+		cmp r15, 1
+		jl IDX_OOB_47
+		cmp r15, 2
+		jg IDX_OOB_47
+		jmp IDX_OK_46
+	IDX_OOB_47:
+		exit 1
+	IDX_OK_46:
+		mov r15, 2
+		sub r15, 1
+		mov r11, r15
+		mul r11, 24
+		mov r15, r11
+		mul r15, 24
+		mov _tmpptr18, mat
+		add _tmpptr18, r15
+		store xmm6, _tmpptr18, r14, 8
+		mov arg0, mat
+		call FUNC_DotFirstRow
+		mov xmm7, xmm0
+		mov sumR, xmm7
+		mov r11, 1
+		cmp r11, 1
+		jl IDX_OOB_49
+		cmp r11, 2
+		jg IDX_OOB_49
+		jmp IDX_OK_48
+	IDX_OOB_49:
+		exit 1
+	IDX_OK_48:
+		mov r11, 1
+		sub r11, 1
+		mov r14, r11
+		mul r14, 48
+		mov _tmpptr19, books
+		add _tmpptr19, r14
+		store str_0, _tmpptr19, 0, 1
+		mov r11, 5
+		mov r14, r11
+		cmp r14, 1
+		jl IDX_OOB_51
+		cmp r14, 5
+		jg IDX_OOB_51
+		jmp IDX_OK_50
+	IDX_OOB_51:
+		exit 1
+	IDX_OK_50:
+		mov r14, 5
+		sub r14, 1
+		mov r15, 1
+		cmp r15, 1
+		jl IDX_OOB_53
+		cmp r15, 2
+		jg IDX_OOB_53
+		jmp IDX_OK_52
+	IDX_OOB_53:
+		exit 1
+	IDX_OK_52:
+		mov r15, 1
+		sub r15, 1
+		mov r12, r15
+		mul r12, 48
+		mov _tmpptr20, books
+		add _tmpptr20, r12
+		mov _tmpptr21, _tmpptr20
+		add _tmpptr21, 8
+		store 8, _tmpptr21, r14, 8
+		mov r12, 1
+		cmp r12, 1
+		jl IDX_OOB_55
+		cmp r12, 2
+		jg IDX_OOB_55
+		jmp IDX_OK_54
+	IDX_OOB_55:
+		exit 1
+	IDX_OK_54:
+		mov r12, 1
+		sub r12, 1
+		mov r14, r12
+		mul r14, 48
+		mov _tmpptr22, books
+		add _tmpptr22, r14
+		mov arg0, _tmpptr22
+		call PROC_BumpBook
+		print fmt_str, str_1
+		load r12, rec, 0, 1
+		print fmt_int, r12
+		print newline
+		mov _tmpptr23, rec
+		add _tmpptr23, 16
+		store 1, _tmpptr23, 0, 1
+		print fmt_str, str_2
+		mov _tmpptr24, rec
+		add _tmpptr24, 16
+		load r12, _tmpptr24, 0, 1
+		print fmt_int, r12
+		print newline
+		mov xmm8, real_const_5
+		mov r12, 1
+		mov r14, r12
+		cmp r14, 1
+		jl IDX_OOB_57
+		cmp r14, 3
+		jg IDX_OOB_57
+		jmp IDX_OK_56
+	IDX_OOB_57:
+		exit 1
+	IDX_OK_56:
+		mov r14, 1
+		sub r14, 1
+		mov _tmpptr25, rec
+		add _tmpptr25, 16
+		mov _tmpptr26, _tmpptr25
+		add _tmpptr26, 8
+		store xmm8, _tmpptr26, r14, 8
+		print fmt_str, str_3
+		mov r14, 1
+		cmp r14, 1
+		jl IDX_OOB_59
+		cmp r14, 3
+		jg IDX_OOB_59
+		jmp IDX_OK_58
+	IDX_OOB_59:
+		exit 1
+	IDX_OK_58:
+		mov r14, 1
+		sub r14, 1
+		mov _tmpptr27, rec
+		add _tmpptr27, 16
+		mov _tmpptr28, _tmpptr27
+		add _tmpptr28, 8
+		load xmm9, _tmpptr28, r14, 8
+		print fmt_float, xmm9
+		print newline
+		print fmt_str, str_4
+		mov r14, 2
+		cmp r14, 2
+		jl IDX_OOB_61
+		cmp r14, 4
+		jg IDX_OOB_61
+		jmp IDX_OK_60
+	IDX_OOB_61:
+		exit 1
+	IDX_OK_60:
+		mov r14, 2
+		sub r14, 2
+		mov r15, 0
+		cmp r15, 0
+		jl IDX_OOB_63
+		cmp r15, 1
+		jg IDX_OOB_63
+		jmp IDX_OK_62
+	IDX_OOB_63:
+		exit 1
+	IDX_OK_62:
+		mov r15, 0
+		mov r13, r15
+		mul r13, 24
+		mov _tmpptr29, rec
+		add _tmpptr29, 48
+		mov r15, r13
+		mul r15, 24
+		mov _tmpptr30, _tmpptr29
+		add _tmpptr30, r15
+		load r13, _tmpptr30, r14, 8
+		print fmt_int, r13
+		print newline
+		print fmt_str, str_5
+		print fmt_int, total
+		print newline
+		print fmt_str, str_6
+		mov r13, 2
+		cmp r13, 1
+		jl IDX_OOB_65
+		cmp r13, 3
+		jg IDX_OOB_65
+		jmp IDX_OK_64
+	IDX_OOB_65:
+		exit 1
+	IDX_OK_64:
+		mov r13, 2
+		sub r13, 1
+		mov r14, 12
+		cmp r14, 10
+		jl IDX_OOB_67
+		cmp r14, 12
+		jg IDX_OOB_67
+		jmp IDX_OK_66
+	IDX_OOB_67:
+		exit 1
+	IDX_OK_66:
+		mov r14, 12
+		sub r14, 10
+		mov r15, r14
+		mul r15, 96
+		mov _tmpptr31, arrRec
+		add _tmpptr31, r15
+		mov _tmpptr32, _tmpptr31
+		add _tmpptr32, 16
+		mov _tmpptr33, _tmpptr32
+		add _tmpptr33, 8
+		load xmm9, _tmpptr33, r13, 8
+		print fmt_float, xmm9
+		print newline
+		print fmt_str, str_7
+		mov r13, 3
+		cmp r13, 2
+		jl IDX_OOB_69
+		cmp r13, 4
+		jg IDX_OOB_69
+		jmp IDX_OK_68
+	IDX_OOB_69:
+		exit 1
+	IDX_OK_68:
+		mov r13, 3
+		sub r13, 2
+		mov r14, 1
+		cmp r14, 0
+		jl IDX_OOB_71
+		cmp r14, 1
+		jg IDX_OOB_71
+		jmp IDX_OK_70
+	IDX_OOB_71:
+		exit 1
+	IDX_OK_70:
+		mov r14, 1
+		mov r15, r14
+		mul r15, 24
+		mov r14, 10
+		cmp r14, 10
+		jl IDX_OOB_73
+		cmp r14, 12
+		jg IDX_OOB_73
+		jmp IDX_OK_72
+	IDX_OOB_73:
+		exit 1
+	IDX_OK_72:
+		mov r14, 10
+		sub r14, 10
+		mul r14, 96
+		mov _tmpptr34, arrRec
+		add _tmpptr34, r14
+		mov _tmpptr35, _tmpptr34
+		add _tmpptr35, 48
+		mov r14, r15
+		mul r14, 24
+		mov _tmpptr36, _tmpptr35
+		add _tmpptr36, r14
+		load r14, _tmpptr36, r13, 8
+		print fmt_int, r14
+		print newline
+		print fmt_str, str_8
+		print fmt_float, sumR
+		print newline
+		print fmt_str, str_9
+		mov r13, 1
+		cmp r13, 1
+		jl IDX_OOB_75
+		cmp r13, 2
+		jg IDX_OOB_75
+		jmp IDX_OK_74
+	IDX_OOB_75:
+		exit 1
+	IDX_OK_74:
+		mov r13, 1
+		sub r13, 1
+		mov r14, r13
+		mul r14, 48
+		mov _tmpptr37, books
+		add _tmpptr37, r14
+		load _tmpptr38, _tmpptr37, 0, 1
+		print fmt_str, _tmpptr38
+		print newline
+		print fmt_str, str_10
+		mov r13, 5
+		cmp r13, 1
+		jl IDX_OOB_77
+		cmp r13, 5
+		jg IDX_OOB_77
+		jmp IDX_OK_76
+	IDX_OOB_77:
+		exit 1
+	IDX_OK_76:
+		mov r13, 5
+		sub r13, 1
+		mov r14, 1
+		cmp r14, 1
+		jl IDX_OOB_79
+		cmp r14, 2
+		jg IDX_OOB_79
+		jmp IDX_OK_78
+	IDX_OOB_79:
+		exit 1
+	IDX_OK_78:
+		mov r14, 1
+		sub r14, 1
+		mov r15, r14
+		mul r15, 48
+		mov _tmpptr39, books
+		add _tmpptr39, r15
+		mov _tmpptr40, _tmpptr39
+		add _tmpptr40, 8
+		load r14, _tmpptr40, r13, 8
+		print fmt_int, r14
+		print newline
+		free arrRec
+		free mat
+		free books
+		free rec
+		done
+	function PROC_InitOuter:
+		mov InitOuter_o, arg0
+		store 42, InitOuter_o, 0, 1
+		store str_11, InitOuter_o, 8, 1
+		mov _tmpptr41, InitOuter_o
+		add _tmpptr41, 16
+		store 7, _tmpptr41, 0, 1
+		mov xmm0, real_const_7
+		mov rbx, 1
+		mov rcx, rbx
+		cmp rcx, 1
+		jl IDX_OOB_81
+		cmp rcx, 3
+		jg IDX_OOB_81
+		jmp IDX_OK_80
+	IDX_OOB_81:
+		exit 1
+	IDX_OK_80:
+		mov rcx, 1
+		sub rcx, 1
+		mov _tmpptr42, InitOuter_o
+		add _tmpptr42, 16
+		mov _tmpptr43, _tmpptr42
+		add _tmpptr43, 8
+		store xmm0, _tmpptr43, rcx, 8
+		mov xmm1, real_const_8
+		mov rcx, 2
+		mov rdx, rcx
+		cmp rdx, 1
+		jl IDX_OOB_83
+		cmp rdx, 3
+		jg IDX_OOB_83
+		jmp IDX_OK_82
+	IDX_OOB_83:
+		exit 1
+	IDX_OK_82:
+		mov rdx, 2
+		sub rdx, 1
+		mov _tmpptr44, InitOuter_o
+		add _tmpptr44, 16
+		mov _tmpptr45, _tmpptr44
+		add _tmpptr45, 8
+		store xmm1, _tmpptr45, rdx, 8
+		mov xmm2, real_const_9
+		mov rdx, 3
+		mov rsi, rdx
+		cmp rsi, 1
+		jl IDX_OOB_85
+		cmp rsi, 3
+		jg IDX_OOB_85
+		jmp IDX_OK_84
+	IDX_OOB_85:
+		exit 1
+	IDX_OK_84:
+		mov rsi, 3
+		sub rsi, 1
+		mov _tmpptr46, InitOuter_o
+		add _tmpptr46, 16
+		mov _tmpptr47, _tmpptr46
+		add _tmpptr47, 8
+		store xmm2, _tmpptr47, rsi, 8
+		mov rsi, 2
+		mov rdi, rsi
+		cmp rdi, 2
+		jl IDX_OOB_87
+		cmp rdi, 4
+		jg IDX_OOB_87
+		jmp IDX_OK_86
+	IDX_OOB_87:
+		exit 1
+	IDX_OK_86:
+		mov rdi, 2
+		sub rdi, 2
+		mov r8, 0
+		cmp r8, 0
+		jl IDX_OOB_89
+		cmp r8, 1
+		jg IDX_OOB_89
+		jmp IDX_OK_88
+	IDX_OOB_89:
+		exit 1
+	IDX_OK_88:
+		mov r8, 0
+		mov r9, r8
+		mul r9, 24
+		mov _tmpptr48, InitOuter_o
+		add _tmpptr48, 48
+		mov r8, r9
+		mul r8, 24
+		mov _tmpptr49, _tmpptr48
+		add _tmpptr49, r8
+		store 10, _tmpptr49, rdi, 8
+		mov rdi, 4
+		mov r8, rdi
+		cmp r8, 2
+		jl IDX_OOB_91
+		cmp r8, 4
+		jg IDX_OOB_91
+		jmp IDX_OK_90
+	IDX_OOB_91:
+		exit 1
+	IDX_OK_90:
+		mov r8, 4
+		sub r8, 2
+		mov r9, 1
+		cmp r9, 0
+		jl IDX_OOB_93
+		cmp r9, 1
+		jg IDX_OOB_93
+		jmp IDX_OK_92
+	IDX_OOB_93:
+		exit 1
+	IDX_OK_92:
+		mov r9, 1
+		mov r10, r9
+		mul r10, 24
+		mov _tmpptr50, InitOuter_o
+		add _tmpptr50, 48
+		mov r9, r10
+		mul r9, 24
+		mov _tmpptr51, _tmpptr50
+		add _tmpptr51, r9
+		store 20, _tmpptr51, r8, 8
+	PROC_END_InitOuter:
+		ret
+	function PROC_BumpBook:
+		mov BumpBook_b, arg0
+		mov rbx, 5
+		cmp rbx, 1
+		jl IDX_OOB_95
+		cmp rbx, 5
+		jg IDX_OOB_95
+		jmp IDX_OK_94
+	IDX_OOB_95:
+		exit 1
+	IDX_OK_94:
+		mov rbx, 5
+		sub rbx, 1
+		mov _tmpptr52, BumpBook_b
+		add _tmpptr52, 8
+		load rcx, _tmpptr52, rbx, 8
+		mov rbx, rcx
+		add rbx, 1
+		mov rdx, 5
+		mov rsi, rdx
+		cmp rsi, 1
+		jl IDX_OOB_97
+		cmp rsi, 5
+		jg IDX_OOB_97
+		jmp IDX_OK_96
+	IDX_OOB_97:
+		exit 1
+	IDX_OK_96:
+		mov rsi, 5
+		sub rsi, 1
+		mov _tmpptr53, BumpBook_b
+		add _tmpptr53, 8
+		store rbx, _tmpptr53, rsi, 8
+	PROC_END_BumpBook:
+		ret
+	function FUNC_SumGrid:
+		mov SumGrid_o, arg0
+		mov SumGrid_s, 0
+		mov SumGrid_i, 0
+	FOR_98:
+		mov rbx, 1
+		cmp SumGrid_i, rbx
+		jg ENDFOR_99
+		mov SumGrid_j, 2
+	FOR_100:
+		mov rcx, 4
+		cmp SumGrid_j, rcx
+		jg ENDFOR_101
+		mov rdx, SumGrid_j
+		cmp rdx, 2
+		jl IDX_OOB_103
+		cmp rdx, 4
+		jg IDX_OOB_103
+		jmp IDX_OK_102
+	IDX_OOB_103:
+		exit 1
+	IDX_OK_102:
+		mov rdx, SumGrid_j
+		sub rdx, 2
+		mov rsi, SumGrid_i
+		cmp rsi, 0
+		jl IDX_OOB_105
+		cmp rsi, 1
+		jg IDX_OOB_105
+		jmp IDX_OK_104
+	IDX_OOB_105:
+		exit 1
+	IDX_OK_104:
+		mov rsi, SumGrid_i
+		mov rdi, rsi
+		mul rdi, 24
+		mov _tmpptr54, SumGrid_o
+		add _tmpptr54, 48
+		mov rsi, rdi
+		mul rsi, 24
+		mov _tmpptr55, _tmpptr54
+		add _tmpptr55, rsi
+		load rsi, _tmpptr55, rdx, 8
+		mov rdx, SumGrid_s
+		add rdx, rsi
+		mov SumGrid_s, rdx
+		add SumGrid_j, 1
+		jmp FOR_100
+	ENDFOR_101:
+		add SumGrid_i, 1
+		jmp FOR_98
+	ENDFOR_99:
+		mov rax, SumGrid_s
+	FUNC_END_SumGrid:
+		ret
+	function FUNC_DotFirstRow:
+		mov DotFirstRow_m, arg0
+		mov rbx, 0
+		sub rbx, 1
+		mov rcx, rbx
+		cmp rcx, -1
+		jl IDX_OOB_107
+		cmp rcx, 1
+		jg IDX_OOB_107
+		jmp IDX_OK_106
+	IDX_OOB_107:
+		exit 1
+	IDX_OK_106:
+		mov rcx, rbx
+		sub rcx, -1
+		mov rdx, 1
+		cmp rdx, 1
+		jl IDX_OOB_109
+		cmp rdx, 2
+		jg IDX_OOB_109
+		jmp IDX_OK_108
+	IDX_OOB_109:
+		exit 1
+	IDX_OK_108:
+		mov rdx, 1
+		sub rdx, 1
+		mov rsi, rdx
+		mul rsi, 24
+		mov rdx, rsi
+		mul rdx, 24
+		mov _tmpptr56, DotFirstRow_m
+		add _tmpptr56, rdx
+		load xmm0, _tmpptr56, rcx, 8
+		mov rcx, 0
+		cmp rcx, -1
+		jl IDX_OOB_111
+		cmp rcx, 1
+		jg IDX_OOB_111
+		jmp IDX_OK_110
+	IDX_OOB_111:
+		exit 1
+	IDX_OK_110:
+		mov rcx, 0
+		sub rcx, -1
+		mov rdx, 1
+		cmp rdx, 1
+		jl IDX_OOB_113
+		cmp rdx, 2
+		jg IDX_OOB_113
+		jmp IDX_OK_112
+	IDX_OOB_113:
+		exit 1
+	IDX_OK_112:
+		mov rdx, 1
+		sub rdx, 1
+		mov rsi, rdx
+		mul rsi, 24
+		mov rdx, rsi
+		mul rdx, 24
+		mov _tmpptr57, DotFirstRow_m
+		add _tmpptr57, rdx
+		load xmm1, _tmpptr57, rcx, 8
+		add xmm0, xmm1
+		mov rcx, 1
+		cmp rcx, -1
+		jl IDX_OOB_115
+		cmp rcx, 1
+		jg IDX_OOB_115
+		jmp IDX_OK_114
+	IDX_OOB_115:
+		exit 1
+	IDX_OK_114:
+		mov rcx, 1
+		sub rcx, -1
+		mov rdx, 1
+		cmp rdx, 1
+		jl IDX_OOB_117
+		cmp rdx, 2
+		jg IDX_OOB_117
+		jmp IDX_OK_116
+	IDX_OOB_117:
+		exit 1
+	IDX_OK_116:
+		mov rdx, 1
+		sub rdx, 1
+		mov rsi, rdx
+		mul rsi, 24
+		mov rdx, rsi
+		mul rdx, 24
+		mov _tmpptr58, DotFirstRow_m
+		add _tmpptr58, rdx
+		load xmm2, _tmpptr58, rcx, 8
+		add xmm0, xmm2
+	FUNC_END_DotFirstRow:
+		ret
+	}
+}
+

@@ -1,0 +1,88 @@
+object rng {
+    section data {
+        export int seed = 0           # Seed (can be set externally)
+        int a = 1664525              # LCG multiplier
+        int c = 1013904223           # LCG increment
+        int m = 4294967296           # Modulus (2^32)
+        export int current = 0        # Last generated value
+        int temp = 0
+    }
+
+    section code {
+        function next:
+            # seed = (a * seed + c) % m
+            mov temp, seed
+            mul temp, a
+            add temp, c
+            mod temp, m
+            mov seed, temp
+            mov current, seed
+            ret
+    }
+}
+
+program GuessGame {
+    section module { io, string }
+    section object { rng }
+
+    section data {
+        string welcome = "Welcome to Guess Game! I'm thinking of a number between 0 and 99.\n"
+        string prompt = "Enter your guess (0-99): "
+        string too_low = "Too low!\n"
+        string too_high = "Too high!\n"
+        string correct = "Correct! You took %d attempts.\n"
+        string invalid = "Invalid input. Please enter a number 0-99.\n"
+        string input_buffer, 16
+
+        int secret = 0
+        int guess = 0
+        int attempts = 0
+        int range = 100
+        int zero = 0
+        int one = 1
+        int upper = 99
+    }
+
+    section code {
+        # Initialize RNG with a fixed seed (could be made dynamic)
+        mov rng.seed, 123456789
+        call rng.next
+        mov secret, rng.current
+        mod secret, range    # secret in [0,99]
+
+        print welcome
+
+    game_loop:
+        print prompt
+        getline input_buffer
+        to_int guess, input_buffer
+
+        # Validate guess: 0 <= guess <= 99
+        cmp guess, zero
+        jl invalid_input
+        cmp guess, upper
+        jg invalid_input
+
+        add attempts, one
+
+        cmp guess, secret
+        je correct_guess
+        jl too_low_label
+
+        # guess > secret
+        print too_high
+        jmp game_loop
+
+    too_low_label:
+        print too_low
+        jmp game_loop
+
+    invalid_input:
+        print invalid
+        jmp game_loop
+
+    correct_guess:
+        print correct, attempts
+        done
+    }
+}

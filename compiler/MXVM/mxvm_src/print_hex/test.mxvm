@@ -1,0 +1,16 @@
+object Test {
+
+	section code {
+	function abc:
+	ret
+	}
+
+}
+
+program one {
+	section object { Test }
+	section code {
+	print "hello"
+        done
+	}
+}

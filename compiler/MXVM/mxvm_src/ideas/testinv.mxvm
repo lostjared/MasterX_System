@@ -1,0 +1,13 @@
+program TestInvoke {
+    section module {
+            io,
+            sdl
+    }
+    section data {
+        string hello = "Hello, World"
+    }
+	section code {
+        invoke puts, hello
+        done
+    }
+}

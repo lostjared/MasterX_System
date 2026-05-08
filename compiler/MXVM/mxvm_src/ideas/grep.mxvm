@@ -1,0 +1,93 @@
+program Grep {
+  section module { io, string }
+
+  section data {
+    string file_name, 256
+    string file_mode = "rb"
+    ptr fptr = null
+    int file_size = 0
+    int nfile_size = 0
+    ptr buffer = null
+    byte zero_byte = 0
+    ptr line = null
+    int line_size = 0
+    int idx = 0
+    int pos = 0
+    int line_len = 0
+    string prompt = "Enter filename: "
+    string file_err = "Could not open file\n"
+    string prompt_search = "Enter search string: "
+    string search_str, 256
+    string newline = "\n"
+    string output_line = "%s\n"
+    int result = 0
+  }
+
+  section code {
+start:
+    print prompt
+    getline file_name
+    invoke fopen, file_name, file_mode
+    return fptr
+    cmp fptr, 0
+    je error_not_found
+
+    invoke fsize, fptr
+    return file_size
+    mov nfile_size, file_size
+    add nfile_size, 1
+    alloc buffer, 1, nfile_size
+    invoke fread, buffer, 1, file_size, fptr
+    cmp buffer, 0
+    je error_not_found
+    store zero_byte, buffer, file_size, 1
+    invoke fclose, fptr
+
+    print prompt_search
+    getline search_str
+
+    mov idx, 0
+loop_start:
+    cmp idx, file_size
+    jge close_and_done
+
+    invoke strfind, buffer, newline, idx
+    return result
+    cmp result, -1
+    je no_newline
+    mov pos, result
+    jmp have_line
+no_newline:
+    mov pos, file_size
+have_line:
+    mov line_len, pos
+    sub line_len, idx
+    mov line_size, line_len
+    add line_size, 1
+    alloc line, 1, line_size
+    invoke substr, line, line_size, buffer, idx, line_len
+    invoke strfind, line, search_str, 0
+    return result
+    cmp result, -1
+    je skip
+    print output_line, line
+    free line
+    jmp after_line
+skip:
+    free line
+after_line:
+    cmp pos, file_size
+    je close_and_done
+    mov idx, pos
+    add idx, 1
+    jmp loop_start
+
+close_and_done:
+    free buffer
+    done
+
+error_not_found:
+    invoke fprintf, stderr, file_err
+    exit 1
+  }
+}

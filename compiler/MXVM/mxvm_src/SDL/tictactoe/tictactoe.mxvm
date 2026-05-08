@@ -1,0 +1,790 @@
+program TicTacToe {
+    section module { sdl, string, io }
+    section object { SDLCore, Game, Input, Board, Text, AI }
+    section code {
+    start:
+        call Game.init
+        call Game.loop
+        call Game.cleanup
+        done
+    }
+}
+
+object SDLCore {
+    section module { sdl, io }
+    section data {
+        export string title = "TicTacToe - [MXVM Edition]"
+        export int x = 100
+        export int y = 100
+        export int w = 800
+        export int h = 600
+        export int flags = 0
+        export int window_id = 0
+        export int renderer_id = 0
+        export int last_event_type = 0
+        export int last_key_code = 0
+        export int last_mouse_btn = 0
+        export int last_mouse_x = 0
+        export int last_mouse_y = 0
+    }
+    section code {
+    function init:
+        invoke init
+        invoke create_window, title, x, y, w, h, flags
+        return window_id
+        invoke create_renderer, window_id, -1, 0
+        return renderer_id
+        ret
+    function shutdown:
+        invoke destroy_renderer, renderer_id
+        invoke destroy_window, window_id
+        ret
+    function begin_frame:
+        invoke set_draw_color, renderer_id, 30, 30, 30, 255
+        invoke clear, renderer_id
+        ret
+    function end_frame:
+        invoke present, renderer_id
+        ret
+    function poll_one_event:
+        invoke poll_event
+        return last_event_type
+        cmp last_event_type, 0
+        je pe_ret
+        invoke get_event_type
+        return last_event_type
+        cmp last_event_type, 768
+        je pe_key
+        cmp last_event_type, 769
+        je pe_key
+        cmp last_event_type, 256
+        je pe_ret
+        cmp last_event_type, 1025
+        je pe_mouse
+        cmp last_event_type, 1026
+        je pe_mouse
+        jmp pe_ret
+    pe_key:
+        invoke get_key_code
+        return last_key_code
+        jmp pe_ret
+    pe_mouse:
+        invoke get_mouse_button
+        return last_mouse_btn
+        invoke get_mouse_x
+        return last_mouse_x
+        invoke get_mouse_y
+        return last_mouse_y
+        jmp pe_ret
+    pe_ret:
+        ret
+    }
+}
+
+object Text {
+    section module { string }
+    section object { SDLCore }
+    section data {
+        export int fnt = -1
+        export string font_name = "font.ttf"
+        export string buf, 256
+        export string title = "TicTacToe"
+        export string turn_x = "Your turn (X)"
+        export string turn_o = "Computer (O) thinking..."
+        export string win_x = "X wins"
+        export string win_o = "O wins"
+        export string draw_s = "Draw"
+        int cx_title = 300
+        int cy_title = 20
+        int cx_small = 220
+        int cy_small = 560
+    }
+    section code {
+    function init:
+        invoke init_text
+        invoke load_font, font_name, 28
+        return fnt
+        ret
+    function release:
+        invoke quit_text
+        ret
+    function draw_center:
+        invoke draw_text, SDLCore.renderer_id, fnt, buf, cx_title, cy_title, 255, 255, 255, 255
+        ret
+    function draw_small_center:
+        invoke draw_text, SDLCore.renderer_id, fnt, buf, cx_small, cy_small, 200, 200, 200, 255
+        ret
+    }
+}
+
+object Board {
+    section data {
+        export int off_x = 175
+        export int off_y = 75
+        export int cell_w = 150
+        export int cell_h = 150
+        export ptr cells = null       # 9 elements, each 8 bytes (int64)
+        export int len = 9
+        export int cur_player = 1     # 1 = X (human), 2 = O (AI)
+        export int winner = 0         # 0=none,1=X,2=O,3=draw
+        export int game_over = 0
+        export int moves = 0
+
+        int i = 0
+        export int idx = 0
+        export int val = 0
+
+        int tmp = 0
+        int a = 0
+        int b = 0
+        int c = 0
+
+        export int px = 0
+        export int py = 0
+        export int tx = 0
+        export int ty = 0
+
+        int bx = 0
+        int by = 0
+    }
+    section code {
+    function allocate:
+        alloc cells, 8, 9
+        mov i, 0
+    cl:
+        cmp i, 9
+        jge cld
+        store 0, cells, i, 8
+        add i, 1
+        jmp cl
+    cld:
+        mov cur_player, 1
+        mov winner, 0
+        mov game_over, 0
+        mov moves, 0
+        ret
+
+    function reset:
+        mov i, 0
+    rz:
+        cmp i, 9
+        jge rzd
+        store 0, cells, i, 8
+        add i, 1
+        jmp rz
+    rzd:
+        mov cur_player, 1
+        mov winner, 0
+        mov game_over, 0
+        mov moves, 0
+        ret
+
+    function release:
+        free cells
+        ret
+
+    function get:
+        load val, cells, idx, 8
+        ret
+
+    function set:
+        store val, cells, idx, 8
+        ret
+
+    function check_winner:
+        mov winner, 0
+        mov a, 0
+        mov b, 0
+        mov c, 0
+
+        # columns (i, i+3, i+6)
+        mov i, 0
+    rw:
+        cmp i, 3
+        jge cw_cols
+        mov idx, i
+        call get
+        mov a, val
+        mov idx, i
+        add idx, 3
+        call get
+        mov b, val
+        mov idx, i
+        add idx, 6
+        call get
+        mov c, val
+        cmp a, 0
+        je rwn1
+        cmp a, b
+        jne rwn1
+        cmp a, c
+        jne rwn1
+        mov winner, a
+        ret
+    rwn1:
+        add i, 1
+        jmp rw
+
+        # rows (i*3, i*3+1, i*3+2)
+    cw_cols:
+        mov i, 0
+    cw2:
+        cmp i, 3
+        jge cw_diag
+        mov idx, i
+        mul idx, 3
+        call get
+        mov a, val
+        mov idx, i
+        mul idx, 3
+        add idx, 1
+        call get
+        mov b, val
+        mov idx, i
+        mul idx, 3
+        add idx, 2
+        call get
+        mov c, val
+        cmp a, 0
+        je cw2n
+        cmp a, b
+        jne cw2n
+        cmp a, c
+        jne cw2n
+        mov winner, a
+        ret
+    cw2n:
+        add i, 1
+        jmp cw2
+
+        # diagonals
+    cw_diag:
+        mov idx, 0
+        call get
+        mov a, val
+        mov idx, 4
+        call get
+        mov b, val
+        mov idx, 8
+        call get
+        mov c, val
+        cmp a, 0
+        je cw_d2
+        cmp a, b
+        jne cw_d2
+        cmp a, c
+        jne cw_d2
+        mov winner, a
+        ret
+    cw_d2:
+        mov idx, 2
+        call get
+        mov a, val
+        mov idx, 4
+        call get
+        mov b, val
+        mov idx, 6
+        call get
+        mov c, val
+        cmp a, 0
+        je cw_done
+        cmp a, b
+        jne cw_done
+        cmp a, c
+        jne cw_done
+        mov winner, a
+        ret
+
+    cw_done:
+        # check draw (no zeros)
+        mov i, 0
+        mov tmp, 0
+    cf:
+        cmp i, 9
+        jge cf_done
+        mov idx, i
+        call get
+        cmp val, 0
+        je cf_done2
+        add i, 1
+        jmp cf
+    cf_done2:
+        mov tmp, 1
+    cf_done:
+        cmp winner, 0
+        jne cw_fin
+        cmp tmp, 0
+        jne cw_fin
+        mov winner, 3
+    cw_fin:
+        ret
+
+    function place:
+        # idx = py*3 + px
+        mov idx, py
+        mul idx, 3
+        add idx, px
+        call get
+        cmp val, 0
+        jne p_ret              # occupied: ignore
+        mov val, cur_player
+        call set
+        add moves, 1
+        call check_winner
+        cmp winner, 0
+        jne p_end
+        cmp cur_player, 1
+        je swp
+        mov cur_player, 1
+        jmp p_ret
+    swp:
+        mov cur_player, 2
+        jmp p_ret
+    p_end:
+        mov game_over, 1
+    p_ret:
+        ret
+
+    function cell_from_xy:
+        sub tx, off_x
+        sub ty, off_y
+        cmp tx, 0
+        jl cxy_bad
+        cmp ty, 0
+        jl cxy_bad
+        div bx, tx, cell_w
+        div by, ty, cell_h
+        cmp bx, 0
+        jl cxy_bad
+        cmp by, 0
+        jl cxy_bad
+        cmp bx, 3
+        jge cxy_bad
+        cmp by, 3
+        jge cxy_bad
+        mov px, bx
+        mov py, by
+        ret
+    cxy_bad:
+        mov px, -1
+        mov py, -1
+        ret
+    }
+}
+
+object AI {
+
+    section object { Board }
+
+    section data {
+        int i = 0
+        int best = -1
+        int idx = 0
+        int val = 0
+        int save = 0
+        int tmp = 0
+        int saved_winner = 0
+    }
+    section code {
+    function try_line_win:
+        mov i, 0
+    tlw:
+        cmp i, 9
+        jge tlw_done
+        mov Board.idx, i
+        call Board.get
+        mov val, Board.val
+        cmp val, 0
+        jne tlw_next
+
+        mov saved_winner, Board.winner
+        mov Board.idx, i
+        mov Board.val, 2
+        call Board.set
+        call Board.check_winner
+        cmp Board.winner, 2
+        je tlw_take
+        mov Board.idx, i
+        mov Board.val, 0
+        call Board.set
+        mov Board.winner, saved_winner
+        jmp tlw_next
+
+    tlw_take:
+        mov best, i
+        mov Board.idx, i
+        mov Board.val, 0
+        call Board.set
+        mov Board.winner, saved_winner
+        jmp tlw_done
+
+    tlw_next:
+        add i, 1
+        jmp tlw
+    tlw_done:
+        ret
+
+    function try_block:
+        mov i, 0
+    tbl:
+        cmp i, 9
+        jge tbl_done
+        mov Board.idx, i
+        call Board.get
+        mov val, Board.val
+        cmp val, 0
+        jne tbl_next
+
+        mov saved_winner, Board.winner
+        mov Board.idx, i
+        mov Board.val, 1
+        call Board.set
+        call Board.check_winner
+        cmp Board.winner, 1
+        je tbl_take
+        mov Board.idx, i
+        mov Board.val, 0
+        call Board.set
+        mov Board.winner, saved_winner
+        jmp tbl_next
+
+    tbl_take:
+        mov best, i
+        mov Board.idx, i
+        mov Board.val, 0
+        call Board.set
+        mov Board.winner, saved_winner
+        jmp tbl_done
+
+    tbl_next:
+        add i, 1
+        jmp tbl
+    tbl_done:
+        ret
+
+    function take_center:
+        mov best, -1
+        mov Board.idx, 4
+        call Board.get
+        mov val, Board.val
+        cmp val, 0
+        jne tc_ret
+        mov best, 4
+    tc_ret:
+        ret
+
+    function take_first:
+        mov i, 0
+        mov best, -1
+    tf:
+        cmp i, 9
+        jge tf_done
+        mov Board.idx, i
+        call Board.get
+        mov val, Board.val
+        cmp val, 0
+        je tf_take
+        add i, 1
+        jmp tf
+    tf_take:
+        mov best, i
+    tf_done:
+        ret
+
+    function move:
+        mov best, -1
+        call try_line_win
+        cmp best, -1
+        jne mv_set
+        call try_block
+        cmp best, -1
+        jne mv_set
+        call take_center
+        cmp best, -1
+        jne mv_set
+        call take_first
+        cmp best, -1
+        jne mv_set
+        ret
+
+    mv_set:
+        # compute py = best / 3 ; px = best % 3
+        mov idx, best
+        div Board.py, idx, 3
+        mov Board.px, idx
+        mov tmp, Board.py
+        mul tmp, 3
+        sub Board.px, tmp
+
+        # ensure empty before placing
+        mov Board.idx, best
+        call Board.get
+        cmp Board.val, 0
+        jne mv_fallback
+
+        call Board.place
+        ret
+
+    mv_fallback:
+        call take_first
+        cmp best, -1
+        je mv_ret
+
+        mov idx, best
+        div Board.py, idx, 3
+        mov Board.px, idx
+        mov tmp, Board.py
+        mul tmp, 3
+        sub Board.px, tmp
+
+        mov Board.idx, best
+        call Board.get
+        cmp Board.val, 0
+        jne mv_ret
+
+        call Board.place
+    mv_ret:
+        ret
+    }
+}
+
+object Input {
+
+    section object { SDLCore, Board, Game }
+
+    section data {
+        export int event_type = 0
+        export int key = 0
+        export int mb = 0
+        export int mx = 0
+        export int my = 0
+        export int SDLK_ESCAPE = 27
+        export int SDLK_RETURN = 13
+        export int MBDOWN = 1025
+    }
+    section code {
+    function handle:
+        call SDLCore.poll_one_event
+        mov event_type, SDLCore.last_event_type
+        cmp event_type, 0
+        je ih_ret
+        cmp event_type, 256
+        je quit
+        cmp event_type, 768
+        jne chk_mouse
+        mov key, SDLCore.last_key_code
+        cmp key, SDLK_ESCAPE
+        je quit
+        cmp key, SDLK_RETURN
+        je restart
+        jmp ih_ret
+    chk_mouse:
+        cmp event_type, MBDOWN
+        jne ih_ret
+        mov mb, SDLCore.last_mouse_btn
+        mov mx, SDLCore.last_mouse_x
+        mov my, SDLCore.last_mouse_y
+        mov Board.tx, mx
+        mov Board.ty, my
+        call Board.cell_from_xy
+        cmp Board.px, 0
+        jl ih_ret
+        cmp Board.game_over, 1
+        je ih_ret
+        cmp Board.cur_player, 1
+        jne ih_ret
+        call Board.place
+        jmp ih_ret
+    quit:
+        mov Game.running, 0
+        jmp ih_ret
+    restart:
+        call Board.reset
+        jmp ih_ret
+    ih_ret:
+        ret
+    }
+}
+
+object Game {
+
+    section object { SDLCore, Text, Board }
+
+    section data {
+        export int running = 1
+        int gx = 0
+        int gy = 0
+        int i = 0
+        int x0 = 0
+        int y0 = 0
+        int cx = 0
+        int cy = 0
+        int x1 = 0
+        int y1 = 0
+        int x2 = 0
+        int y2 = 0
+        int textx = 0
+        int texty = 0
+        string cellbuf, 8
+        string Xs = "X"
+        string Os = "O"
+        string Ts = ""
+    }
+    section code {
+    function init:
+        call SDLCore.init
+        call Text.init
+        call Board.allocate
+        ret
+
+    function cleanup:
+        call Board.release
+        call Text.release
+        call SDLCore.shutdown
+        invoke quit
+        ret
+
+    function draw_grid:
+        invoke set_draw_color, SDLCore.renderer_id, 220, 220, 220, 255
+        mov gx, Board.off_x
+        mov gy, Board.off_y
+        mov x0, Board.cell_w
+        mul x0, 3
+        mov y0, Board.cell_h
+        mul y0, 3
+
+        invoke set_draw_color, SDLCore.renderer_id, 60, 60, 60, 255
+        invoke fill_rect, SDLCore.renderer_id, gx, gy, x0, y0
+
+        invoke set_draw_color, SDLCore.renderer_id, 220, 220, 220, 255
+        mov cx, Board.cell_w
+        add cx, gx
+        mov cy, y0
+        invoke fill_rect, SDLCore.renderer_id, cx, gy, 4, cy
+
+        mov cx, Board.cell_w
+        mul cx, 2
+        add cx, gx
+        invoke fill_rect, SDLCore.renderer_id, cx, gy, 4, cy
+
+        mov cy, Board.cell_h
+        add cy, gy
+        mov cx, x0
+        invoke fill_rect, SDLCore.renderer_id, gx, cy, cx, 4
+
+        mov cy, Board.cell_h
+        mul cy, 2
+        add cy, gy
+        invoke fill_rect, SDLCore.renderer_id, gx, cy, cx, 4
+        ret
+
+    function draw_marks:
+        mov i, 0
+    dm_loop:
+        cmp i, 9
+        jge dm_done
+
+        mov Board.idx, i
+        call Board.get
+        cmp Board.val, 0
+        je dm_next
+
+        # row/col from index
+        div cy, i, 3
+        mov x0, cy
+        mul x0, 3
+        mov cx, i
+        sub cx, x0
+
+        # top-left of the cell
+        mov x0, cx
+        mul x0, Board.cell_w
+        add x0, Board.off_x
+        mov y0, cy
+        mul y0, Board.cell_h
+        add y0, Board.off_y
+
+        # 1 = X, 2 = O
+        cmp Board.val, 1
+        je draw_x
+        cmp Board.val, 2
+        je draw_o
+        jmp dm_next
+
+    draw_x:
+        mov textx, x0
+        add textx, 60
+        mov texty, y0
+        add texty, 55
+        invoke draw_text, SDLCore.renderer_id, Text.fnt, Xs, textx, texty, 255, 0, 0, 255
+        jmp dm_next
+    draw_o:
+        mov textx, x0
+        add textx, 60
+        mov texty, y0
+        add texty, 55
+        invoke draw_text, SDLCore.renderer_id, Text.fnt, Os, textx, texty, 0, 0, 255, 255
+        jmp dm_next
+    dm_next:
+        add i, 1
+        jmp dm_loop
+    dm_done:
+        ret
+
+    function draw_ui:
+        invoke strncpy, Text.buf, Text.title, 256
+        call Text.draw_center
+        cmp Board.game_over, 1
+        je du_go
+        cmp Board.cur_player, 1
+        jne du_o
+        invoke strncpy, Text.buf, Text.turn_x, 256
+        call Text.draw_small_center
+        ret
+    du_o:
+        invoke strncpy, Text.buf, Text.turn_o, 256
+        call Text.draw_small_center
+        ret
+    du_go:
+        cmp Board.winner, 1
+        jne du_go2
+        invoke strncpy, Text.buf, Text.win_x, 256
+        call Text.draw_small_center
+        ret
+    du_go2:
+        cmp Board.winner, 2
+        jne du_go3
+        invoke strncpy, Text.buf, Text.win_o, 256
+        call Text.draw_small_center
+        ret
+    du_go3:
+        invoke strncpy, Text.buf, Text.draw_s, 256
+        call Text.draw_small_center
+        ret
+
+    function frame:
+        call SDLCore.begin_frame
+        call draw_grid
+        call draw_marks
+        call draw_ui
+        call SDLCore.end_frame
+        ret
+
+    function loop:
+        mov running, 1
+    lp:
+        cmp running, 1
+        jne lpend
+        call Input.handle
+        cmp Board.game_over, 1
+        je draw_only
+        cmp Board.cur_player, 2
+        jne draw_only
+        call AI.move
+    draw_only:
+        call frame
+        jmp lp
+    lpend:
+        ret
+    }
+}

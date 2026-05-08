@@ -1,0 +1,41 @@
+program File {
+    section module {
+        io
+    }
+    section data {
+        ptr handle = null
+        ptr buffer = null
+        string filename = "test.txt"
+        string mode = "rb"
+        int file_size = 0
+        int file_size_null = 0
+        string err_msg = "Error has occoured.\n"
+        byte null_term = 0
+        string ptr_val = "Value is: %s"
+    }
+    section code {
+    start:
+        invoke fopen, filename, mode
+        return handle
+        cmp handle, 0
+        je error_out
+        invoke fsize, handle
+        return file_size
+        add file_size_null, file_size, 1
+        alloc buffer, 1, file_size_null
+        cmp buffer, 0
+        je error_out
+        invoke fread, buffer, 1, file_size, handle
+        return file_size
+        cmp file_size, 0
+        je error_out
+        store null_term, buffer, file_size, 1
+        invoke fprintf, stdout, ptr_val, buffer
+        invoke fclose, handle
+        free buffer
+        done
+    error_out:
+        invoke fprintf, stderr, err_msg
+        exit 1
+    }
+}

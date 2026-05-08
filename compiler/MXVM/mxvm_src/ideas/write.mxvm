@@ -1,0 +1,32 @@
+program Write {
+
+    section module { io }
+
+    section data {
+        string input, 4096
+        string fmt = "Enter value: "
+        string filename = "output.txt"
+        string mode = "w"
+        ptr result = null
+        string err_msg = "Error has occoured"
+        string output = "%s"
+    }
+
+    section code {
+    start:
+        print fmt
+        getline input
+        invoke fopen, filename, mode
+        return result
+        cmp result, 0
+        je error
+        invoke fprintf,result, output, input
+        invoke fclose,result
+        done
+    error:
+        print err_msg
+        exit 1
+
+    }
+
+}

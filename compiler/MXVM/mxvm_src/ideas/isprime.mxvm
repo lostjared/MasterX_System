@@ -1,0 +1,46 @@
+program IsPrime {
+    section data {
+        string ask = "Enter a number to check for primality: "
+        string input, 32
+        int n = 0
+        int i = 2
+        int temp = 0
+        int rem = 0
+        int is_prime = 1
+        string yes = "Prime\n"
+        string no = "Not Prime\n"
+        string range_error = "Number must be greater than 1\n"
+    }
+    section code {
+    start:
+        print ask
+        getline input
+        to_int n, input
+        cmp n, 2
+        jl not_prime
+        cmp n, 2
+        je prime
+
+    check_loop:
+        mul temp, i, i
+        cmp temp, n
+        jg prime_check_done
+        mod rem, n , i
+        cmp rem, 0
+        je not_prime
+        add i, 1
+        jmp check_loop
+
+    prime_check_done:
+        print yes
+        done
+
+    not_prime:
+        print no
+        done
+
+    prime:
+        print yes
+        done
+    }
+}

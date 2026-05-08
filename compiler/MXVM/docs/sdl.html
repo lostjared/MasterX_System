@@ -1,0 +1,106 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MXVM SDL Module Reference</title>
+<style>
+body{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:#0b0d10;color:#e6e6e6;line-height:1.5;padding:24px}
+h1{font-size:28px;margin:0 0 8px}
+h2{font-size:20px;margin:24px 0 8px;color:#9cc3ff}
+.card{background:#111419;border:1px solid #1f2530;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+.kv{display:grid;grid-template-columns:160px 1fr;gap:6px 16px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;margin-left:6px;background:#1f2530;color:#a9b6c9}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{padding:10px;border-bottom:1px solid #1f2530;vertical-align:top}
+th{text-align:left;color:#8fb3ff;font-weight:600}
+tr:hover td{background:#0e1217}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f1318;border:1px solid #1c222d;border-radius:10px;padding:10px;display:inline-block}
+.small{font-size:12px;color:#a9b6c9}
+.section{margin-top:20px}
+.footer{margin-top:24px;color:#9aa7b3;font-size:12px}
+</style></head><body>
+<h1>MXVM SDL Module Reference <span class="badge">invoke API</span></h1>
+<div class="small">Return types: <span class="code">INTEGER</span> → stores in <span class="code">%rax.int</span>; <span class="code">POINTER</span> → <span class="code">%rax.ptr</span>; <span class="code">FLOAT</span> → <span class="code">%rax.float</span>; <span class="code">—</span> → no return.</div>
+<div class="section"><h2>Core</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>init</span></td><td>—</td><td>INTEGER</td><td>Init</td></tr>
+<tr><td><span class='code'>quit</span></td><td>—</td><td>—</td><td>Quit</td></tr>
+</table></div></div>
+<div class="section"><h2>Window</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>create_window</span></td><td>6</td><td>INTEGER</td><td>Create window</td></tr>
+<tr><td><span class='code'>destroy_window</span></td><td>—</td><td>—</td><td>Destroy window</td></tr>
+<tr><td><span class='code'>set_window_title</span></td><td>2</td><td>—</td><td>Set window title</td></tr>
+<tr><td><span class='code'>set_window_position</span></td><td>3</td><td>—</td><td>Set window position</td></tr>
+<tr><td><span class='code'>get_window_size</span></td><td>3</td><td>—</td><td>Get window size</td></tr>
+<tr><td><span class='code'>set_window_fullscreen</span></td><td>2</td><td>—</td><td>Set window fullscreen</td></tr>
+<tr><td><span class='code'>set_window_icon</span></td><td>—</td><td>—</td><td>Set window icon</td></tr>
+</table></div></div>
+<div class="section"><h2>Renderer</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>create_renderer</span></td><td>3</td><td>INTEGER</td><td>Create renderer</td></tr>
+<tr><td><span class='code'>destroy_renderer</span></td><td>—</td><td>—</td><td>Destroy renderer</td></tr>
+<tr><td><span class='code'>set_draw_color</span></td><td>5</td><td>—</td><td>Set draw color</td></tr>
+<tr><td><span class='code'>clear</span></td><td>—</td><td>—</td><td>Clear</td></tr>
+<tr><td><span class='code'>present</span></td><td>—</td><td>—</td><td>Present</td></tr>
+<tr><td><span class='code'>get_renderer_output_size</span></td><td>3</td><td>—</td><td>Get renderer output size</td></tr>
+<tr><td><span class='code'>create_render_target</span></td><td>3</td><td>INTEGER</td><td>Create render target</td></tr>
+<tr><td><span class='code'>set_render_target</span></td><td>2</td><td>—</td><td>Set render target</td></tr>
+<tr><td><span class='code'>destroy_render_target</span></td><td>—</td><td>—</td><td>Destroy render target</td></tr>
+<tr><td><span class='code'>present_scaled</span></td><td>4</td><td>—</td><td>Present scaled</td></tr>
+<tr><td><span class='code'>present_stretched</span></td><td>4</td><td>—</td><td>Present stretched</td></tr>
+</table></div></div>
+<div class="section"><h2>Drawing</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>draw_point</span></td><td>3</td><td>—</td><td>Draw point</td></tr>
+<tr><td><span class='code'>draw_line</span></td><td>5</td><td>—</td><td>Draw line</td></tr>
+<tr><td><span class='code'>draw_rect</span></td><td>5</td><td>—</td><td>Draw rect</td></tr>
+<tr><td><span class='code'>fill_rect</span></td><td>5</td><td>—</td><td>Fill rect</td></tr>
+<tr><td><span class='code'>create_texture</span></td><td>5</td><td>INTEGER</td><td>Create texture</td></tr>
+<tr><td><span class='code'>destroy_texture</span></td><td>—</td><td>—</td><td>Destroy texture</td></tr>
+<tr><td><span class='code'>load_texture</span></td><td>2</td><td>INTEGER</td><td>Load texture</td></tr>
+<tr><td><span class='code'>render_texture</span></td><td>10</td><td>—</td><td>Render texture</td></tr>
+<tr><td><span class='code'>update_texture</span></td><td>3</td><td>INTEGER</td><td>Update texture</td></tr>
+<tr><td><span class='code'>lock_texture</span></td><td>3</td><td>INTEGER</td><td>Lock texture</td></tr>
+<tr><td><span class='code'>unlock_texture</span></td><td>—</td><td>—</td><td>Unlock texture</td></tr>
+<tr><td><span class='code'>create_rgb_surface</span></td><td>3</td><td>POINTER</td><td>Create rgb surface</td></tr>
+<tr><td><span class='code'>free_surface</span></td><td>—</td><td>—</td><td>Free surface</td></tr>
+<tr><td><span class='code'>blit_surface</span></td><td>4</td><td>INTEGER</td><td>Blit surface</td></tr>
+</table></div></div>
+<div class="section"><h2>Events</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>poll_event</span></td><td>—</td><td>INTEGER</td><td>Poll event</td></tr>
+<tr><td><span class='code'>get_event_type</span></td><td>—</td><td>INTEGER</td><td>Get event type</td></tr>
+<tr><td><span class='code'>get_key_code</span></td><td>—</td><td>INTEGER</td><td>Get key code</td></tr>
+<tr><td><span class='code'>get_mouse_x</span></td><td>—</td><td>INTEGER</td><td>Get mouse x</td></tr>
+<tr><td><span class='code'>get_mouse_y</span></td><td>—</td><td>INTEGER</td><td>Get mouse y</td></tr>
+<tr><td><span class='code'>get_mouse_button</span></td><td>—</td><td>INTEGER</td><td>Get mouse button</td></tr>
+<tr><td><span class='code'>get_mouse_state</span></td><td>2</td><td>INTEGER</td><td>Get mouse state</td></tr>
+<tr><td><span class='code'>get_relative_mouse_state</span></td><td>2</td><td>INTEGER</td><td>Get relative mouse state</td></tr>
+<tr><td><span class='code'>get_mouse_buttons</span></td><td>—</td><td>INTEGER</td><td>Get mouse buttons</td></tr>
+<tr><td><span class='code'>get_relative_mouse_x</span></td><td>—</td><td>INTEGER</td><td>Get relative mouse x</td></tr>
+<tr><td><span class='code'>get_relative_mouse_y</span></td><td>—</td><td>INTEGER</td><td>Get relative mouse y</td></tr>
+<tr><td><span class='code'>get_relative_mouse_buttons</span></td><td>—</td><td>INTEGER</td><td>Get relative mouse buttons</td></tr>
+<tr><td><span class='code'>get_keyboard_state</span></td><td>—</td><td>POINTER</td><td>Get keyboard state</td></tr>
+<tr><td><span class='code'>is_key_pressed</span></td><td>—</td><td>INTEGER</td><td>Is key pressed</td></tr>
+<tr><td><span class='code'>get_num_keys</span></td><td>—</td><td>INTEGER</td><td>Get num keys</td></tr>
+</table></div></div>
+<div class="section"><h2>Clipboard/Cursor</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>set_clipboard_text</span></td><td>—</td><td>—</td><td>Set clipboard text</td></tr>
+<tr><td><span class='code'>get_clipboard_text</span></td><td>—</td><td>POINTER</td><td>Get clipboard text</td></tr>
+<tr><td><span class='code'>show_cursor</span></td><td>—</td><td>—</td><td>Show cursor</td></tr>
+</table></div></div>
+<div class="section"><h2>Timing</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>get_ticks</span></td><td>—</td><td>INTEGER</td><td>Get ticks</td></tr>
+<tr><td><span class='code'>delay</span></td><td>—</td><td>—</td><td>Delay</td></tr>
+</table></div></div>
+<div class="section"><h2>Audio</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>open_audio</span></td><td>4</td><td>INTEGER</td><td>Open audio</td></tr>
+<tr><td><span class='code'>close_audio</span></td><td>—</td><td>—</td><td>Close audio</td></tr>
+<tr><td><span class='code'>pause_audio</span></td><td>—</td><td>—</td><td>Pause audio</td></tr>
+<tr><td><span class='code'>load_wav</span></td><td>4</td><td>INTEGER</td><td>Load wav</td></tr>
+<tr><td><span class='code'>free_wav</span></td><td>—</td><td>—</td><td>Free wav</td></tr>
+<tr><td><span class='code'>queue_audio</span></td><td>2</td><td>INTEGER</td><td>Queue audio</td></tr>
+<tr><td><span class='code'>get_queued_audio_size</span></td><td>—</td><td>INTEGER</td><td>Get queued audio size</td></tr>
+<tr><td><span class='code'>clear_queued_audio</span></td><td>—</td><td>—</td><td>Clear queued audio</td></tr>
+</table></div></div>
+<div class="section"><h2>Text (SDL_ttf)</h2><div class="card"><table><tr><th>invoke</th><th>params</th><th>returns</th><th>Description</th></tr>
+<tr><td><span class='code'>init_text</span></td><td>—</td><td>INTEGER</td><td>Init text</td></tr>
+<tr><td><span class='code'>quit_text</span></td><td>—</td><td>—</td><td>Quit text</td></tr>
+<tr><td><span class='code'>load_font</span></td><td>2</td><td>INTEGER</td><td>Load font</td></tr>
+<tr><td><span class='code'>draw_text</span></td><td>9</td><td>—</td><td>Draw text</td></tr>
+</table></div></div>
+<div class="footer">Capture results using a standalone <span class="code">return var</span> immediately after <span class="code">invoke</span>.</div>
+</body></html>

@@ -1,0 +1,924 @@
+program Blocks {
+    section module { sdl, string, io }
+    section object { GameState, SDLCore, Engine, Pieces, Board, Input, Render, Game }
+
+    section code {
+    start:
+        call Game.start_game
+        done
+    }
+}
+
+object GameState {
+    section data {
+        export string title      = "MXVM Blocks"
+        export int win_x         = 100
+        export int win_y         = 100
+        export int win_w         = 400
+        export int win_h         = 800
+        export int win_flags     = 0
+
+        export int window_id     = 0
+        export int renderer_id   = 0
+
+        export ptr board         = null
+        export int board_w       = 10
+        export int board_h       = 20
+        export int cell_size     = 40
+
+        export ptr pieces        = null
+        export int piece_id      = 0
+        export int rotation      = 0
+        export int piece_x       = 3
+        export int piece_y       = 0
+
+        export int speed         = 800
+        export int tick          = 0
+        export int last_drop     = 0
+        export int game_over     = 0
+        export int rand_seed     = 12345
+
+        export int frame_start   = 0
+        export int frame_time    = 0
+        export int frame_delay   = 16
+        export int score         = 0
+        export string score_txt, 1024
+        export int font_id       = 0
+        export string font_name  = "font.ttf"
+        export string font_err   = "Could not open font..\n"
+        export string score_fmt  = "Score: %lld"
+
+        export int start_texture = 0
+        export int show_start    = 1
+        export int tw            = 400
+        export int th            = 800
+        export string blocks_bmp = "blocks.bmp"
+        export string image_error = "Could not load: blocks.bmp\n"
+
+        export int k = 0
+        export int i = 0
+        export int j = 0
+        export int v = 0
+        export int x = 0
+        export int y = 0
+        export int idx = 0
+        export int tmp_i = 0
+        export int tmp_idx = 0
+        export int tmp_j = 0
+        export int tmp_v = 0
+        export int tmp_px = 0
+        export int tmp_py = 0
+        export int tmp_x = 0
+        export int tmp_y = 0
+        export int tmp_idx2 = 0
+        export int m = 0
+        export int tx = 0
+        export int ty = 0
+        export int ts = 0
+        export int eax = 0
+        export int rax = 0
+        export int rcx = 0
+    }
+}
+
+object SDLCore {
+  section module { sdl, string }
+  section object { GameState }
+
+  section data {
+    export int r = 0
+    export int g = 0
+    export int b = 0
+    export int a = 255
+
+    export int rx = 0
+    export int ry = 0
+    export int rw = 0
+    export int rh = 0
+
+    export int tex = 0
+    export int sx = 0
+    export int sy = 0
+    export int sw = 0
+    export int sh = 0
+    export int dx = 0
+    export int dy = 0
+    export int dw = 0
+    export int dh = 0
+
+    export string path,  1024
+    export string text,  1024
+    export int  t_x = 0
+    export int  t_y = 0
+    export int  tr = 255
+    export int  tg = 255
+    export int  tb = 255
+    export int  ta = 255
+
+    export int ret_i = 0
+  }
+
+  section code {
+  function init:
+    invoke init, 0
+    invoke create_window, GameState.title, GameState.win_x, GameState.win_y, GameState.win_w, GameState.win_h, GameState.win_flags
+    return GameState.window_id
+    invoke create_renderer, GameState.window_id, -1, 0
+    return GameState.renderer_id
+    ret
+
+  function shutdown:
+    invoke destroy_renderer, GameState.renderer_id
+    invoke destroy_window, GameState.window_id
+    invoke quit
+    ret
+
+  function init_text:
+    invoke init_text
+    ret
+
+  function load_font_path:
+    invoke load_font, path, 20
+    return ret_i
+    ret
+
+  function load_texture_path:
+    invoke load_texture, GameState.renderer_id, path
+    return ret_i
+    ret
+
+  function set_draw_color_rgba:
+    invoke set_draw_color, GameState.renderer_id, r, g, b, a
+    ret
+
+  function clear:
+    invoke clear, GameState.renderer_id
+    ret
+
+  function present:
+    invoke present, GameState.renderer_id
+    ret
+
+  function fill_rect_rgba_xywh:
+    invoke set_draw_color, GameState.renderer_id, r, g, b, a
+    invoke fill_rect, GameState.renderer_id, rx, ry, rw, rh
+    ret
+
+  function blit:
+    invoke render_texture, GameState.renderer_id, tex, sx, sy, sw, sh, dx, dy, dw, dh
+    ret
+
+  function draw_text_rgba:
+    invoke draw_text, GameState.renderer_id, GameState.font_id, text, t_x, t_y, tr, tg, tb, ta
+    ret
+
+  function get_ticks_now:
+    invoke get_ticks
+    return ret_i
+    ret
+
+  function delay_ms:
+    invoke delay, ret_i
+    ret
+
+  function poll_event_once:
+    invoke poll_event
+    return ret_i
+    ret
+
+  function get_event_type_now:
+    invoke get_event_type
+    return ret_i
+    ret
+
+  function get_key_code_now:
+    invoke get_key_code
+    return ret_i
+    ret
+  }
+}
+
+object Engine {
+    section module { string }
+    section object { GameState, Board, Pieces, Game, SDLCore }
+
+    section code {
+    function init:
+        call SDLCore.init
+
+        invoke strncpy, SDLCore.path, GameState.blocks_bmp, 1024
+        call SDLCore.load_texture_path
+        mov GameState.start_texture, SDLCore.ret_i
+        cmp GameState.start_texture, -1
+        je tex_error
+
+        call SDLCore.init_text
+        invoke strncpy, SDLCore.path, GameState.font_name, 1024
+        call SDLCore.load_font_path
+        mov GameState.font_id, SDLCore.ret_i
+        cmp GameState.font_id, -1
+        je font_error
+
+        call Board.alloc_clear
+        call Pieces.init_pieces
+        mov GameState.rax, GameState.window_id
+        ret
+    tex_error:
+        print GameState.image_error
+        call Game.quit
+        ret
+    font_error:
+        print GameState.font_err
+        call Game.quit
+        ret
+    }
+}
+
+object Pieces {
+    section object { GameState, Board }
+
+    section code {
+    function init_pieces:
+        alloc GameState.pieces, 8, 112
+        store 4,  GameState.pieces, 0
+        store 5,  GameState.pieces, 1
+        store 6,  GameState.pieces, 2
+        store 7,  GameState.pieces, 3
+        store 2,  GameState.pieces, 4
+        store 6,  GameState.pieces, 5
+        store 10, GameState.pieces, 6
+        store 14, GameState.pieces, 7
+        store 8,  GameState.pieces, 8
+        store 9,  GameState.pieces, 9
+        store 10, GameState.pieces, 10
+        store 11, GameState.pieces, 11
+        store 1,  GameState.pieces, 12
+        store 5,  GameState.pieces, 13
+        store 9,  GameState.pieces, 14
+        store 13, GameState.pieces, 15
+        store 1,  GameState.pieces, 16
+        store 5,  GameState.pieces, 17
+        store 6,  GameState.pieces, 18
+        store 7,  GameState.pieces, 19
+        store 2,  GameState.pieces, 20
+        store 3,  GameState.pieces, 21
+        store 6,  GameState.pieces, 22
+        store 10, GameState.pieces, 23
+        store 5,  GameState.pieces, 24
+        store 6,  GameState.pieces, 25
+        store 7,  GameState.pieces, 26
+        store 11, GameState.pieces, 27
+        store 2,  GameState.pieces, 28
+        store 6,  GameState.pieces, 29
+        store 10, GameState.pieces, 30
+        store 9,  GameState.pieces, 31
+        store 3,  GameState.pieces, 32
+        store 5,  GameState.pieces, 33
+        store 6,  GameState.pieces, 34
+        store 7,  GameState.pieces, 35
+        store 2,  GameState.pieces, 36
+        store 6,  GameState.pieces, 37
+        store 10, GameState.pieces, 38
+        store 11, GameState.pieces, 39
+        store 5,  GameState.pieces, 40
+        store 6,  GameState.pieces, 41
+        store 7,  GameState.pieces, 42
+        store 9,  GameState.pieces, 43
+        store 1,  GameState.pieces, 44
+        store 2,  GameState.pieces, 45
+        store 6,  GameState.pieces, 46
+        store 10, GameState.pieces, 47
+        store 5,  GameState.pieces, 48
+        store 6,  GameState.pieces, 49
+        store 9,  GameState.pieces, 50
+        store 10, GameState.pieces, 51
+        store 5,  GameState.pieces, 52
+        store 6,  GameState.pieces, 53
+        store 9,  GameState.pieces, 54
+        store 10, GameState.pieces, 55
+        store 5,  GameState.pieces, 56
+        store 6,  GameState.pieces, 57
+        store 9,  GameState.pieces, 58
+        store 10, GameState.pieces, 59
+        store 5,  GameState.pieces, 60
+        store 6,  GameState.pieces, 61
+        store 9,  GameState.pieces, 62
+        store 10, GameState.pieces, 63
+        store 2,  GameState.pieces, 64
+        store 3,  GameState.pieces, 65
+        store 5,  GameState.pieces, 66
+        store 6,  GameState.pieces, 67
+        store 1,  GameState.pieces, 68
+        store 5,  GameState.pieces, 69
+        store 6,  GameState.pieces, 70
+        store 10, GameState.pieces, 71
+        store 6,  GameState.pieces, 72
+        store 7,  GameState.pieces, 73
+        store 9,  GameState.pieces, 74
+        store 10, GameState.pieces, 75
+        store 2,  GameState.pieces, 76
+        store 6,  GameState.pieces, 77
+        store 7,  GameState.pieces, 78
+        store 11, GameState.pieces, 79
+        store 2,  GameState.pieces, 80
+        store 5,  GameState.pieces, 81
+        store 6,  GameState.pieces, 82
+        store 7,  GameState.pieces, 83
+        store 2,  GameState.pieces, 84
+        store 6,  GameState.pieces, 85
+        store 7,  GameState.pieces, 86
+        store 10, GameState.pieces, 87
+        store 5,  GameState.pieces, 88
+        store 6,  GameState.pieces, 89
+        store 7,  GameState.pieces, 90
+        store 10, GameState.pieces, 91
+        store 2,  GameState.pieces, 92
+        store 5,  GameState.pieces, 93
+        store 6,  GameState.pieces, 94
+        store 10, GameState.pieces, 95
+        store 1,  GameState.pieces, 96
+        store 2,  GameState.pieces, 97
+        store 6,  GameState.pieces, 98
+        store 7,  GameState.pieces, 99
+        store 3,  GameState.pieces, 100
+        store 6,  GameState.pieces, 101
+        store 7,  GameState.pieces, 102
+        store 10, GameState.pieces, 103
+        store 5,  GameState.pieces, 104
+        store 6,  GameState.pieces, 105
+        store 10, GameState.pieces, 106
+        store 11, GameState.pieces, 107
+        store 2,  GameState.pieces, 108
+        store 5,  GameState.pieces, 109
+        store 6,  GameState.pieces, 110
+        store 9,  GameState.pieces, 111
+        ret
+
+    function rand_next:
+        mov GameState.v, GameState.rand_seed
+        mul GameState.v, 1103515245
+        add GameState.v, 12345
+        mov GameState.rand_seed, GameState.v
+        ret
+
+    function spawn_piece:
+        invoke rand_number, 7
+        return GameState.piece_id
+        cmp GameState.piece_id, 0
+        jge pid_ok
+        add GameState.piece_id, 7
+    pid_ok:
+        mov GameState.rotation, 0
+        mov GameState.piece_x, 3
+        mov GameState.piece_y, 0
+        mov GameState.rax, GameState.piece_x
+        mov GameState.rcx, GameState.piece_y
+        call Board.check_collision_xy
+        cmp GameState.rax, 1
+        je set_over
+        mov GameState.rax, 0
+        ret
+    set_over:
+        mov GameState.game_over, 1
+        mov GameState.rax, 1
+        ret
+    }
+}
+
+object Board {
+    section object { GameState }
+
+    section code {
+
+    function alloc_clear:
+        mov GameState.i, GameState.board_w
+        mul GameState.i, GameState.board_h
+        alloc GameState.board, 8, GameState.i
+        mov GameState.j, 0
+    cl_loop:
+        cmp GameState.j, GameState.i
+        jge completed
+        store 0, GameState.board, GameState.j
+        add GameState.j, 1
+        jmp cl_loop
+    completed:
+        ret
+
+    function lock_piece:
+        mov GameState.i, 0
+    lock_loop:
+        cmp GameState.i, 4
+        jge end_lock
+        mov GameState.idx, GameState.piece_id
+        mul GameState.idx, 16
+        mov GameState.j, GameState.rotation
+        mul GameState.j, 4
+        add GameState.idx, GameState.j
+        add GameState.idx, GameState.i
+        load GameState.v, GameState.pieces, GameState.idx
+        mov GameState.tmp_py, GameState.v
+        div GameState.tmp_py, 4
+        mov GameState.tmp_px, GameState.v
+        mod GameState.tmp_px, 4
+        mov GameState.x, GameState.piece_x
+        add GameState.x, GameState.tmp_px
+        mov GameState.y, GameState.piece_y
+        add GameState.y, GameState.tmp_py
+        cmp GameState.y, 0
+        jl skip
+        cmp GameState.y, GameState.board_h
+        jge skip
+        mov GameState.tmp_idx2, GameState.y
+        mul GameState.tmp_idx2, GameState.board_w
+        add GameState.tmp_idx2, GameState.x
+        mov GameState.v, GameState.piece_id
+        add GameState.v, 1
+        store GameState.v, GameState.board, GameState.tmp_idx2
+    skip:
+        add GameState.i, 1
+        jmp lock_loop
+    end_lock:
+        mov GameState.rax, 0
+        ret
+
+    function clear_lines:
+        mov GameState.y, GameState.board_h
+        sub GameState.y, 1
+    line_check:
+        cmp GameState.y, 0
+        jl end_clear
+        mov GameState.k, 1
+        mov GameState.x, 0
+    row_check:
+        cmp GameState.x, GameState.board_w
+        jge check_full
+        mov GameState.idx, GameState.y
+        mul GameState.idx, GameState.board_w
+        add GameState.idx, GameState.x
+        load GameState.v, GameState.board, GameState.idx
+        cmp GameState.v, 0
+        jne next_cell
+        mov GameState.k, 0
+    next_cell:
+        add GameState.x, 1
+        jmp row_check
+    check_full:
+        cmp GameState.k, 1
+        jne next_line
+        add GameState.score, 10
+        mov GameState.j, GameState.y
+    shift_loop:
+        cmp GameState.j, 0
+        jle clear_top
+        mov GameState.x, 0
+    copy_row:
+        cmp GameState.x, GameState.board_w
+        jge next_shift
+        mov GameState.tmp_idx2, GameState.j
+        sub GameState.tmp_idx2, 1
+        mul GameState.tmp_idx2, GameState.board_w
+        add GameState.tmp_idx2, GameState.x
+        load GameState.v, GameState.board, GameState.tmp_idx2
+        mov GameState.idx, GameState.j
+        mul GameState.idx, GameState.board_w
+        add GameState.idx, GameState.x
+        store GameState.v, GameState.board, GameState.idx
+        add GameState.x, 1
+        jmp copy_row
+    next_shift:
+        sub GameState.j, 1
+        jmp shift_loop
+    clear_top:
+        mov GameState.x, 0
+    clear_top_loop:
+        cmp GameState.x, GameState.board_w
+        jge end_shift
+        store 0, GameState.board, GameState.x
+        add GameState.x, 1
+        jmp clear_top_loop
+    end_shift:
+        add GameState.y, 1
+    next_line:
+        sub GameState.y, 1
+        jmp line_check
+    end_clear:
+        mov GameState.rax, 0
+        ret
+
+    function check_collision_xy:
+        mov GameState.tmp_i, 0
+    c_loop:
+        cmp GameState.tmp_i, 4
+        jge no_col
+        mov GameState.tmp_idx, GameState.piece_id
+        mul GameState.tmp_idx, 16
+        mov GameState.tmp_j, GameState.rotation
+        mul GameState.tmp_j, 4
+        add GameState.tmp_idx, GameState.tmp_j
+        add GameState.tmp_idx, GameState.tmp_i
+        load GameState.tmp_v, GameState.pieces, GameState.tmp_idx
+        mov GameState.tmp_py, GameState.tmp_v
+        div GameState.tmp_py, 4
+        mov GameState.tmp_px, GameState.tmp_v
+        mod GameState.tmp_px, 4
+        mov GameState.tmp_x, GameState.rax
+        add GameState.tmp_x, GameState.tmp_px
+        mov GameState.tmp_y, GameState.rcx
+        add GameState.tmp_y, GameState.tmp_py
+        cmp GameState.tmp_x, 0
+        jl collision
+        cmp GameState.tmp_x, GameState.board_w
+        jge collision
+        cmp GameState.tmp_y, GameState.board_h
+        jge collision
+        cmp GameState.tmp_y, 0
+        jl next_chk
+        mov GameState.tmp_idx2, GameState.tmp_y
+        mul GameState.tmp_idx2, GameState.board_w
+        add GameState.tmp_idx2, GameState.tmp_x
+        load GameState.tmp_v, GameState.board, GameState.tmp_idx2
+        cmp GameState.tmp_v, 0
+        jne collision
+    next_chk:
+        add GameState.tmp_i, 1
+        jmp c_loop
+    no_col:
+        mov GameState.rax, 0
+        ret
+    collision:
+        mov GameState.rax, 1
+        ret
+    }
+}
+
+object Input {
+    section object { GameState, Board, Game, SDLCore }
+
+    section code {
+    function handle:
+    input_loop:
+        call SDLCore.poll_event_once
+        mov GameState.eax, SDLCore.ret_i
+        cmp GameState.eax, 0
+        je end_poll
+
+        call SDLCore.get_event_type_now
+        mov GameState.eax, SDLCore.ret_i
+        cmp GameState.eax, 256
+        je quit_app
+        cmp GameState.eax, 768
+        jne input_loop
+
+        call SDLCore.get_key_code_now
+        mov GameState.eax, SDLCore.ret_i
+        mov GameState.k, GameState.eax
+
+        cmp GameState.k, 27
+        je esc_press
+        cmp GameState.show_start, 1
+        jne skip_start
+        cmp GameState.k, 13
+        je enter_pressed
+        jmp input_loop
+    enter_pressed:
+        mov GameState.show_start, 0
+        jmp input_loop
+    esc_press:
+        cmp GameState.show_start, 1
+        je do_quit
+        mov GameState.show_start, 1
+        jmp input_loop
+    do_quit:
+        call Game.quit
+        ret
+    skip_start:
+        cmp GameState.k, 1073741904
+        je move_left
+        cmp GameState.k, 1073741903
+        je move_right
+        cmp GameState.k, 1073741905
+        je move_down
+        cmp GameState.k, 1073741906
+        je rotate
+        jmp input_loop
+    quit_app:
+        call Game.quit
+        ret
+    move_left:
+        mov GameState.rax, GameState.piece_x
+        sub GameState.rax, 1
+        mov GameState.rcx, GameState.piece_y
+        call Board.check_collision_xy
+        cmp GameState.rax, 0
+        jne input_loop
+        sub GameState.piece_x, 1
+        jmp input_loop
+    move_right:
+        mov GameState.rax, GameState.piece_x
+        add GameState.rax, 1
+        mov GameState.rcx, GameState.piece_y
+        call Board.check_collision_xy
+        cmp GameState.rax, 0
+        jne input_loop
+        add GameState.piece_x, 1
+        jmp input_loop
+    move_down:
+        call Game.move_down
+        jmp input_loop
+    rotate:
+        mov GameState.v, GameState.rotation
+        add GameState.v, 1
+        mod GameState.v, 4
+        mov GameState.rotation, GameState.v
+        mov GameState.rax, GameState.piece_x
+        mov GameState.rcx, GameState.piece_y
+        call Board.check_collision_xy
+        cmp GameState.rax, 0
+        je ok_rot
+        mov GameState.v, GameState.rotation
+        add GameState.v, 3
+        mod GameState.v, 4
+        mov GameState.rotation, GameState.v
+        jmp input_loop
+    ok_rot:
+        jmp input_loop
+    end_poll:
+        mov GameState.rax, 0
+        ret
+    }
+}
+
+object Render {
+  section object { GameState, SDLCore }
+
+  section code {
+  function start_screen:
+    mov SDLCore.r, 0
+    mov SDLCore.g, 0
+    mov SDLCore.b, 0
+    mov SDLCore.a, 255
+    call SDLCore.set_draw_color_rgba
+    call SDLCore.clear
+
+    mov SDLCore.tex, GameState.start_texture
+    mov SDLCore.sx, 0
+    mov SDLCore.sy, 0
+    mov SDLCore.sw, GameState.tw
+    mov SDLCore.sh, GameState.th
+    mov SDLCore.dx, 0
+    mov SDLCore.dy, 0
+    mov SDLCore.dw, GameState.win_w
+    mov SDLCore.dh, GameState.win_h
+    call SDLCore.blit
+
+    call SDLCore.present
+    ret
+
+  function draw_cell:
+    mov GameState.m, GameState.k
+    mul GameState.m, 35
+    mov GameState.j, 255
+    sub GameState.j, GameState.m
+    mov GameState.k, 128
+    add GameState.k, GameState.m
+
+    mov SDLCore.r, GameState.m
+    mov SDLCore.g, GameState.j
+    mov SDLCore.b, GameState.k
+    mov SDLCore.a, 255
+
+    mov GameState.tx, GameState.x
+    mul GameState.tx, GameState.cell_size
+    mov GameState.ty, GameState.y
+    mul GameState.ty, GameState.cell_size
+    mov GameState.ts, GameState.cell_size
+    sub GameState.ts, 1
+
+    mov SDLCore.rx, GameState.tx
+    mov SDLCore.ry, GameState.ty
+    mov SDLCore.rw, GameState.ts
+    mov SDLCore.rh, GameState.ts
+    call SDLCore.fill_rect_rgba_xywh
+    mov GameState.rax, 0
+    ret
+
+  function draw_empty:
+    mov SDLCore.r, 30
+    mov SDLCore.g, 30
+    mov SDLCore.b, 30
+    mov SDLCore.a, 255
+
+    mov GameState.tx, GameState.x
+    mul GameState.tx, GameState.cell_size
+    mov GameState.ty, GameState.y
+    mul GameState.ty, GameState.cell_size
+    mov GameState.ts, GameState.cell_size
+    sub GameState.ts, 1
+
+    mov SDLCore.rx, GameState.tx
+    mov SDLCore.ry, GameState.ty
+    mov SDLCore.rw, GameState.ts
+    mov SDLCore.rh, GameState.ts
+    call SDLCore.fill_rect_rgba_xywh
+    mov GameState.rax, 0
+    ret
+
+  function render:
+    cmp GameState.show_start, 1
+    jne draw_game
+    call Render.start_screen
+    ret
+  draw_game:
+    mov SDLCore.r, 0
+    mov SDLCore.g, 0
+    mov SDLCore.b, 0
+    mov SDLCore.a, 255
+    call SDLCore.set_draw_color_rgba
+    call SDLCore.clear
+
+    mov SDLCore.r, 0
+    mov SDLCore.g, 0
+    mov SDLCore.b, 0
+    mov SDLCore.a, 255
+    mov SDLCore.rx, 0
+    mov SDLCore.ry, 0
+    mov SDLCore.rw, GameState.win_w
+    mov SDLCore.rh, GameState.win_h
+    call SDLCore.fill_rect_rgba_xywh
+
+    invoke snprintf, GameState.score_txt, 255, GameState.score_fmt, GameState.score
+
+    mov GameState.y, 0
+  by:
+    cmp GameState.y, GameState.board_h
+    jge draw_piece
+    mov GameState.x, 0
+  bx:
+    cmp GameState.x, GameState.board_w
+    jge next_row
+    mov GameState.idx, GameState.y
+    mul GameState.idx, GameState.board_w
+    add GameState.idx, GameState.x
+    load GameState.v, GameState.board, GameState.idx
+    cmp GameState.v, 0
+    jne filled
+    call Render.draw_empty
+    jmp nxt_cell
+  filled:
+    mov GameState.k, GameState.v
+    call Render.draw_cell
+  nxt_cell:
+    add GameState.x, 1
+    jmp bx
+  next_row:
+    add GameState.y, 1
+    jmp by
+
+  draw_piece:
+    mov GameState.i, 0
+  ploop:
+    cmp GameState.i, 4
+    jge present
+    mov GameState.idx, GameState.piece_id
+    mul GameState.idx, 16
+    mov GameState.j, GameState.rotation
+    mul GameState.j, 4
+    add GameState.idx, GameState.j
+    add GameState.idx, GameState.i
+    load GameState.v, GameState.pieces, GameState.idx
+    mov GameState.tmp_py, GameState.v
+    div GameState.tmp_py, 4
+    mov GameState.tmp_px, GameState.v
+    mod GameState.tmp_px, 4
+    mov GameState.x, GameState.piece_x
+    add GameState.x, GameState.tmp_px
+    mov GameState.y, GameState.piece_y
+    add GameState.y, GameState.tmp_py
+    cmp GameState.y, 0
+    jl skip_draw
+    mov GameState.k, GameState.piece_id
+    add GameState.k, 1
+    call Render.draw_cell
+  skip_draw:
+    add GameState.i, 1
+    jmp ploop
+
+  present:
+    invoke strncpy, SDLCore.text, GameState.score_txt, 255
+    mov SDLCore.t_x, 15
+    mov SDLCore.t_y, 15
+    mov SDLCore.tr, 255
+    mov SDLCore.tg, 255
+    mov SDLCore.tb, 255
+    mov SDLCore.ta, 255
+    call SDLCore.draw_text_rgba
+
+    call SDLCore.present
+    mov GameState.rax, 0
+    ret
+  }
+}
+
+object Game {
+    section object { GameState, Engine, Pieces, Board, Input, Render, SDLCore }
+
+    section code {
+    function start_game:
+        invoke seed_random
+        invoke rand_number, 5020281
+        return GameState.rand_seed
+        call Engine.init
+        call SDLCore.get_ticks_now
+        mov GameState.eax, SDLCore.ret_i
+        mov GameState.last_drop, GameState.eax
+        cmp GameState.show_start, 1
+        jne skip_start
+        call Render.start_screen
+    skip_start:
+        call Pieces.spawn_piece
+        call loop
+        ret
+
+    function loop:
+    gloop:
+        call SDLCore.get_ticks_now
+        mov GameState.eax, SDLCore.ret_i
+        mov GameState.frame_start, GameState.eax
+        cmp GameState.game_over, 1
+        je over
+        call Input.handle
+        cmp GameState.show_start, 1
+        je skip_update
+        call update
+    skip_update:
+        call Render.render
+        call SDLCore.get_ticks_now
+        mov GameState.eax, SDLCore.ret_i
+        mov GameState.frame_time, GameState.eax
+        sub GameState.frame_time, GameState.frame_start
+        mov GameState.eax, GameState.frame_delay
+        sub GameState.eax, GameState.frame_time
+        cmp GameState.eax, 0
+        jle skip_delay
+        mov SDLCore.ret_i, GameState.eax
+        call SDLCore.delay_ms
+    skip_delay:
+        jmp gloop
+    over:
+        call reset
+        jmp gloop
+        ret
+
+    function update:
+        mov GameState.tick, GameState.frame_start
+        sub GameState.tick, GameState.last_drop
+        cmp GameState.tick, GameState.speed
+        jl end_upd
+        mov GameState.last_drop, GameState.frame_start
+        call move_down
+    end_upd:
+        mov GameState.rax, 0
+        ret
+
+    function move_down:
+        mov GameState.rax, GameState.piece_x
+        mov GameState.rcx, GameState.piece_y
+        add GameState.rcx, 1
+        call Board.check_collision_xy
+        cmp GameState.rax, 0
+        je md_ok
+        call Board.lock_piece
+        call Board.clear_lines
+        call Pieces.spawn_piece
+        mov GameState.rax, 0
+        ret
+    md_ok:
+        add GameState.piece_y, 1
+        mov GameState.rax, 1
+        ret
+
+    function reset:
+        mov GameState.score, 0
+        mov GameState.game_over, 0
+        mov GameState.piece_x, 3
+        mov GameState.piece_y, 0
+        mov GameState.rotation, 0
+        mov GameState.tick, 0
+        call SDLCore.get_ticks_now
+        mov GameState.eax, SDLCore.ret_i
+        mov GameState.last_drop, GameState.eax
+        invoke rand_number, 12345
+        return GameState.rand_seed
+        call Board.alloc_clear
+        call Pieces.spawn_piece
+        ret
+
+    function quit:
+        free GameState.board
+        free GameState.pieces
+        invoke quit_text
+        call SDLCore.shutdown
+        exit 0
+        ret
+    }
+}

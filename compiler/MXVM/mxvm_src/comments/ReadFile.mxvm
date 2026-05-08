@@ -1,0 +1,46 @@
+# this wil read file into a buffer
+# dont forget to free buffer
+object ReadFile {
+
+    section module { io } #io module
+
+    section data {
+        string file_name, 255
+        string file_mode = "rb"
+        export ptr buffer = null
+        string prompt = "Enter filename: "
+        ptr fptr = null
+        string  file_err1 = "Could not open File"
+        int file_size = 0
+        string output = "%s\n"
+        int nfile_size = 0
+        byte zero_byte = 0
+    }
+
+    section code {
+    function readFile:
+        print prompt
+        getline file_name
+        invoke fopen, file_name, file_mode
+        return fptr
+        cmp fptr,  0
+        je error_not_found
+        invoke fsize, fptr
+        return file_size
+        mov nfile_size, file_size
+        add nfile_size, 1
+        alloc buffer, 1, nfile_size
+    read_buffer:
+        invoke fread, buffer, 1, file_size, fptr
+        cmp buffer, 0
+        je error_not_found
+        store zero_byte, buffer, file_size, 1 
+    stop:
+        invoke fclose, fptr
+        ret
+    error_not_found:
+        invoke fprintf, stderr, file_err1
+        exit 1
+    }
+}
+

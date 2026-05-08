@@ -1,0 +1,639 @@
+program Breakout {
+    section module { sdl, string }
+    section object { SDLCore, Text, GameState, Paddle, Ball, Bricks, Input, Game }
+    section code {
+    start:
+        call Game.init
+        call Game.loop
+        call Game.cleanup
+        done
+    }
+}
+
+object SDLCore {
+    section module { sdl }
+    section data {
+        export string title = "MXVM Breakout"
+        export int x = 100
+        export int y = 100
+        export int w = 800
+        export int h = 600
+        export int flags = 0
+        export int window_id = 0
+        export int renderer_id = 0
+
+        export int last_event_type = 0
+        export int last_key_code = 0
+        export int last_mouse_btn = 0
+        export int last_mouse_x = 0
+        export int last_mouse_y = 0
+
+        export int tick_start = 0
+        export int tick_end = 0
+        export int elapsed = 0
+        export int target_ms = 16
+        export int sleep_ms = 0
+    }
+    section code {
+	invoke seed_random
+    function init:
+        invoke init
+        invoke create_window, title, x, y, w, h, flags
+        return window_id
+        invoke create_renderer, window_id, -1, 0
+        return renderer_id
+        ret
+    function shutdown:
+        invoke destroy_renderer, renderer_id
+        invoke destroy_window, window_id
+        ret
+    function begin_frame:
+        invoke get_ticks
+        return tick_start
+        invoke set_draw_color, renderer_id, 0, 0, 0, 255
+        invoke clear, renderer_id
+        ret
+    function end_frame:
+        invoke present, renderer_id
+        invoke get_ticks
+        return tick_end
+        mov elapsed, tick_end
+        sub elapsed, tick_start
+        mov sleep_ms, target_ms
+        sub sleep_ms, elapsed
+        cmp sleep_ms, 1
+        jle ef_ret
+        invoke delay, sleep_ms
+    ef_ret:
+        ret
+    function poll_one_event:
+        invoke poll_event
+        return last_event_type
+        cmp last_event_type, 0
+        je pe_ret
+        invoke get_event_type
+        return last_event_type
+        cmp last_event_type, 768
+        je pe_key
+        cmp last_event_type, 769
+        je pe_key
+        cmp last_event_type, 256
+        je pe_ret
+        jmp pe_ret
+    pe_key:
+        invoke get_key_code
+        return last_key_code
+        jmp pe_ret
+    pe_ret:
+        ret
+    }
+}
+
+object Text {
+    section module { string }
+    section object { SDLCore }
+    section data {
+        export int fnt = -1
+        export string font_name = "font.ttf"
+        export string buf, 256
+        export int sx = 10
+        export int sy = 10
+    }
+    section code {
+    function init:
+        invoke init_text
+        invoke load_font, font_name, 22
+        return fnt
+        ret
+    function release:
+        invoke quit_text
+        ret
+    function draw_score:
+        invoke draw_text, SDLCore.renderer_id, fnt, buf, sx, sy, 255, 255, 255, 255
+        ret
+    }
+}
+
+object GameState {
+    section data {
+        export int screen_w = 800
+        export int screen_h = 600
+        export int running = 1
+        export int score = 0
+        export int misses = 0
+        export int level = 1
+        export int tmp = 0
+    }
+}
+
+object Paddle {
+    section object { SDLCore, GameState }
+    section data {
+        export int x = 360
+        export int y = 560
+        export int w = 96
+        export int h = 16
+        export int speed = 8
+        export int vx = 0
+    }
+    section code {
+    function update:
+        add x, vx
+        cmp x, 0
+        jge keep_left
+        mov x, 0
+    keep_left:
+        mov SDLCore.last_mouse_x, GameState.screen_w
+        sub SDLCore.last_mouse_x, w
+        cmp x, SDLCore.last_mouse_x
+        jle keep_right
+        mov x, SDLCore.last_mouse_x
+    keep_right:
+        ret
+    function draw:
+        invoke set_draw_color, SDLCore.renderer_id, 200, 200, 200, 255
+        invoke fill_rect, SDLCore.renderer_id, x, y, w, h
+        ret
+    }
+}
+
+object Ball {
+    section object { SDLCore, GameState, Paddle }
+    section data {
+        export int x = 396
+        export int y = 300
+        export int w = 10
+        export int h = 10
+        export int vx = 3
+        export int vy = -3
+        export int base_speed = 3
+        export int max_speed = 7
+        int t0 = 0
+        int t1 = 0
+    }
+    section code {
+    function reset:
+        mov x, 396
+        mov y, 300
+        mov vx, base_speed
+        mov vy, 0
+        sub vy, base_speed
+        ret
+
+    function level_up_speed:
+        mov t0, vx
+        cmp t0, 0
+        jl vx_neg
+        add vx, 1
+        jmp vx_abs
+    vx_neg:
+        sub vx, 1
+    vx_abs:
+        mov t0, vx
+        cmp t0, 0
+        jge vx_abs_pos
+        mov t0, 0
+        sub t0, vx
+        jmp vx_abs_has
+    vx_abs_pos:
+        mov t0, vx
+    vx_abs_has:
+        cmp t0, max_speed
+        jle vy_update
+        cmp vx, 0
+        jl clamp_vx_neg
+        mov vx, max_speed
+        jmp vy_update
+    clamp_vx_neg:
+        mov vx, max_speed
+        mul vx, -1
+
+    vy_update:
+        mov t1, vy
+        cmp t1, 0
+        jl vy_neg
+        add vy, 1
+        jmp vy_abs
+    vy_neg:
+        sub vy, 1
+    vy_abs:
+        mov t1, vy
+        cmp t1, 0
+        jge vy_abs_pos
+        mov t1, 0
+        sub t1, vy
+        jmp vy_abs_has
+    vy_abs_pos:
+        mov t1, vy
+    vy_abs_has:
+        cmp t1, max_speed
+        jle lus_ret
+        cmp vy, 0
+        jl clamp_vy_neg
+        mov vy, max_speed
+        jmp lus_ret
+    clamp_vy_neg:
+        mov vy, max_speed
+        mul vy, -1
+    lus_ret:
+        ret
+
+    function update:
+        add x, vx
+        add y, vy
+        cmp x, 0
+        jge chk_right
+        mov x, 0
+        mul vx, -1
+    chk_right:
+        mov SDLCore.last_mouse_x, GameState.screen_w
+        sub SDLCore.last_mouse_x, w
+        cmp x, SDLCore.last_mouse_x
+        jle chk_top
+        mov x, SDLCore.last_mouse_x
+        mul vx, -1
+    chk_top:
+        cmp y, 0
+        jge chk_bottom
+        mov y, 0
+        mul vy, -1
+    chk_bottom:
+        mov SDLCore.last_mouse_y, GameState.screen_h
+        sub SDLCore.last_mouse_y, h
+        cmp y, SDLCore.last_mouse_y
+        jle done_update
+        add GameState.misses, 1
+        call reset
+    done_update:
+        ret
+
+    function collide_paddle:
+        mov SDLCore.last_mouse_x, x
+        add SDLCore.last_mouse_x, w
+        cmp SDLCore.last_mouse_x, Paddle.x
+        jle no_hit
+        mov SDLCore.last_mouse_x, Paddle.x
+        add SDLCore.last_mouse_x, Paddle.w
+        cmp x, SDLCore.last_mouse_x
+        jge no_hit
+        mov SDLCore.last_mouse_y, y
+        add SDLCore.last_mouse_y, h
+        cmp SDLCore.last_mouse_y, Paddle.y
+        jle no_hit
+        mov SDLCore.last_mouse_y, Paddle.y
+        add SDLCore.last_mouse_y, Paddle.h
+        cmp y, SDLCore.last_mouse_y
+        jge no_hit
+        mul vy, -1
+        mov y, Paddle.y
+        sub y, h
+    no_hit:
+        ret
+
+    function draw:
+        invoke set_draw_color, SDLCore.renderer_id, 255, 255, 255, 255
+        invoke fill_rect, SDLCore.renderer_id, x, y, w, h
+        ret
+    }
+}
+
+object Bricks {
+    section object { SDLCore, GameState, Ball }
+    section data {
+        export int rows = 6
+        export int cols = 10
+        export int brick_w = 0
+        export int brick_h = 24
+        export int pad = 6
+        export int start_x = 0
+        export int start_y = 60
+        export ptr data = null
+        export int count = 0
+        export int i = 0
+        export int j = 0
+        export int idx = 0
+        export int bx = 0
+        export int by = 0
+        export int alive = 0
+        int tmp = 0
+    }
+    section code {
+    function allocate:
+        mul count, rows, cols
+        alloc data, 8, count
+        mov i, 0
+    init_loop:
+        cmp i, count
+        jge init_done
+        store 1, data, i, 8
+        add i, 1
+        jmp init_loop
+    init_done:
+        mov brick_w, GameState.screen_w
+        mov idx, cols
+        add idx, 1
+        mul idx, pad
+        sub brick_w, idx
+        div brick_w, cols
+        mov start_x, pad
+        ret
+
+    function release:
+        free data
+        ret
+
+    function any_left:
+        mov i, 0
+        mov GameState.tmp, 0
+    al_row:
+        cmp i, rows
+        jge al_done
+        mov j, 0
+    al_col:
+        cmp j, cols
+        jge al_next_row
+        mov idx, i
+        mul idx, cols
+        add idx, j
+        load alive, data, idx, 8
+        cmp alive, 1
+        jne al_skip
+        mov GameState.tmp, 1
+        ret
+    al_skip:
+        add j, 1
+        jmp al_col
+    al_next_row:
+        add i, 1
+        jmp al_row
+    al_done:
+        ret
+
+    function draw:
+        mov i, 0
+    row_loop:
+        cmp i, rows
+        jge draw_done
+        mov j, 0
+    col_loop:
+        cmp j, cols
+        jge next_row
+
+        mov idx, i
+        mul idx, cols
+        add idx, j
+        load alive, data, idx, 8
+        cmp alive, 0
+        je skip_draw
+
+        mov bx, j
+        mul bx, brick_w
+        mov tmp, j
+        mul tmp, pad
+        add bx, tmp
+        add bx, start_x
+
+        mov by, i
+        mul by, brick_h
+        mov tmp, i
+        mul tmp, pad
+        add by, tmp
+        add by, start_y
+
+        mov tmp, j
+        mod tmp, 3
+        cmp tmp, 0
+        je c1
+        cmp tmp, 1
+        je c2
+        invoke set_draw_color, SDLCore.renderer_id, 60, 160, 240, 255
+        jmp draw_rect
+    c1:
+        invoke set_draw_color, SDLCore.renderer_id, 220, 70, 70, 255
+        jmp draw_rect
+    c2:
+        invoke set_draw_color, SDLCore.renderer_id, 70, 200, 90, 255
+    draw_rect:
+        invoke fill_rect, SDLCore.renderer_id, bx, by, brick_w, brick_h
+    skip_draw:
+        add j, 1
+        jmp col_loop
+    next_row:
+        add i, 1
+        jmp row_loop
+    draw_done:
+        ret
+
+    function collide_ball:
+        mov i, 0
+    c_row:
+        cmp i, rows
+        jge c_done
+        mov j, 0
+    c_col:
+        cmp j, cols
+        jge c_next_row
+
+        mov idx, i
+        mul idx, cols
+        add idx, j
+        load alive, data, idx, 8
+        cmp alive, 0
+        je c_skip
+
+        mov bx, j
+        mul bx, brick_w
+        mov tmp, j
+        mul tmp, pad
+        add bx, tmp
+        add bx, start_x
+
+        mov by, i
+        mul by, brick_h
+        mov tmp, i
+        mul tmp, pad
+        add by, tmp
+        add by, start_y
+
+        mov SDLCore.last_mouse_x, Ball.x
+        add SDLCore.last_mouse_x, Ball.w
+        mov SDLCore.last_mouse_y, bx
+        add SDLCore.last_mouse_y, brick_w
+        cmp SDLCore.last_mouse_x, bx
+        jle c_skip
+        cmp Ball.x, SDLCore.last_mouse_y
+        jge c_skip
+
+        mov SDLCore.last_mouse_x, Ball.y
+        add SDLCore.last_mouse_x, Ball.h
+        mov SDLCore.last_mouse_y, by
+        add SDLCore.last_mouse_y, brick_h
+        cmp SDLCore.last_mouse_x, by
+        jle c_skip
+        cmp Ball.y, SDLCore.last_mouse_y
+        jge c_skip
+
+        store 0, data, idx, 8
+        add GameState.score, 1
+        mul Ball.vy, -1
+
+        cmp Ball.vy, 0
+        jge c_hit_adjust_up
+        mov Ball.y, by
+        sub Ball.y, Ball.h
+        ret
+    c_hit_adjust_up:
+        mov Ball.y, by
+        add Ball.y, brick_h
+        ret
+
+    c_skip:
+        add j, 1
+        jmp c_col
+    c_next_row:
+        add i, 1
+        jmp c_row
+    c_done:
+        ret
+    }
+}
+
+object Input {
+    section object { SDLCore, Paddle, GameState }
+    section data {
+        export int event_type = 0
+        export int key = 0
+        export int LEFT = 1073741904
+        export int RIGHT = 1073741903
+    }
+    section code {
+    function handle:
+        call SDLCore.poll_one_event
+        mov event_type, SDLCore.last_event_type
+        cmp event_type, 0
+        je ih_ret
+        cmp event_type, 256
+        je quit
+        cmp event_type, 768
+        je on_keydown
+        cmp event_type, 769
+        je on_keyup
+        jmp ih_ret
+    on_keydown:
+        mov key, SDLCore.last_key_code
+        cmp key, 27
+        je quit
+        cmp key, LEFT
+        jne kd2
+        mov Paddle.vx, 0
+        sub Paddle.vx, Paddle.speed
+        jmp ih_ret
+    kd2:
+        cmp key, RIGHT
+        jne ih_ret
+        mov Paddle.vx, 0
+        add Paddle.vx, Paddle.speed
+        jmp ih_ret
+    on_keyup:
+        mov key, SDLCore.last_key_code
+        cmp key, LEFT
+        je stop_if_left
+        cmp key, RIGHT
+        je stop_if_right
+        jmp ih_ret
+    stop_if_left:
+        cmp Paddle.vx, 0
+        jge ih_ret
+        mov Paddle.vx, 0
+        jmp ih_ret
+    stop_if_right:
+        cmp Paddle.vx, 0
+        jle ih_ret
+        mov Paddle.vx, 0
+        jmp ih_ret
+    quit:
+        mov GameState.running, 0
+        ret
+    ih_ret:
+        ret
+    }
+}
+
+object Game {
+    section module { io, string }
+    section object { SDLCore, Text, GameState, Bricks, Ball, Paddle, Input }
+    section data {
+        int tmp = 0
+        string score_fmt = "Score: %lld   Misses: %lld/4   Level: %lld"
+    }
+    section code {
+    function init:
+        call SDLCore.init
+        call Text.init
+        mov GameState.screen_w, SDLCore.w
+        mov GameState.screen_h, SDLCore.h
+        mov GameState.level, 1
+        mov GameState.score, 0
+        mov GameState.misses, 0
+        call Bricks.allocate
+        call Ball.reset
+        ret
+
+    function cleanup:
+        call Bricks.release
+        call Text.release
+        call SDLCore.shutdown
+        invoke quit
+        ret
+
+    function draw_hud:
+        invoke snprintf, Text.buf, 256, score_fmt, GameState.score, GameState.misses, GameState.level
+        call Text.draw_score
+        ret
+
+    function frame:
+        call SDLCore.begin_frame
+        call Bricks.draw
+        call Paddle.draw
+        call Ball.draw
+        call draw_hud
+        call SDLCore.end_frame
+        ret
+
+    function loop:
+    lp:
+        cmp GameState.running, 1
+        jne lpend
+
+        call Input.handle
+        call Paddle.update
+        call Ball.update
+        call Ball.collide_paddle
+        call Bricks.collide_ball
+
+        call Bricks.any_left
+        cmp GameState.tmp, 1
+        je skip_refill
+        add GameState.level, 1
+        call Ball.level_up_speed
+        call Bricks.release
+        call Bricks.allocate
+        call Ball.reset
+    skip_refill:
+
+        cmp GameState.misses, 4
+        jl no_full_reset
+        mov GameState.score, 0
+        mov GameState.level, 1
+        mov GameState.misses, 0
+        call Bricks.release
+        call Bricks.allocate
+        call Ball.reset
+    no_full_reset:
+
+        call frame
+        jmp lp
+    lpend:
+        ret
+    }
+}

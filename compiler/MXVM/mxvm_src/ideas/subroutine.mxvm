@@ -1,0 +1,18 @@
+program Subroutine {
+	section data {
+                string message = "Hello from subroutine\n"
+                string return_message = "return from subroutine\n"
+                int value = 0x0
+        }
+
+	section code {
+	start:
+                call subroutine
+                print return_message
+        stop:
+                done
+        function subroutine:
+                print message
+                ret
+        }
+}

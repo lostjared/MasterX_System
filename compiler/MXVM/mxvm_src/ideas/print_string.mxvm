@@ -1,0 +1,26 @@
+program Output {
+    
+    section module { string }
+
+    section data {
+        string info = "Hello, World\n"
+        string fmt = "%c\n"
+        int pos = 0
+        int len = 0
+        int character = 0
+    }
+
+    section code {
+        invoke strlen, info
+        return len
+        mov pos, 0
+    loop:
+        invoke strat, info, pos
+        return character
+        add pos, 1
+        print fmt, character
+        cmp pos, len
+        jl loop
+        done
+    }
+}

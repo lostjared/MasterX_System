@@ -1,0 +1,83 @@
+object ReadFile {
+    section module { io }
+    section data {
+        string file_name, 255
+        string file_mode = "rb"
+        ptr buffer = null
+        string prompt = "Enter filename: "
+        ptr fptr = null
+        string  file_err1 = "Could not open File"
+        int file_size = 0
+        string output = "%s\n"
+        int nfile_size = 0
+        byte zero_byte = 0
+    }
+
+    section code {
+    start:
+        print prompt
+        getline file_name
+        invoke fopen, file_name, file_mode
+        return fptr
+        cmp fptr,  0
+        je error_not_found
+        invoke fsize, fptr
+        return file_size
+        mov nfile_size, file_size
+        add nfile_size, 1
+        alloc buffer, 1, nfile_size
+    read_buffer:
+        invoke fread, buffer, 1, file_size, fptr
+        cmp buffer, 0
+        je error_not_found
+        store zero_byte, buffer, file_size, 1
+        print output, buffer
+    stop:
+        invoke fclose, fptr
+        free buffer
+        done
+    error_not_found:
+        invoke fprintf, stderr, file_err1
+        exit 1
+    }
+}
+
+program Comments {
+    section object { ReadFile } 
+    section data {
+        byte value = 0
+        int index = 0
+        byte sign = 0x23 
+        byte newline = 0xa 
+        string print_out = "%c"
+        int skip = 0
+    }
+    section code {
+    start:
+            call ReadFile.readFile
+    loop:
+            load value, ReadFile.buffer, index, 1
+            add index, 1
+            cmp value, 0
+            je stop
+            cmp skip, 1
+            je check_newline
+            cmp value, sign
+            jne print_char
+            mov skip, 1
+            jmp check_newline
+
+    print_char:
+        print print_out, value
+
+    check_newline:
+        cmp value, newline
+        jne loop
+        mov skip, 0
+        jmp loop
+
+    stop:
+            free ReadFile.buffer
+            done
+    }
+}

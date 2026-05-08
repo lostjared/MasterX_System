@@ -1,0 +1,18 @@
+program CallInf {
+	
+    section data {
+		string fmt_str = "Hello, World\n"
+	}
+	
+    section code {
+	start:
+		call print_message
+        jmp start
+	stop:
+		done
+    function print_message:
+        print fmt_str
+        ret
+	}
+
+}

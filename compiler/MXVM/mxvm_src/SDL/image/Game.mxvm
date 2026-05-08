@@ -1,0 +1,52 @@
+object Game {
+    section object { SDLCore, Text, Input }
+    section data {
+        export int running = 1
+        int delay_ms = 16
+        int image_id = 0
+        string image_path = "logo.bmp"
+        string err_msg = "Error could not load: logo.bmp\n"
+        string fdebug_msg = "%lld\n"
+
+    }
+    section code {
+    function init:
+        call SDLCore.init
+        call Text.init
+        invoke load_texture, SDLCore.renderer_id, image_path
+        return image_id
+        cmp image_id, 0
+        jl error_msg
+        ret
+        error_msg:
+        print err_msg
+        exit -1
+
+    function cleanup:
+        invoke destroy_texture, image_id
+        call Text.release
+        call SDLCore.shutdown
+        invoke quit
+        ret
+    function frame:
+        call SDLCore.begin_frame
+        invoke render_texture, SDLCore.renderer_id, image_id, -1, -1, -1, -1, 0, 0, SDLCore.w, SDLCore.h
+        call Text.draw
+        call SDLCore.end_frame
+        ret
+    function loop:
+        mov running, 1
+    lp:
+        cmp running, 1
+        jne lpend
+    ev:
+        call Input.handle
+        cmp Input.event_type, 0
+        jne ev
+        call frame
+        invoke delay, delay_ms
+        jmp lp
+    lpend:
+        ret
+    }
+}

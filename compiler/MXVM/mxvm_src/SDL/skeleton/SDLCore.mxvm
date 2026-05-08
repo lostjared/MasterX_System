@@ -1,0 +1,70 @@
+object SDLCore {
+    section module { sdl, io }
+    section data {
+        export string title = "Skeleton - [MXVM]"
+        export int x = 100
+        export int y = 100
+        export int w = 800
+        export int h = 600
+        export int flags = 0
+        export int window_id = 0
+        export int renderer_id = 0
+        export int last_event_type = 0
+        export int last_key_code = 0
+        export int last_mouse_btn = 0
+        export int last_mouse_x = 0
+        export int last_mouse_y = 0
+    }
+    section code {
+    function init:
+        invoke init
+        invoke create_window, title, x, y, w, h, flags
+        return window_id
+        invoke create_renderer, window_id, -1, 0
+        return renderer_id
+        ret
+    function shutdown:
+        invoke destroy_renderer, renderer_id
+        invoke destroy_window, window_id
+        ret
+    function begin_frame:
+        invoke set_draw_color, renderer_id, 255, 255, 255, 255
+        invoke fill_rect, renderer_id, 0, 0, w, h
+        ret
+    function end_frame:
+        invoke present, renderer_id
+        ret
+    function poll_one_event:
+        invoke poll_event
+        return last_event_type
+        cmp last_event_type, 0
+        je pe_ret
+        invoke get_event_type
+        return last_event_type
+        cmp last_event_type, 768
+        je pe_key
+        cmp last_event_type, 769
+        je pe_key
+        cmp last_event_type, 256
+        je pe_ret
+        cmp last_event_type, 1025
+        je pe_mouse
+        cmp last_event_type, 1026
+        je pe_mouse
+        jmp pe_ret
+    pe_key:
+        invoke get_key_code
+        return last_key_code
+        jmp pe_ret
+    pe_mouse:
+        invoke get_mouse_button
+        return last_mouse_btn
+        invoke get_mouse_x
+        return last_mouse_x
+        invoke get_mouse_y
+        return last_mouse_y
+        jmp pe_ret
+    pe_ret:
+        ret
+    }
+}

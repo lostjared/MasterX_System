@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MXVM HTML Highlighter</title>
+<style>
+  :root {
+    --bg:#0b0b0b; --panel:#111; --border:#1f1f1f; --text:#e6e6e6;
+    --accent:#6aa6ff; --muted:#9aa6b2; --btn:#1a1a1a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height:100%; }
+  body {
+    margin:0; background:var(--bg); color:var(--text);
+    font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  }
+  header { padding:16px 20px; border-bottom:1px solid var(--border); }
+  header h1 { margin:0; font-size:18px; letter-spacing:.3px; }
+  .wrap { max-width:1200px; margin:0 auto; padding:20px; }
+  .grid {
+    display:grid; gap:16px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width:1000px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  .card {
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px;
+  }
+  .card h2 { margin:0 0 10px 0; font-size:14px; color:var(--muted); font-weight:600; }
+  textarea, input[type="text"] {
+    width:100%; resize:vertical; min-height:180px; background:#0f0f10; color:var(--text);
+    border:1px solid var(--border); border-radius:10px; padding:12px; outline:none;
+  }
+  textarea[readonly] { opacity:.9; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .row .spacer { flex:1; }
+  button {
+    background:var(--btn); color:var(--text); border:1px solid var(--border);
+    padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600;
+  }
+  button:hover { border-color:#2a2a2a; }
+  .mini { font-size:12px; padding:8px 10px; }
+  .status { color:var(--muted); font-size:12px; }
+  .preview {
+    background:white; color:black; border-radius:10px; border:1px solid var(--border);
+    height:360px; overflow:hidden;
+  }
+  iframe.preview { width:100%; height:100%; border:0; background:white; }
+  .shadow-host { display:block; height:360px; background:white; border-radius:10px; overflow:auto; }
+  .error { color:#ff6b6b; font-weight:600; }
+</style>
+<script src="mxvm-html.js"></script>
+</head>
+<body>
+<header><h1>MXVM → HTML Highlighter (WASM)</h1></header>
+
+<div class="wrap">
+  <div class="grid">
+    <section class="card">
+      <h2>Source (MXVM)</h2>
+      <textarea id="src" spellcheck="false" placeholder="Paste MXVM code here..."></textarea>
+      <div class="row" style="margin-top:10px">
+        <button id="btnGen">Generate</button>
+        <div class="spacer"></div>
+        <span id="status" class="status">WASM: loading…</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Generated HTML (readonly)</h2>
+      <textarea id="htmlOut" readonly spellcheck="false" style="min-height:240px"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button id="btnCopy" class="mini">Copy HTML</button>
+        <div class="spacer"></div>
+        <span id="err" class="error"></span>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid" style="margin-top:16px">
+    <section class="card">
+      <h2>Formatted Code • Preview A (iframe)</h2>
+      <div class="preview">
+        <iframe id="frame" class="preview" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Formatted Code • Preview B (Shadow DOM)</h2>
+      <div id="shadowHost" class="shadow-host"></div>
+    </section>
+  </div>
+</div>
+
+<script type="module">
+  // Adjust these filenames to your Emscripten output if different:
+  // Build tip: -s MODULARIZE=1 -s EXPORT_ES6=1  -> produces default export (factory)
+  import createModule from './mxvm-html.js';
+
+  const srcEl = document.getElementById('src');
+  const htmlOutEl = document.getElementById('htmlOut');
+  const btnGen = document.getElementById('btnGen');
+  const btnCopy = document.getElementById('btnCopy');
+  const statusEl = document.getElementById('status');
+  const errEl = document.getElementById('err');
+  const frame = document.getElementById('frame');
+  const shadowHost = document.getElementById('shadowHost');
+
+  let Module = null;
+  let highlighter = null;
+  let shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+
+  function setStatus(msg) { statusEl.textContent = msg; }
+  function setError(msg) { errEl.textContent = msg || ''; }
+
+  function renderPreviews(html) {
+    frame.srcdoc = html;
+    shadowRoot.innerHTML = html;
+  }
+
+  function generate() {
+    setError('');
+    if (!highlighter) { setError('WASM not ready'); return; }
+    try {
+      const code = srcEl.value;
+      const html = highlighter.codeToHTML(code);
+      htmlOutEl.value = html;
+      renderPreviews(html);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  btnGen.addEventListener('click', generate);
+
+  btnCopy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(htmlOutEl.value);
+      setStatus('Copied HTML to clipboard');
+      setTimeout(() => setStatus('WASM: ready'), 1200);
+    } catch {
+      setError('Clipboard blocked by browser');
+    }
+  });
+
+  // Simple starter sample
+  srcEl.value =
+`program Demo {
+  section module { io }
+  section object { Foo }
+  section data { 
+    string message = "Hello, World\\n"
+  }
+  section code {
+  start:
+    print message
+    done
+  }
+}
+`;
+
+  createModule().then(mod => {
+    Module = mod;
+    try {
+      // MXVM_HTML must match the emscripten binding class name
+      const ctor = Module.MXVM_HTML;
+      highlighter = new ctor();
+      setStatus('WASM: ready');
+    } catch (e) {
+      setStatus('WASM: failed');
+      setError('Binding not found. Ensure class name is MXVM_HTML.');
+    }
+  }).catch(e => {
+    setStatus('WASM: failed to load');
+    setError(String(e));
+  });
+</script>
+</body>
+</html>

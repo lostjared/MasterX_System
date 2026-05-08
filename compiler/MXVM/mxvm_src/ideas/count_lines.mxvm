@@ -1,0 +1,66 @@
+program CountLines {
+  section module { io }
+
+  section data {
+    string filename, 256
+    string prompt    = "Enter filename: "
+    string no_file   = "File not found.\n"
+    string mode      = "rb"
+    string lines     = "The number of lines in file: %lld\n"
+    ptr    file      = null
+    ptr    buffer    = null
+    int    filesize  = 0
+    int    count     = 0
+    int    idx       = 0
+    byte   byteval   = 0
+  }
+
+  section code {
+  start:
+    # — Prompt for filename
+    print prompt
+    getline filename
+    # — Open the file
+    invoke fopen, filename, mode
+    return file
+    cmp file, 0
+    je file_not_found
+    # — Get its size
+    invoke fsize, file
+    return filesize
+    cmp filesize, 0
+    jle close_and_done
+    # — Allocate a buffer of exactly filesize bytes
+    alloc buffer, 1, filesize
+    # — Read the entire file into buffer
+    invoke fread, buffer, 1, filesize, file
+    return idx    # idx now holds number of items read (we ignore it)
+    # — Close the file when done reading
+  close_and_done:
+    invoke fclose, file
+    return idx
+    # — Count “\n” in buffer
+    mov count, 0
+    mov idx, 0
+  loop:
+    cmp idx, filesize
+    jge end_count
+    load byteval, buffer, idx, 1
+    cmp byteval, 10     # 10 is ASCII for '\n'
+    je  inc
+    jmp cont
+  inc:
+    add count, count, 1
+  cont:
+    add idx, idx, 1
+    jmp loop
+  end_count:
+    # — Print the line count
+    print lines, count
+  done:
+    done
+  file_not_found:
+    print no_file
+    done
+  }
+}

@@ -1,0 +1,109 @@
+program DrawTriangle {
+    section module { sdl }
+
+    section data {
+        string title = "MXVM SDL Filled Triangle"
+        int x = 100
+        int y = 100
+        int w = 1920
+        int h = 1080
+        int flags = 0
+
+        int window_id = 0
+        int renderer_id = 0
+
+        int black = 0
+        int white = 255
+
+        # Triangle vertices scaled to ~1/3 of window
+        int x1 = 960   # center X
+        int y1 = 360   # 1/3 down from top
+        int x2 = 640   # 1/3 left of center
+        int y2 = 720   # 2/3 down from top
+        int x3 = 1280  # 1/3 right of center
+        int y3 = 720   # same base Y
+
+        int tmp_y = 0
+        int tmp1 = 0
+        int tmp2 = 0
+        int denom = 0
+        int x_start = 0
+        int x_end = 0
+
+        int event_type = 0
+        int rax = 0
+    }
+
+    section code {
+    start:
+        invoke init
+        return rax
+        cmp rax, 0
+        jl quit
+        invoke create_window, title, x, y, w, h, flags
+        return window_id
+        invoke create_renderer, window_id, -1, 0
+        return renderer_id
+    loop_event:
+        invoke poll_event
+        return rax
+        cmp rax, 0
+        je after_events
+        mov event_type, rax
+        invoke get_event_type
+        return rax
+        cmp rax, 256        # SDL_QUIT
+        je quit
+        cmp rax, 768        # SDL_KEYDOWN
+        jne after_events
+        invoke get_key_code
+        return rax
+        cmp rax, 27         # SDLK_ESCAPE
+        je quit
+        jmp loop_event
+    after_events:
+        # Clear screen to black
+        invoke set_draw_color, renderer_id, black, black, black, 255
+        invoke clear, renderer_id
+        mov tmp_y, y1
+    fill_loop:
+        cmp tmp_y, y2
+        jg after_fill
+        mov tmp1, tmp_y
+        sub tmp1, y1
+        mov tmp2, x2
+        sub tmp2, x1
+        mul tmp1, tmp2
+        mov denom, y2
+        sub denom, y1
+        div tmp1, denom
+        add tmp1, x1
+        mov x_start, tmp1
+        mov tmp1, tmp_y
+        sub tmp1, y1
+        mov tmp2, x3
+        sub tmp2, x1
+        mul tmp1, tmp2
+        mov denom, y3
+        sub denom, y1
+        div tmp1, denom
+        add tmp1, x1
+        mov x_end, tmp1
+        invoke set_draw_color, renderer_id, white, white, white, 255
+        invoke draw_line, renderer_id, x_start, tmp_y, x_end, tmp_y
+        add tmp_y, 1
+        jmp fill_loop
+    after_fill:
+
+        # Present frame
+        invoke present, renderer_id
+
+        jmp loop_event
+
+    quit:
+        invoke destroy_renderer, renderer_id
+        invoke destroy_window, window_id
+        invoke quit
+        done
+    }
+}

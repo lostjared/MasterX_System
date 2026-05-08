@@ -1,0 +1,125 @@
+object rng {
+    section data {
+        export int seed = 0
+        int a = 1664525
+        int c = 1013904223
+        int m = 4294967296
+        export int current = 0
+        int temp = 0
+    }
+
+    section code {
+        function next:
+            mov temp, seed
+            mul temp, a
+            add temp, c
+            mod temp, m
+            mov seed, temp
+            mov current, seed
+            ret
+    }
+}
+
+program RPSGame {
+    section module { io, string }
+    section object { rng }
+
+    section data {
+        string welcome = "🎮 Welcome to Rock–Paper–Scissors!\n"
+        string prompt = "Choose 0 rock, 1 paper, 2 scissors or 3 quit: "
+        string you_win = "You win this round!\n\n"
+        string you_lose = "Computer wins this round!\n\n"
+        string tie = "It's a tie!\n\n"
+        string goodbye = "Thanks for playing! Goodbye.\n"
+        string invalid = "Invalid choice.\n\n"
+        string input_buffer, 8
+
+        int player = 0
+        int computer = 0
+        int seed_val = 24680
+        int three = 3
+    }
+
+    section code {
+        # Seed RNG once
+        mov rng.seed, seed_val
+
+        print welcome
+
+    main_loop:
+        print prompt
+        getline input_buffer
+        to_int player, input_buffer
+        mov computer, 0    # reuse var
+
+        # map input to 0/1/2/quit
+        cmp player, 0
+        je set_rock
+        cmp player, 1
+        je set_paper
+        cmp player, 2
+        je set_scissors
+        cmp player, 3
+        je quit_game
+        
+    invalid_choice:
+        print invalid
+        jmp main_loop
+
+    set_rock:
+        mov player, 0
+        jmp roll_computer
+    set_paper:
+        mov player, 1
+        jmp roll_computer
+    set_scissors:
+        mov player, 2
+        jmp roll_computer
+
+    roll_computer:
+        call rng.next
+        mov computer, rng.current
+        mod computer, three   # 0/1/2
+
+        # compare player vs computer
+        cmp player, computer
+        je result_tie
+
+        # player win conditions
+        cmp player, 0
+        jne check_paper
+        cmp computer, 2
+        je result_win
+        jmp result_lose
+
+    check_paper:
+        cmp player, 1
+        jne check_scissors
+        cmp computer, 0
+        je result_win
+        jmp result_lose
+
+    check_scissors:
+        cmp player, 2
+        jne result_lose
+        cmp computer, 1
+        je result_win
+        jmp result_lose
+
+    result_tie:
+        print tie
+        jmp main_loop
+
+    result_win:
+        print you_win
+        jmp main_loop
+
+    result_lose:
+        print you_lose
+        jmp main_loop
+
+    quit_game:
+        print goodbye
+        done
+    }
+}

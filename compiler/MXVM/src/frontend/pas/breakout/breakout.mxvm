@@ -1,0 +1,742 @@
+program Breakout {
+	section module {
+ 		sdl,
+		std,
+		string
+	}
+	section data {
+		int rax = 0
+		int rbx = 0
+		int rcx = 0
+		int rdx = 0
+		int rsi = 0
+		int rdi = 0
+		int r8 = 0
+		int r9 = 0
+		int r10 = 0
+		int r11 = 0
+		int r12 = 0
+		int r13 = 0
+		int r14 = 0
+		ptr _tmpptr0 = null
+		ptr _tmpptr1 = null
+		ptr arg0 = null
+		string str_0 = "font.ttf"
+		string str_1 = "Breakout"
+		string str_2 = "Score: "
+		string str_3 = "Lives: "
+		string str_4 = "failed to init SDL"
+		string str_5 = "Could not create window"
+		string str_6 = "could not create renderer"
+		string str_7 = "could not create render target"
+		string str_8 = "Font subsystem failed to load"
+		string str_9 = "failed to open: "
+		string fmt_str = "%s "
+		string newline = "\n"
+		ptr filename = null
+		int running = 0
+		int window_id = 0
+		int renderer = 0
+		int target_id = 0
+		int font_id = 0
+		int event_type_result = 0
+		int key = 0
+		ptr paddle = null
+		ptr ball = null
+		int ball_dx = 0
+		int ball_dy = 0
+		ptr blocks = null
+		int lives = 0
+		int score = 0
+		int draw_box_px = 0
+		int draw_box_py = 0
+		int draw_box_pw = 0
+		int draw_box_ph = 0
+		int reset_level_x = 0
+		int reset_level_y = 0
+		int reset_level_i = 0
+		int update_ball_nx = 0
+		int update_ball_ny = 0
+		int update_ball_i = 0
+		int update_ball_gx = 0
+		int update_ball_gy = 0
+		int update_ball_bx = 0
+		int update_ball_by = 0
+		int update_ball_bw = 0
+		int update_ball_bh = 0
+		int update_ball_hitOnce = 0
+		int update_ball_anyLeft = 0
+		int update_ball_topHit = 0
+		int update_ball_bottomHit = 0
+		int setcolor_index = 0
+		int render_i = 0
+		int render_gx = 0
+		int render_gy = 0
+		int render_bx = 0
+		int render_by = 0
+		ptr init_title = null
+		int init_xval = 0
+		int init_yval = 0
+		int init_wval = 0
+		int init_hval = 0
+		int aabb_ax = 0
+		int aabb_ay = 0
+		int aabb_aw = 0
+		int aabb_ah = 0
+		int aabb_bx = 0
+		int aabb_by = 0
+		int aabb_bw = 0
+		int aabb_bh = 0
+	}
+	section code {
+	start:
+		mov filename, str_0
+		alloc paddle, 32, 1
+		alloc ball, 32, 1
+		alloc blocks, 8, 60
+		mov arg0, str_1
+		mov rbx, 100
+		mov rcx, 100
+		mov rdx, 1280
+		mov rsi, 720
+		call PROC_init
+	WHILE_0:
+		cmp running, 1
+		jne ENDWHILE_1
+	WHILE_4:
+		invoke poll_event
+		return rcx
+		cmp rcx, 0
+		je ENDWHILE_5
+		invoke get_event_type
+		return rsi
+		mov event_type_result, rsi
+		cmp event_type_result, 256
+		jne ELSE_8
+		mov running, 0
+	ELSE_8:
+		cmp event_type_result, 768
+		jne ELSE_12
+		invoke get_key_code
+		return r9
+		mov key, r9
+		cmp key, 27
+		jne ELSE_16
+		mov running, 0
+	ELSE_16:
+	ELSE_12:
+		cmp event_type_result, 769
+		jne ELSE_20
+		invoke get_key_code
+		return r9
+		mov key, r9
+	ELSE_20:
+		jmp WHILE_4
+	ENDWHILE_5:
+		call PROC_update_input
+		call PROC_update_ball
+		call PROC_render
+		invoke present_scaled, renderer, target_id, 1280, 720
+		invoke delay, 16
+		jmp WHILE_0
+	ENDWHILE_1:
+		call PROC_cleanup
+		free blocks
+		free paddle
+		free ball
+		done
+	function PROC_draw_box:
+		mov draw_box_px, rbx
+		mov draw_box_py, rcx
+		mov draw_box_pw, rdx
+		mov draw_box_ph, rsi
+		invoke fill_rect, renderer, draw_box_px, draw_box_py, draw_box_pw, draw_box_ph
+	PROC_END_draw_box:
+		ret
+	function PROC_reset_ball_paddle:
+		store 284, paddle, 0, 1
+		store 336, paddle, 8, 1
+		store 72, paddle, 16, 1
+		store 10, paddle, 24, 1
+		load rbx, paddle, 0, 1
+		mov rcx, rbx
+		add rcx, 36
+		mov rdx, rcx
+		sub rdx, 3
+		store rdx, ball, 0, 1
+		load rsi, paddle, 8, 1
+		mov rdi, rsi
+		sub rdi, 6
+		mov r8, rdi
+		sub r8, 2
+		store r8, ball, 8, 1
+		store 6, ball, 16, 1
+		store 6, ball, 24, 1
+		invoke get_ticks
+		return r9
+		mod r9, 2
+		cmp r9, 0
+		jne ELSE_24
+		mov ball_dx, 3
+		jmp ENDIF_25
+	ELSE_24:
+		mov ball_dx, 0
+		sub ball_dx, 3
+	ENDIF_25:
+		mov ball_dy, 0
+		sub ball_dy, 3
+	PROC_END_reset_ball_paddle:
+		ret
+	function PROC_reset_level:
+		mov reset_level_i, 0
+		mov reset_level_y, 0
+	FOR_28:
+		cmp reset_level_y, 5
+		jg ENDFOR_29
+		mov reset_level_x, 0
+	FOR_31:
+		cmp reset_level_x, 9
+		jg ENDFOR_32
+		invoke rand
+		return rbx
+		mov rcx, rbx
+		mod rcx, 3
+		mov rdx, 1
+		add rdx, rcx
+		cmp reset_level_i, 0
+		jl IDX_OOB_35
+		cmp reset_level_i, 59
+		jg IDX_OOB_35
+		jmp IDX_OK_34
+	IDX_OOB_35:
+		exit 1
+	IDX_OK_34:
+		mov rsi, reset_level_i
+		store rdx, blocks, rsi, 8
+		add reset_level_i, 1
+	FOR_CONTINUE_33:
+		add reset_level_x, 1
+		jmp FOR_31
+	ENDFOR_32:
+	FOR_CONTINUE_30:
+		add reset_level_y, 1
+		jmp FOR_28
+	ENDFOR_29:
+	PROC_END_reset_level:
+		ret
+	function PROC_clamp_paddle:
+		load rbx, paddle, 0, 1
+		cmp rbx, 0
+		jge ELSE_36
+		store 0, paddle, 0, 1
+	ELSE_36:
+		load rdx, paddle, 0, 1
+		load rsi, paddle, 16, 1
+		mov rdi, rdx
+		add rdi, rsi
+		cmp rdi, 640
+		jle ELSE_40
+		load r9, paddle, 16, 1
+		mov r10, 640
+		sub r10, r9
+		store r10, paddle, 0, 1
+	ELSE_40:
+	PROC_END_clamp_paddle:
+		ret
+	function PROC_update_input:
+		invoke is_key_pressed, 80
+		return rbx
+		cmp rbx, 0
+		je ELSE_44
+		load rdx, paddle, 0, 1
+		mov rsi, rdx
+		sub rsi, 6
+		store rsi, paddle, 0, 1
+	ELSE_44:
+		invoke is_key_pressed, 79
+		return rdi
+		cmp rdi, 0
+		je ELSE_48
+		load r9, paddle, 0, 1
+		add r9, 6
+		store r9, paddle, 0, 1
+	ELSE_48:
+		call PROC_clamp_paddle
+	PROC_END_update_input:
+		ret
+	function PROC_update_ball:
+		load rbx, ball, 0, 1
+		mov rcx, rbx
+		add rcx, ball_dx
+		mov update_ball_nx, rcx
+		load rdx, ball, 8, 1
+		mov rsi, rdx
+		add rsi, ball_dy
+		mov update_ball_ny, rsi
+		cmp update_ball_ny, 0
+		jg ELSE_52
+		mov update_ball_ny, 0
+		mov r8, 0
+		sub r8, ball_dy
+		mov ball_dy, r8
+	ELSE_52:
+		cmp update_ball_nx, 0
+		jg ELSE_56
+		mov update_ball_nx, 0
+		mov r9, 0
+		sub r9, ball_dx
+		mov ball_dx, r9
+	ELSE_56:
+		load r9, ball, 16, 1
+		mov r10, update_ball_nx
+		add r10, r9
+		cmp r10, 640
+		jl ELSE_60
+		load r9, ball, 16, 1
+		mov r10, 640
+		sub r10, r9
+		mov update_ball_nx, r10
+		mov r9, 0
+		sub r9, ball_dx
+		mov ball_dx, r9
+	ELSE_60:
+		load r9, ball, 24, 1
+		mov r10, update_ball_ny
+		add r10, r9
+		cmp r10, 360
+		jl ELSE_64
+		mov r9, lives
+		sub r9, 1
+		mov lives, r9
+		cmp lives, 0
+		jg ELSE_68
+		mov lives, 3
+		mov score, 0
+		call PROC_reset_level
+	ELSE_68:
+		call PROC_reset_ball_paddle
+		jmp PROC_END_update_ball
+	ELSE_64:
+		mov rbx, update_ball_nx
+		mov rcx, update_ball_ny
+		load r9, ball, 16, 1
+		mov rdx, r9
+		load r10, ball, 24, 1
+		mov rsi, r10
+		load r11, paddle, 0, 1
+		mov rdi, r11
+		load r12, paddle, 8, 1
+		mov r8, r12
+		load r13, paddle, 16, 1
+		mov r9, r13
+		load r14, paddle, 24, 1
+		mov r10, r14
+		call FUNC_aabb
+		cmp rax, 0
+		je ELSE_72
+		load r9, paddle, 8, 1
+		load r10, ball, 24, 1
+		sub r9, r10
+		sub r9, 1
+		mov update_ball_ny, r9
+		mov r9, 0
+		sub r9, ball_dy
+		mov ball_dy, r9
+		load r9, ball, 16, 1
+		div r9, 2
+		mov r10, update_ball_nx
+		add r10, r9
+		load r9, paddle, 0, 1
+		load r11, paddle, 16, 1
+		div r11, 2
+		add r9, r11
+		cmp r10, r9
+		jge ELSE_74
+		cmp ball_dx, 0
+		jle ELSE_78
+		mov r9, 0
+		sub r9, ball_dx
+		mov ball_dx, r9
+	ELSE_78:
+		jmp ENDIF_75
+	ELSE_74:
+		cmp ball_dx, 0
+		jge ELSE_82
+		mov r9, 0
+		sub r9, ball_dx
+		mov ball_dx, r9
+	ELSE_82:
+	ENDIF_75:
+	ELSE_72:
+		mov update_ball_hitOnce, 0
+		mov update_ball_i, 0
+	WHILE_86:
+		cmp update_ball_i, 60
+		jge ENDWHILE_87
+		cmp update_ball_hitOnce, 0
+		jne ELSE_90
+		mov r9, update_ball_i
+		load r10, blocks, r9, 8
+		cmp r10, 1
+		jl ELSE_94
+		mov r9, update_ball_i
+		div r9, 10
+		mov update_ball_gy, r9
+		mul r9, 10
+		mov r10, update_ball_i
+		sub r10, r9
+		mov update_ball_gx, r10
+		mov r9, update_ball_gx
+		mul r9, 64
+		mov r10, 2
+		add r10, r9
+		mov update_ball_bx, r10
+		mov r9, update_ball_gy
+		mul r9, 20
+		mov r10, 40
+		add r10, r9
+		mov update_ball_by, r10
+		mov update_ball_bw, 60
+		mov update_ball_bh, 16
+		mov rbx, update_ball_nx
+		mov rcx, update_ball_ny
+		load r9, ball, 16, 1
+		mov rdx, r9
+		load r10, ball, 24, 1
+		mov rsi, r10
+		mov rdi, update_ball_bx
+		mov r8, update_ball_by
+		mov r9, update_ball_bw
+		mov r10, update_ball_bh
+		call FUNC_aabb
+		cmp rax, 0
+		je ELSE_98
+		cmp update_ball_i, 0
+		jl IDX_OOB_101
+		cmp update_ball_i, 59
+		jg IDX_OOB_101
+		jmp IDX_OK_100
+	IDX_OOB_101:
+		exit 1
+	IDX_OK_100:
+		mov r9, update_ball_i
+		store 0, blocks, r9, 8
+		mov r9, score
+		add r9, 10
+		mov score, r9
+		mov update_ball_topHit, 0
+		mov update_ball_bottomHit, 0
+		load r9, ball, 8, 1
+		load r10, ball, 24, 1
+		add r9, r10
+		cmp r9, update_ball_by
+		jg ELSE_102
+		mov update_ball_topHit, 1
+	ELSE_102:
+		load r9, ball, 8, 1
+		mov r10, update_ball_by
+		add r10, update_ball_bh
+		cmp r9, r10
+		jl ELSE_106
+		mov update_ball_bottomHit, 1
+	ELSE_106:
+		cmp update_ball_topHit, 1
+		jge OR_ONE_116
+		cmp update_ball_bottomHit, 1
+		jl ELSE_110
+	OR_ONE_116:
+		mov r9, 0
+		sub r9, ball_dy
+		mov ball_dy, r9
+		jmp ENDIF_111
+	ELSE_110:
+		mov r9, 0
+		sub r9, ball_dx
+		mov ball_dx, r9
+	ENDIF_111:
+		mov update_ball_hitOnce, 1
+	ELSE_98:
+	ELSE_94:
+	ELSE_90:
+		mov r9, update_ball_i
+		add r9, 1
+		mov update_ball_i, r9
+		jmp WHILE_86
+	ENDWHILE_87:
+		store update_ball_nx, ball, 0, 1
+		store update_ball_ny, ball, 8, 1
+		mov update_ball_anyLeft, 0
+		mov update_ball_i, 0
+	WHILE_118:
+		cmp update_ball_i, 60
+		jge ENDWHILE_119
+		mov r9, update_ball_i
+		load r10, blocks, r9, 8
+		cmp r10, 1
+		jl ELSE_122
+		mov update_ball_anyLeft, 1
+	ELSE_122:
+		mov r9, update_ball_i
+		add r9, 1
+		mov update_ball_i, r9
+		jmp WHILE_118
+	ENDWHILE_119:
+		cmp update_ball_anyLeft, 0
+		jne ELSE_126
+		call PROC_reset_level
+		call PROC_reset_ball_paddle
+	ELSE_126:
+	PROC_END_update_ball:
+		ret
+	function PROC_setcolor:
+		mov setcolor_index, rbx
+		cmp setcolor_index, 1
+		je CASE_0_131
+		cmp setcolor_index, 2
+		je CASE_1_132
+		cmp setcolor_index, 3
+		je CASE_2_133
+		jmp CASE_ELSE_134
+	CASE_0_131:
+		invoke set_draw_color, renderer, 255, 0, 0, 255
+		jmp CASE_END_130
+	CASE_1_132:
+		invoke set_draw_color, renderer, 0, 255, 0, 255
+		jmp CASE_END_130
+	CASE_2_133:
+		invoke set_draw_color, renderer, 0, 0, 255, 255
+		jmp CASE_END_130
+	CASE_ELSE_134:
+		invoke set_draw_color, renderer, 255, 255, 255, 255
+	CASE_END_130:
+	PROC_END_setcolor:
+		ret
+	function PROC_render:
+		invoke set_render_target, renderer, target_id
+		invoke set_draw_color, renderer, 0, 0, 0, 255
+		invoke clear, renderer
+		invoke set_draw_color, renderer, 255, 255, 255, 255
+		load rbx, paddle, 0, 1
+		load rcx, paddle, 8, 1
+		load rdx, paddle, 16, 1
+		load rsi, paddle, 24, 1
+		call PROC_draw_box
+		load rdi, ball, 0, 1
+		mov rbx, rdi
+		load r8, ball, 8, 1
+		mov rcx, r8
+		mov rdx, 6
+		mov rsi, 6
+		call PROC_draw_box
+		invoke set_draw_color, renderer, 200, 200, 200, 255
+		mov render_i, 0
+	WHILE_135:
+		cmp render_i, 60
+		jge ENDWHILE_136
+		mov r9, render_i
+		load r10, blocks, r9, 8
+		cmp r10, 1
+		jl ELSE_139
+		mov r9, render_i
+		div r9, 10
+		mov render_gy, r9
+		mul r9, 10
+		mov r10, render_i
+		sub r10, r9
+		mov render_gx, r10
+		mov r9, render_gx
+		mul r9, 64
+		mov r10, 2
+		add r10, r9
+		mov render_bx, r10
+		mov r9, render_gy
+		mul r9, 20
+		mov r10, 40
+		add r10, r9
+		mov render_by, r10
+		mov r9, render_i
+		load r10, blocks, r9, 8
+		mov rbx, r10
+		call PROC_setcolor
+		mov rbx, render_bx
+		mov rcx, render_by
+		mov rdx, 60
+		mov rsi, 16
+		call PROC_draw_box
+	ELSE_139:
+		mov r9, render_i
+		add r9, 1
+		mov render_i, r9
+		jmp WHILE_135
+	ENDWHILE_136:
+		invoke inttostr, score
+		return _tmpptr0
+		invoke strlen, str_2
+		return r9
+		invoke strlen, _tmpptr0
+		return r10
+		mov r11, r9
+		add r11, r10
+		add r11, 1
+		alloc _tmpptr1, 1, r11
+		invoke strncpy, _tmpptr1, str_2, r9
+		invoke strncat, _tmpptr1, _tmpptr0, r10
+		invoke draw_text, renderer, font_id, _tmpptr1, 8, 8, 255, 255, 255, 255
+		invoke inttostr, lives
+		return _tmpptr0
+		invoke strlen, str_3
+		return r9
+		invoke strlen, _tmpptr0
+		return r10
+		mov r11, r9
+		add r11, r10
+		add r11, 1
+		alloc _tmpptr1, 1, r11
+		invoke strncpy, _tmpptr1, str_3, r9
+		invoke strncat, _tmpptr1, _tmpptr0, r10
+		invoke draw_text, renderer, font_id, _tmpptr1, 120, 8, 255, 255, 255, 255
+	PROC_END_render:
+		free _tmpptr0
+		free _tmpptr1
+		ret
+	function PROC_init:
+		mov init_title, arg0
+		mov init_xval, rbx
+		mov init_yval, rcx
+		mov init_wval, rdx
+		mov init_hval, rsi
+		invoke init
+		return rbx
+		cmp rbx, 0
+		je ELSE_143
+		print fmt_str, str_4
+		print newline
+		exit 1
+	ELSE_143:
+		invoke create_window, init_title, init_xval, init_yval, init_wval, init_hval, 4
+		return rdx
+		mov window_id, rdx
+		mov rsi, 0
+		sub rsi, 1
+		cmp window_id, rsi
+		jne ELSE_147
+		print fmt_str, str_5
+		print newline
+		invoke quit
+		exit 1
+	ELSE_147:
+		mov r8, 0
+		sub r8, 1
+		invoke create_renderer, window_id, r8, 2
+		return r9
+		mov renderer, r9
+		mov r8, 0
+		sub r8, 1
+		cmp renderer, r8
+		jne ELSE_151
+		print fmt_str, str_6
+		print newline
+		invoke destroy_window, window_id
+		invoke quit
+		exit 1
+	ELSE_151:
+		invoke create_render_target, renderer, 640, 360
+		return r9
+		mov target_id, r9
+		mov r9, 0
+		sub r9, 1
+		cmp target_id, r9
+		jne ELSE_155
+		print fmt_str, str_7
+		print newline
+		invoke destroy_renderer, renderer
+		invoke destroy_window, window_id
+		invoke quit
+		exit 1
+	ELSE_155:
+		invoke init_text
+		return r9
+		cmp r9, 1
+		je ELSE_159
+		print fmt_str, str_8
+		print newline
+		exit 1
+	ELSE_159:
+		invoke load_font, filename, 16
+		return r9
+		mov font_id, r9
+		mov r9, 0
+		sub r9, 1
+		cmp font_id, r9
+		jne ELSE_163
+		print fmt_str, str_9
+		print fmt_str, filename
+		print newline
+		exit 1
+	ELSE_163:
+		mov lives, 3
+		mov score, 0
+		call PROC_reset_level
+		call PROC_reset_ball_paddle
+		mov running, 1
+	PROC_END_init:
+		ret
+	function PROC_cleanup:
+		invoke destroy_render_target, target_id
+		invoke destroy_renderer, renderer
+		invoke destroy_window, window_id
+		invoke quit_text
+		invoke quit
+	PROC_END_cleanup:
+		ret
+	function FUNC_aabb:
+		mov aabb_ax, rbx
+		mov aabb_ay, rcx
+		mov aabb_aw, rdx
+		mov aabb_ah, rsi
+		mov aabb_bx, rdi
+		mov aabb_by, r8
+		mov aabb_bw, r9
+		mov aabb_bh, r10
+		mov rbx, aabb_ax
+		add rbx, aabb_aw
+		cmp rbx, aabb_bx
+		jle OR_ONE_171
+		mov rdx, aabb_bx
+		add rdx, aabb_bw
+		cmp rdx, aabb_ax
+		jle OR_ONE_171
+		mov rdi, 0
+		jmp OR_END_172
+	OR_ONE_171:
+		mov rdi, 1
+	OR_END_172:
+		mov r8, aabb_ay
+		add r8, aabb_ah
+		cmp r8, aabb_by
+		jle OR_ONE_175
+		cmp rdi, 0
+		jne OR_ONE_175
+		mov r10, 0
+		jmp OR_END_176
+	OR_ONE_175:
+		mov r10, 1
+	OR_END_176:
+		mov r9, aabb_by
+		add r9, aabb_bh
+		cmp r9, aabb_ay
+		jle OR_ONE_179
+		cmp r10, 0
+		jne OR_ONE_179
+		mov r9, 0
+		jmp OR_END_180
+	OR_ONE_179:
+		mov r9, 1
+	OR_END_180:
+		not r9
+		mov rax, r9
+	FUNC_END_aabb:
+		ret
+	}
+}
+

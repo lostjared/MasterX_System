@@ -1,0 +1,266 @@
+program ClickMarks {
+    section module { sdl, string, io }
+    section object { SDLCore, Text, Points, Input, Game }
+    section code {
+    start:
+        call Game.init
+        call Game.loop
+        call Game.cleanup
+        done
+    }
+}
+
+object SDLCore {
+    section module { sdl, io }
+    section data {
+        export string title = "MXVM Click Marks"
+        export int x = 100
+        export int y = 100
+        export int w = 800
+        export int h = 600
+        export int flags = 0
+        export int window_id = 0
+        export int renderer_id = 0
+        export int last_event_type = 0
+        export int last_key_code = 0
+        export int last_mouse_btn = 0
+        export int last_mouse_x = 0
+        export int last_mouse_y = 0
+    }
+    section code {
+    function init:
+        invoke init
+        invoke create_window, title, x, y, w, h, flags
+        return window_id
+        invoke create_renderer, window_id, -1, 0
+        return renderer_id
+        ret
+    function shutdown:
+        invoke destroy_renderer, renderer_id
+        invoke destroy_window, window_id
+        ret
+    function begin_frame:
+        invoke set_draw_color, renderer_id, 255, 255, 255, 255
+        invoke fill_rect, renderer_id, 0, 0, w, h
+        ret
+    function end_frame:
+        invoke present, renderer_id
+        ret
+    function poll_one_event:
+        invoke poll_event
+        return last_event_type
+        cmp last_event_type, 0
+        je pe_ret
+        invoke get_event_type
+        return last_event_type
+        cmp last_event_type, 768
+        je pe_key
+        cmp last_event_type, 769
+        je pe_key
+        cmp last_event_type, 256
+        je pe_ret
+        cmp last_event_type, 1025
+        je pe_mouse
+        cmp last_event_type, 1026
+        je pe_mouse
+        jmp pe_ret
+    pe_key:
+        invoke get_key_code
+        return last_key_code
+        jmp pe_ret
+    pe_mouse:
+        invoke get_mouse_button
+        return last_mouse_btn
+        invoke get_mouse_x
+        return last_mouse_x
+        invoke get_mouse_y
+        return last_mouse_y
+        jmp pe_ret
+    pe_ret:
+        ret
+    }
+}
+
+object Text {
+
+    section object { SDLCore }
+
+    section data {
+        export int fnt = -1
+        export string font_name = "font.ttf"
+        export string msg = "Click to mark X (Esc to quit)"
+    }
+    section code {
+    function init:
+        invoke init_text
+        invoke load_font, font_name, 24
+        return fnt
+        ret
+    function release:
+        invoke quit_text
+        ret
+    function draw_msg:
+        invoke draw_text, SDLCore.renderer_id, fnt, msg, 20, 40, 0, 0, 0, 255
+        ret
+    }
+}
+
+object Points {
+
+    section object { SDLCore }
+
+    section data {
+        export ptr buf = null
+        export int capacity = 1024
+        export int count = 0
+        int cap2 = 0
+        export int half = 8
+        int triple_half = 0
+        int idx = 0
+        export int x = 0
+        export int y = 0
+        int left = 0
+        int right = 0
+        int top = 0
+        int bottom = 0
+        int i = 0
+    }
+    section code {
+    function alloc_buf:
+        mov cap2, capacity
+        mul cap2, 2
+        alloc buf, 8, cap2
+        mov count, 0
+        ret
+    function free_buf:
+        free buf
+        ret
+    function push_xy:
+        cmp count, capacity
+        jge px_ret
+        mov idx, count
+        mul idx, 2
+        store x, buf, idx, 8
+        add idx, 1
+        store y, buf, idx, 8
+        add count, 1
+    px_ret:
+        ret
+    function draw_all:
+        # triple the size
+        mov triple_half, half
+        mul triple_half, 3
+
+        # darker red
+        invoke set_draw_color, SDLCore.renderer_id, 150, 0, 0, 255
+
+        mov i, 0
+    dl:
+        cmp i, count
+        jge dd
+        mov idx, i
+        mul idx, 2
+        load left, buf, idx, 8
+        add idx, 1
+        load top, buf, idx, 8
+
+        mov right, left
+        add right, triple_half
+        sub left, triple_half
+        mov bottom, top
+        add bottom, triple_half
+        sub top, triple_half
+
+        invoke draw_line, SDLCore.renderer_id, left, top, right, bottom
+        invoke draw_line, SDLCore.renderer_id, right, top, left, bottom
+        add i, 1
+        jmp dl
+    dd:
+        ret
+    }
+}
+
+object Input {
+
+    section object { Points, SDLCore, Game }
+
+    section data {
+        export int event_type = 0
+        export int key = 0
+        export int mb = 0
+        export int mx = 0
+        export int my = 0
+        export int SDLK_ESCAPE = 27
+        export int MBDOWN = 1025
+    }
+    section code {
+    function handle:
+        call SDLCore.poll_one_event
+        mov event_type, SDLCore.last_event_type
+        cmp event_type, 0
+        je ih_ret
+        cmp event_type, 256
+        je do_quit
+        cmp event_type, 768
+        jne chk_mouse
+        mov key, SDLCore.last_key_code
+        cmp key, SDLK_ESCAPE
+        je do_quit
+        jmp ih_ret
+    chk_mouse:
+        cmp event_type, MBDOWN
+        jne ih_ret
+        mov mb, SDLCore.last_mouse_btn
+        mov mx, SDLCore.last_mouse_x
+        mov my, SDLCore.last_mouse_y
+        mov Points.x, mx
+        mov Points.y, my
+        call Points.push_xy
+        jmp ih_ret
+    do_quit:
+        mov Game.running, 0
+    ih_ret:
+        ret
+    }
+}
+
+object Game {
+    section object { SDLCore, Text, Points, Input }
+    section data {
+        export int running = 1
+        int delay_ms = 16
+    }
+    section code {
+    function init:
+        call SDLCore.init
+        call Text.init
+        call Points.alloc_buf
+        ret
+    function cleanup:
+        call Points.free_buf
+        call Text.release
+        call SDLCore.shutdown
+        invoke quit
+        ret
+    function frame:
+        call SDLCore.begin_frame
+        call Text.draw_msg
+        call Points.draw_all
+        call SDLCore.end_frame
+        ret
+    function loop:
+        mov running, 1
+    lp:
+        cmp running, 1
+        jne lpend
+    ev:
+        call Input.handle
+        cmp Input.event_type, 0
+        jne ev
+        call frame
+        invoke delay, delay_ms
+        jmp lp
+    lpend:
+        ret
+    }
+}

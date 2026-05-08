@@ -1,0 +1,21 @@
+program Stack {
+	section data {		
+                int accum = 0
+                int x = 255
+                string value = "The value is: %d\n"
+        }
+	section code {
+	start:
+                push x
+                stack_load accum, 0
+                add accum, x
+                stack_store accum, 0
+                stack_sub 1
+                print value, accum
+                add accum, 1
+                mod accum, 2
+                print value, accum
+                stop:
+                done
+	}
+}

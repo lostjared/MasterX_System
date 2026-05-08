@@ -1,0 +1,28 @@
+
+object Text {
+
+    section object { SDLCore }
+
+    section data {
+        export int fnt = -1
+        export string font_name = "font.ttf"
+        export string prefix = "Hello, World, in MXVM!"
+        int px = 20
+        int py = 20
+        int kx = 280
+        int ky = 20
+    }
+    section code {
+    function init:
+        invoke init_text
+        invoke load_font, font_name, 24
+        return fnt
+        ret
+    function release:
+        invoke quit_text
+        ret
+    function draw:
+        invoke draw_text, SDLCore.renderer_id, fnt, prefix, px, py, 255, 0, 0, 255
+        ret
+    }
+}

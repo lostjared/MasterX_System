@@ -1,0 +1,23 @@
+program Sub {
+
+    section module { string }
+
+    section data {
+        string data = "Value: One"
+        string col = ":"
+        int result = 0
+        string fmt = "Return is: %d\n"
+        string sfmt = "Section: [%s]\n"
+        string return_value, 256
+    }
+
+    section code {
+        start:
+        invoke strfind, data, col, 0
+        return result
+        print fmt, result
+        invoke substr, return_value, 256, data, 0, result
+        print sfmt, return_value
+        done
+    }
+}

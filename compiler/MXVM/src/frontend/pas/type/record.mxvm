@@ -1,0 +1,74 @@
+program Test {
+	section module {
+ 
+	}
+	section data {
+		int rax = 0
+		int rbx = 0
+		int rcx = 0
+		int rdx = 0
+		int rsi = 0
+		int rdi = 0
+		int r8 = 0
+		int r9 = 0
+		ptr _tmpptr0 = null
+		ptr _tmpptr1 = null
+		ptr _tmpptr2 = null
+		ptr _tmpptr3 = null
+		string fmt_int = "%lld "
+		string newline = "\n"
+		ptr px = null
+		ptr px_z = null
+		ptr py = null
+	}
+	section code {
+	start:
+		alloc px, 104, 1
+		alloc px_z, 8, 11
+		store px_z, px, 16, 1
+		alloc py, 120, 1
+		store 5, px, 0, 1
+		store 1, px, 8, 1
+		load rbx, px, 0, 1
+		mov rcx, 25
+		add rcx, rbx
+		mov rdx, 0
+		mov rsi, rdx
+		cmp rsi, 0
+		jl IDX_OOB_1
+		cmp rsi, 10
+		jg IDX_OOB_1
+		jmp IDX_OK_0
+	IDX_OOB_1:
+		exit 1
+	IDX_OK_0:
+		mov rsi, 0
+		mov _tmpptr0, px
+		add _tmpptr0, 16
+		store rcx, _tmpptr0, rsi, 8
+		load rsi, px, 0, 1
+		print fmt_int, rsi
+		load rdi, px, 8, 1
+		print fmt_int, rdi
+		print newline
+		mov r8, 0
+		mov _tmpptr1, px
+		add _tmpptr1, 16
+		load r9, _tmpptr1, r8, 8
+		print fmt_int, r9
+		print newline
+		mov _tmpptr2, py
+		add _tmpptr2, 16
+		store 5, _tmpptr2, 0, 1
+		mov _tmpptr3, py
+		add _tmpptr3, 16
+		load r8, _tmpptr3, 0, 1
+		print fmt_int, r8
+		print newline
+		free px_z
+		free px
+		free py
+		done
+	}
+}
+

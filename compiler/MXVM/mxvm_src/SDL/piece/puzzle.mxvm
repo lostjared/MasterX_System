@@ -1,0 +1,1269 @@
+program PuzzleGame {
+    section module { sdl, string, io }
+    section object { SDLCore, GameState, Grid, Piece, Game, Input, Engine, Text }
+    section code {
+    start:
+        call Game.init
+        call Engine.loop
+        call Game.cleanup
+        done
+    }
+}
+
+object SDLCore {
+  section module { sdl, io }
+
+  section data {
+    export string title = "MXVM SDL App"
+    export string text_buffer, 1024
+    export int x = 250
+    export int y = 250
+    export int w = 1440
+    export int h = 1080
+    export int flags = 0
+    export int window_id   = 0
+    export int renderer_id = 0
+    export int last_event_type = 0
+    export int last_key_code   = 0
+    export int tmp_tex  = 0
+    export int tmp_int  = 0
+  }
+
+  section code {
+  function init:
+    invoke init
+    # (no capture needed)
+    invoke create_window,text_buffer, x, y, w, h, flags
+    return window_id
+    invoke create_renderer, window_id, -1, 0
+    return renderer_id
+    ret
+
+  function shutdown:
+    invoke destroy_renderer, renderer_id
+    invoke destroy_window, window_id
+    ret
+
+  function begin_frame:
+    invoke set_draw_color, renderer_id, 0, 0, 0, 255
+    invoke clear, renderer_id
+    invoke fill_rect, renderer_id, 0, 0, w, h
+    ret
+
+  function end_frame:
+    invoke present, renderer_id
+    ret
+
+  function load_texture_path:
+    invoke load_texture, renderer_id, text_buffer
+    return tmp_tex
+    ret
+
+  function copy_texture_full:
+    # copy full src (-1) to window size
+    invoke render_texture, renderer_id, tmp_tex, -1, -1, -1, -1, 0, 0, w, h
+    ret
+
+  function poll_one_event:
+    invoke poll_event
+    return last_event_type
+    cmp last_event_type, 0
+    je no_evt
+
+    invoke get_event_type
+    return last_event_type
+
+    # KEYDOWN (768) or KEYUP (769) -> fetch key code
+    cmp last_event_type, 768
+    je get_key
+    cmp last_event_type, 769
+    je get_key
+    jmp no_evt
+  get_key:
+    invoke get_key_code
+    return last_key_code
+  no_evt:
+    ret
+  }
+}
+
+object GameState {
+    section data {
+        export int running    = 1
+        export int game_over  = 0
+        export int game_speed = 1000
+        export int score      = 0
+        export int bg_tex     = -1
+        export string bg_file = "bg.bmp"
+        export int ticks   = 0
+        export int time_tx = 0
+        export int nticks  = 0
+        export int flash_t = 0
+        export int flash_on = 0
+    }
+}
+
+object Piece {
+    section data {
+        export int b0 = 0
+        export int b1 = 0
+        export int b2 = 0
+        export int x = 0
+        export int y = 0
+        export int mode = 0
+        int t0 = 0
+        int t1 = 0
+        int t2 = 0
+        int rtmp = 0
+    }
+
+    section code {
+    function reset_piece:
+        invoke rand_number, 6
+        return rtmp
+        mov b0, rtmp
+        add b0, 1
+        invoke rand_number, 6
+        return rtmp
+        mov b1, rtmp
+        add b1, 1
+        invoke rand_number, 6
+        return rtmp
+        mov b2, rtmp
+        add b2, 1
+    retry:
+        cmp b0, b1
+        jne ok
+        cmp b0, b2
+        jne ok
+        invoke rand_number, 6
+        return rtmp
+        mov b0, rtmp
+        add b0, 1
+        jmp retry
+    ok:
+        mov x, 3
+        mov y, 0
+        mov mode, 0
+        ret
+
+    function shift_blocks:
+        mov t0, b2
+        mov t1, b0
+        mov t2, b1
+        mov b0, t0
+        mov b1, t1
+        mov b2, t2
+        ret
+    }
+}
+
+object Grid {
+
+    section object { SDLCore, Engine }
+
+    section data {
+        export int w = 8
+        export int h = 17
+        export int off_x = 335
+        export int off_y = 125
+        export int cell_w = 96
+        export int cell_h = 48
+        export ptr buf = null
+        export int buf_len = 0   # number of cells (w*h)
+        export int color_r = 0
+        export int color_g = 0
+        export int color_b = 0
+        int bytes = 0
+        int idx = 0
+        int bytes_rt = 0
+        int max_off = 0
+        # args/shared for at_index/get/set
+        export int ax = 0
+        export int ay = 0
+        int idx_calc = 0
+        export int get_o = 0
+        export int get_v = 0
+        int set_o = 0
+        export int set_val = 0
+        byte zero_byte = 0
+        # draw temporaries
+        int rect_x = 0
+        int rect_y = 0
+        int rect_w = 0
+        int rect_h = 0
+        int draw_x = 0
+        int draw_y = 0
+        int draw_w = 0
+        int draw_h = 0
+        int loop_x = 0
+        int loop_y = 0
+        export int c = 0
+    }
+
+    section code {
+    function alloc_grid:
+        mov buf_len, w
+        mul buf_len, h               # cells = w*h
+        mov bytes, buf_len
+        mul bytes, 8                 # total bytes
+        alloc buf, 8, bytes          # 8-byte elements
+        ret
+
+    function clear_grid:
+        mov idx, 0
+        mov bytes, buf_len
+        mul bytes, 8                 # total bytes
+    cg_loop:
+        cmp idx, bytes
+        jge cg_done
+        store 0, buf, idx, 8
+        add idx, 1
+        jmp cg_loop
+    cg_done:
+        ret
+
+    function at_index:
+        # byte offset = ((y * w) + x) * 8
+        mov idx_calc, ay
+        mul idx_calc, w
+        add idx_calc, ax
+        mul idx_calc, 8         # SIZEOF(cell) = 8
+        ret
+
+    function get_cell:
+        # compute byte offset
+        call at_index
+        mov get_o, idx_calc
+
+        # total bytes = w*h*8, last valid starting offset = bytes - 8
+        mov bytes_rt, w
+        mul bytes_rt, h
+        mul bytes_rt, 8
+        mov max_off, bytes_rt
+        sub max_off, 8
+
+        # null / bounds guards
+        cmp buf, 0
+        je gc_zero
+        cmp get_o, 0
+        jl gc_zero
+        cmp get_o, max_off
+        jg gc_zero
+
+        load get_v, buf, get_o, 8   # load 8 bytes
+        ret
+
+    gc_zero:
+        mov get_v, 0
+        ret
+
+    function set_cell:
+        # compute byte offset
+        call at_index
+        mov set_o, idx_calc
+
+        # total bytes = w*h*8, last valid starting offset = bytes - 8
+        mov bytes_rt, w
+        mul bytes_rt, h
+        mul bytes_rt, 8
+        mov max_off, bytes_rt
+        sub max_off, 8
+
+        # null / bounds guards
+        cmp buf, 0
+        je sc_ret
+        cmp set_o, 0
+        jl sc_ret
+        cmp set_o, max_off
+        jg sc_ret
+
+        store set_val, buf, set_o, 8 # store 8 bytes
+    sc_ret:
+        ret
+
+    function draw_grid:
+        mov rect_x, off_x
+        mov rect_y, off_y
+        mov rect_w, w
+        mul rect_w, cell_w
+        mov rect_h, h
+        mul rect_h, cell_h
+        invoke set_draw_color, SDLCore.renderer_id, 255, 255, 255, 255
+        invoke fill_rect, SDLCore.renderer_id, rect_x, rect_y, rect_w, rect_h
+
+        mov loop_x, 0
+    gx:
+        mov loop_y, 0
+    gy:
+        cmp loop_y, h
+        jge nx
+        mov ax, loop_x
+        mov ay, loop_y
+        call get_cell
+        mov c, get_v
+
+        mov Engine.c, c
+        call Engine.int_to_color
+
+        mov draw_x, loop_x
+        mul draw_x, cell_w
+        add draw_x, off_x
+        add draw_x, 1
+
+        mov draw_y, loop_y
+        mul draw_y, cell_h
+        add draw_y, off_y
+        add draw_y, 1
+
+        mov draw_w, cell_w
+        sub draw_w, 2
+        mov draw_h, cell_h
+        sub draw_h, 2
+
+        invoke set_draw_color, SDLCore.renderer_id, color_r, color_g, color_b, 255
+        invoke fill_rect, SDLCore.renderer_id, draw_x, draw_y, draw_w, draw_h
+
+        add loop_y, 1
+        jmp gy
+    nx:
+        add loop_x, 1
+        cmp loop_x, w
+        jl gx
+        ret
+
+    function free_grid:
+        free buf
+        ret
+    }
+}
+
+object Input {
+
+    section object { GameState, SDLCore }
+
+    section data {
+        export int event_type = 0
+        export int key = 0
+        export int SDLK_LEFT = 1073741904
+        export int SDLK_RIGHT = 1073741903
+        export int SDLK_UP = 1073741906
+        export int SDLK_DOWN = 1073741905
+        export int SDLK_RETURN = 13
+        export int SDLK_ESCAPE = 27
+        export int KEY_A = 97
+        export int KEY_D = 100
+        export int KEY_W = 119
+        export int KEY_S = 115
+        export int down_held = 0
+    }
+
+    section code {
+    function handle:
+        # Fetch a single event only
+        call SDLCore.poll_one_event
+        mov event_type, SDLCore.last_event_type
+        cmp event_type, 0
+        je end_poll
+
+        # Quit
+        cmp event_type, 256
+        je quit_req
+
+        # KeyDown
+        cmp event_type, 768
+        je on_keydown
+
+        # KeyUp
+        cmp event_type, 769
+        je on_keyup
+
+        jmp end_poll
+
+    on_keydown:
+        mov key, SDLCore.last_key_code
+
+        # restart if game over and Enter pressed
+        cmp GameState.game_over, 1
+        jne kd_check_esc
+        cmp key, SDLK_RETURN
+        jne kd_check_esc
+        call Game.new_game
+        jmp end_poll
+
+    kd_check_esc:
+        cmp key, SDLK_ESCAPE
+        je quit_req
+
+        # Down (latch; ignore if already held)
+        cmp key, SDLK_DOWN
+        je kd_down
+        cmp key, KEY_S
+        je kd_down
+
+        # Left / Right / Shift (single action, then return)
+        cmp key, SDLK_LEFT
+        je kd_left
+        cmp key, KEY_A
+        je kd_left
+
+        cmp key, SDLK_RIGHT
+        je kd_right
+        cmp key, KEY_D
+        je kd_right
+
+        cmp key, SDLK_UP
+        je kd_shift
+        cmp key, KEY_W
+        je kd_shift
+
+        jmp end_poll
+
+    kd_down:
+        cmp down_held, 1
+        je end_poll
+        mov down_held, 1
+        call Engine.move_down
+        jmp end_poll
+
+    kd_left:
+        call Engine.move_left
+        jmp end_poll
+
+    kd_right:
+        call Engine.move_right
+        jmp end_poll
+
+    kd_shift:
+        call Piece.shift_blocks
+        jmp end_poll
+
+    on_keyup:
+        mov key, SDLCore.last_key_code
+        cmp key, SDLK_DOWN
+        je ku_down
+        cmp key, KEY_S
+        je ku_down
+        jmp end_poll
+
+    ku_down:
+        mov down_held, 0
+        jmp end_poll
+
+    quit_req:
+        mov GameState.running, 0
+
+    end_poll:
+        ret
+    }
+}
+
+object Engine {
+
+    section object { Grid, GameState, Piece, SDLCore }
+
+    section data {
+        int i = 0
+
+        int tx = 0
+        int ty = 0
+        int h2 = 0
+        int v0 = 0
+        int ty1 = 0
+        int ty2 = 0
+        int v1 = 0
+        int v2 = 0
+
+        int tb_x = 0
+        int tb_y = 0
+        int tb_c = 0
+        int tb_v = 0
+
+        int x = 0
+        int y = 0
+        export int c = 0
+        int y1 = 0
+        int y2 = 0
+        int y3 = 0
+        int y4 = 0
+        int x1 = 0
+        int x2 = 0
+        int x3 = 0
+        int x4 = 0
+        int x3b = 0
+        int y3b = 0
+        int x4b = 0
+        int y4b = 0
+        int t1 = 0
+        int t2 = 0
+        int t3 = 0
+        int t4 = 0
+        int c2 = 0
+
+        int nx = 0
+        int ok = 0
+        int maxx = 0
+        int h3 = 0
+        int ny = 0
+
+        int dx = 0
+        int dy = 0
+        int px = 0
+        int py = 0
+        int xpix = 0
+        int ypix = 0
+        int y2pix = 0
+        int y3pix = 0
+
+        int wpx = 0
+        int hpx = 0
+        int rx = 0
+        int ry = 0
+        int cw = 0
+        int ch = 0
+
+        int rr = 0
+    }
+
+    section code {
+    function int_to_color:
+        # negatives = cleared cells (draw as empty/black)
+        cmp Grid.c, 0
+        jl neg_clear
+
+        cmp Grid.c, 0
+        je zc
+        cmp Grid.c, 1
+        je c1
+        cmp Grid.c, 2
+        je c2x
+        cmp Grid.c, 3
+        je c3
+        cmp Grid.c, 4
+        je c4
+        cmp Grid.c, 5
+        je c5
+        jmp c6
+
+    neg_clear:
+        mov Grid.color_r, 0
+        mov Grid.color_g, 0
+        mov Grid.color_b, 0
+        ret
+
+    zc:
+        mov Grid.color_r, 0
+        mov Grid.color_g, 0
+        mov Grid.color_b, 0
+        ret
+
+    c1:
+        mov Grid.color_r, 0
+        mov Grid.color_g, 255
+        mov Grid.color_b, 0
+        ret
+
+    c2x:
+        mov Grid.color_r, 0
+        mov Grid.color_g, 0
+        mov Grid.color_b, 255
+        ret
+
+    c3:
+        mov Grid.color_r, 255
+        mov Grid.color_g, 0
+        mov Grid.color_b, 255
+        ret
+
+    c4:
+        mov Grid.color_r, 255
+        mov Grid.color_g, 255
+        mov Grid.color_b, 0
+        ret
+
+    c5:
+        mov Grid.color_r, 255
+        mov Grid.color_g, 0
+        mov Grid.color_b, 0
+        ret
+
+    c6:
+        mov Grid.color_r, 0
+        mov Grid.color_g, 255
+        mov Grid.color_b, 255
+        ret
+
+
+    function test_piece:
+        cmp tx, Grid.w
+        jge tp_no
+        mov h2, Grid.h
+        sub h2, 2
+        cmp ty, h2
+        jg tp_no
+
+        mov Grid.ax, tx
+        mov Grid.ay, ty
+        call Grid.get_cell
+        mov v0, Grid.get_v
+        cmp v0, 0
+        jne tp_no
+
+        mov ty1, ty
+        add ty1, 1
+        mov Grid.ax, tx
+        mov Grid.ay, ty1
+        call Grid.get_cell
+        mov v1, Grid.get_v
+        cmp v1, 0
+        jne tp_no
+
+        mov ty2, ty
+        add ty2, 2
+        mov Grid.ax, tx
+        mov Grid.ay, ty2
+        call Grid.get_cell
+        mov v2, Grid.get_v
+        cmp v2, 0
+        jne tp_no
+
+        mov ok, 1
+        ret
+    tp_no:
+        mov ok, 0
+        ret
+
+    function test_block:
+        cmp tb_x, 0
+        jl tb_no
+        cmp tb_y, 0
+        jl tb_no
+        cmp tb_x, Grid.w
+        jge tb_no
+        cmp tb_y, Grid.h
+        jge tb_no
+        mov Grid.ax, tb_x
+        mov Grid.ay, tb_y
+        call Grid.get_cell
+        mov tb_v, Grid.get_v
+        cmp tb_v, 1
+        jl tb_no
+        cmp tb_v, tb_c
+        jne tb_no
+        mov tb_v, 1
+        ret
+    tb_no:
+        mov tb_v, 0
+        ret
+
+    function chk_blocks:
+        mov x, 0
+    cb_yloop0:
+        mov y, 0
+    cb_yloop:
+        cmp y, Grid.h
+        jge cb_scan_done
+
+        mov Grid.ax, x
+        mov Grid.ay, y
+        call Grid.get_cell
+        mov v0, Grid.get_v
+
+        cmp v0, 0
+        jge cb_next
+        sub v0, 1
+        mov Grid.ax, x
+        mov Grid.ay, y
+        mov Grid.set_val, v0
+        call Grid.set_cell
+        cmp v0, -200
+        jg cb_next
+        mov Grid.set_val, 0
+        call Grid.set_cell
+    cb_next:
+        add y, 1
+        cmp y, Grid.h
+        jl cb_yloop
+        add x, 1
+        cmp x, Grid.w
+        jl cb_yloop0
+    cb_scan_done:
+
+        mov x, 0
+    cb2_x:
+        mov y, 0
+    cb2_y:
+        cmp y, Grid.h
+        jge cb2_nx
+
+        mov Grid.ax, x
+        mov Grid.ay, y
+        call Grid.get_cell
+        mov c, Grid.get_v
+        cmp c, 1
+        jl cb2_next
+
+        mov y1, y
+        add y1, 1
+        mov y2, y
+        add y2, 2
+        mov tb_x, x
+        mov tb_y, y1
+        mov tb_c, c
+        call test_block
+        mov t1, tb_v
+        mov tb_x, x
+        mov tb_y, y2
+        mov tb_c, c
+        call test_block
+        mov t2, tb_v
+        cmp t1, 1
+        jne chk_h
+        cmp t2, 1
+        jne chk_h
+        mov Grid.set_val, 0
+        mov Grid.ax, x
+        mov Grid.ay, y
+        call Grid.set_cell
+        mov Grid.ay, y1
+        call Grid.set_cell
+        mov Grid.ay, y2
+        call Grid.set_cell
+        add GameState.score, 1
+        sub GameState.game_speed, 25
+        mov y3, y
+        add y3, 3
+        mov tb_x, x
+        mov tb_y, y3
+        mov tb_c, c
+        call test_block
+        mov t3, tb_v
+        cmp t3, 1
+        jne chk_h
+        mov Grid.ax, x
+        mov Grid.ay, y3
+        call Grid.set_cell
+        add GameState.score, 1
+        mov y4, y
+        add y4, 4
+        mov tb_x, x
+        mov tb_y, y4
+        mov tb_c, c
+        call test_block
+        mov t4, tb_v
+        cmp t4, 1
+        jne chk_h
+        mov Grid.ax, x
+        mov Grid.ay, y4
+        call Grid.set_cell
+        add GameState.score, 1
+
+    chk_h:
+        mov x1, x
+        add x1, 1
+        mov x2, x
+        add x2, 2
+        mov tb_x, x1
+        mov tb_y, y
+        mov tb_c, c
+        call test_block
+        mov t1, tb_v
+        mov tb_x, x2
+        mov tb_y, y
+        mov tb_c, c
+        call test_block
+        mov t2, tb_v
+        cmp t1, 1
+        jne chk_d1
+        cmp t2, 1
+        jne chk_d1
+        mov Grid.set_val, 0
+        mov Grid.ax, x
+        mov Grid.ay, y
+        call Grid.set_cell
+        mov Grid.ax, x1
+        call Grid.set_cell
+        mov Grid.ax, x2
+        call Grid.set_cell
+        add GameState.score, 1
+        sub GameState.game_speed, 25
+        mov x3, x
+        add x3, 3
+        mov tb_x, x3
+        mov tb_y, y
+        mov tb_c, c
+        call test_block
+        mov t3, tb_v
+        cmp t3, 1
+        jne chk_d1
+        mov Grid.ax, x3
+        mov Grid.ay, y
+        call Grid.set_cell
+        add GameState.score, 1
+        mov x4, x
+        add x4, 4
+        mov tb_x, x4
+        mov tb_y, y
+        mov tb_c, c
+        call test_block
+        mov t4, tb_v
+        cmp t4, 1
+        jne chk_d1
+        mov Grid.ax, x4
+        mov Grid.ay, y
+        call Grid.set_cell
+        add GameState.score, 1
+
+    chk_d1:
+        mov x1, x
+        add x1, 1
+        mov x2, x
+        add x2, 2
+        mov y1, y
+        add y1, 1
+        mov y2, y
+        add y2, 2
+        mov tb_x, x1
+        mov tb_y, y1
+        mov tb_c, c
+        call test_block
+        mov t1, tb_v
+        mov tb_x, x2
+        mov tb_y, y2
+        mov tb_c, c
+        call test_block
+        mov t2, tb_v
+        cmp t1, 1
+        jne chk_d2
+        cmp t2, 1
+        jne chk_d2
+        mov Grid.set_val, 0
+        mov Grid.ax, x
+        mov Grid.ay, y
+        call Grid.set_cell
+        mov Grid.ax, x1
+        mov Grid.ay, y1
+        call Grid.set_cell
+        mov Grid.ax, x2
+        mov Grid.ay, y2
+        call Grid.set_cell
+        add GameState.score, 1
+        sub GameState.game_speed, 25
+        mov x3, x
+        add x3, 3
+        mov y3, y
+        add y3, 3
+        mov tb_x, x3
+        mov tb_y, y3
+        mov tb_c, c
+        call test_block
+        mov t3, tb_v
+        cmp t3, 1
+        jne chk_d2
+        mov Grid.ax, x3
+        mov Grid.ay, y3
+        call Grid.set_cell
+        add GameState.score, 1
+        mov x4, x
+        add x4, 4
+        mov y4, y
+        add y4, 4
+        mov tb_x, x4
+        mov tb_y, y4
+        mov tb_c, c
+        call test_block
+        mov t4, tb_v
+        cmp t4, 1
+        jne chk_d2
+        mov Grid.ax, x4
+        mov Grid.ay, y4
+        call Grid.set_cell
+        add GameState.score, 1
+
+    chk_d2:
+        mov x1, x
+        add x1, 1
+        mov x2, x
+        add x2, 2
+        mov y1, y
+        sub y1, 1
+        mov y2, y
+        sub y2, 2
+        mov tb_x, x1
+        mov tb_y, y1
+        mov tb_c, c
+        call test_block
+        mov t1, tb_v
+        mov tb_x, x2
+        mov tb_y, y2
+        mov tb_c, c
+        call test_block
+        mov t2, tb_v
+        cmp t1, 1
+        jne cb2_next
+        cmp t2, 1
+        jne cb2_next
+        mov Grid.set_val, 0
+        mov Grid.ax, x
+        mov Grid.ay, y
+        call Grid.set_cell
+        mov Grid.ax, x1
+        mov Grid.ay, y1
+        call Grid.set_cell
+        mov Grid.ax, x2
+        mov Grid.ay, y2
+        call Grid.set_cell
+        add GameState.score, 1
+        sub GameState.game_speed, 25
+        mov x3b, x
+        add x3b, 3
+        mov y3b, y
+        sub y3b, 3
+        mov tb_x, x3b
+        mov tb_y, y3b
+        mov tb_c, c
+        call test_block
+        mov t3, tb_v
+        cmp t3, 1
+        jne cb2_next
+        mov Grid.ax, x3b
+        mov Grid.ay, y3b
+        call Grid.set_cell
+        add GameState.score, 1
+        mov x4b, x
+        add x4b, 4
+        mov y4b, y
+        sub y4b, 4
+        mov tb_x, x4b
+        mov tb_y, y4b
+        mov tb_c, c
+        call test_block
+        mov t4, tb_v
+        cmp t4, 1
+        jne cb2_next
+        mov Grid.ax, x4b
+        mov Grid.ay, y4b
+        call Grid.set_cell
+        add GameState.score, 1
+
+    cb2_next:
+        add y, 1
+        cmp y, Grid.h
+        jl cb2_y
+    cb2_nx:
+        add x, 1
+        cmp x, Grid.w
+        jl cb2_x
+        ret
+
+    function proc_blocks:
+        mov x, 0
+    pb_x:
+        mov y, Grid.h
+        sub y, 2
+    pb_y:
+        cmp y, 0
+        jl pb_nx
+        mov Grid.ax, x
+        mov Grid.ay, y
+        call Grid.get_cell
+        mov c, Grid.get_v
+        mov y1, y
+        add y1, 1
+        mov Grid.ax, x
+        mov Grid.ay, y1
+        call Grid.get_cell
+        mov c2, Grid.get_v
+        cmp c, 1
+        jl pb_nexty
+        cmp c2, 0
+        jne pb_nexty
+        mov Grid.ax, x
+        mov Grid.ay, y1
+        mov Grid.set_val, c
+        call Grid.set_cell
+        mov Grid.ax, x
+        mov Grid.ay, y
+        mov Grid.set_val, 0
+        call Grid.set_cell
+    pb_nexty:
+        sub y, 1
+        jmp pb_y
+    pb_nx:
+        add x, 1
+        cmp x, Grid.w
+        jl pb_x
+        ret
+
+    function move_left:
+        cmp Piece.x, 0
+        jle ml_try
+        mov nx, Piece.x
+        sub nx, 1
+        mov tx, nx
+        mov ty, Piece.y
+        call test_piece
+        mov ok, ok        # no-op, ok already set
+        cmp ok, 1
+        jne ml_end
+        sub Piece.x, 1
+    ml_end:
+        ret
+    ml_try:
+        ret
+
+    function move_right:
+        mov maxx, Grid.w
+        sub maxx, 1
+        cmp Piece.x, maxx
+        jge mr_end
+        mov nx, Piece.x
+        add nx, 1
+        mov tx, nx
+        mov ty, Piece.y
+        call test_piece
+        cmp ok, 1
+        jne mr_end
+        add Piece.x, 1
+    mr_end:
+        ret
+
+    function move_down:
+        mov h3, Grid.h
+        sub h3, 3
+        cmp Piece.y, h3
+        jge md_set
+        mov ny, Piece.y
+        add ny, 1
+        mov tx, Piece.x
+        mov ty, ny
+        call test_piece
+        cmp ok, 1
+        jne md_set
+        add Piece.y, 1
+        ret
+    md_set:
+        call set_piece
+        ret
+
+    function set_piece:
+        cmp Piece.y, 0
+        jg sp_place
+        mov GameState.game_over, 1
+        call Game.new_game
+        ret
+    sp_place:
+        # b0 at (x, y)
+        mov Grid.ax, Piece.x
+        mov Grid.ay, Piece.y
+        mov Grid.set_val, Piece.b0
+        call Grid.set_cell
+
+        # b1 at (x, y+1)
+        mov y1, Piece.y
+        add y1, 1
+        mov Grid.ax, Piece.x      # ensure ax is correct each time
+        mov Grid.ay, y1
+        mov Grid.set_val, Piece.b1
+        call Grid.set_cell
+
+        # b2 at (x, y+2)
+        mov y2, Piece.y
+        add y2, 2
+        mov Grid.ax, Piece.x
+        mov Grid.ay, y2
+        mov Grid.set_val, Piece.b2
+        call Grid.set_cell
+
+        call Piece.reset_piece
+        mov Piece.y,0
+        ret
+
+    function draw_piece:
+        call chk_blocks
+        call proc_blocks
+
+        mov dx, Grid.off_x
+        mov dy, Grid.off_y
+
+        mov px, Piece.x
+        mov py, Piece.y
+
+        mov xpix, px
+        mul xpix, Grid.cell_w
+        add xpix, dx
+
+        mov ypix, py
+        mul ypix, Grid.cell_h
+        add ypix, dy
+
+        mov Grid.c, Piece.b0
+        call int_to_color
+        invoke set_draw_color, SDLCore.renderer_id, Grid.color_r, Grid.color_g, Grid.color_b, 255
+        invoke fill_rect, SDLCore.renderer_id, xpix, ypix, Grid.cell_w, Grid.cell_h
+
+        mov y2pix, ypix
+        add y2pix, Grid.cell_h
+        mov Grid.c, Piece.b1
+        call int_to_color
+        invoke set_draw_color, SDLCore.renderer_id, Grid.color_r, Grid.color_g, Grid.color_b, 255
+        invoke fill_rect, SDLCore.renderer_id, xpix, y2pix, Grid.cell_w, Grid.cell_h
+
+        mov y3pix, y2pix
+        add y3pix, Grid.cell_h
+        mov Grid.c, Piece.b2
+        call int_to_color
+        invoke set_draw_color, SDLCore.renderer_id, Grid.color_r, Grid.color_g, Grid.color_b, 255
+        invoke fill_rect, SDLCore.renderer_id, xpix, y3pix, Grid.cell_w, Grid.cell_h
+        ret
+
+    function puzzle_grid_init:
+        call Grid.alloc_grid
+        call Grid.clear_grid
+        call Piece.reset_piece
+        ret
+
+    function game_draw:
+        call SDLCore.begin_frame
+
+        # draw background if loaded
+        cmp GameState.bg_tex, 0
+        jl skbg
+        mov SDLCore.tmp_tex, GameState.bg_tex
+        call SDLCore.copy_texture_full
+    skbg:
+        call Grid.draw_grid
+        call draw_piece
+    drawn:
+        call Text.draw_score
+        call SDLCore.end_frame
+        ret
+
+    function loop:
+        call puzzle_grid_init
+    lp:
+        cmp GameState.running, 1
+        jne lpend
+        call Input.handle
+        call game_tick
+        call game_draw
+        jmp lp
+    lpend:
+        ret
+
+    function game_tick:
+        invoke get_ticks
+        return GameState.nticks
+        mov rr, GameState.nticks
+        sub rr, GameState.ticks
+        add GameState.time_tx, rr
+        mov GameState.ticks, GameState.nticks
+        cmp GameState.time_tx, GameState.game_speed
+        jle gt_done
+        call game_proc
+        mov GameState.time_tx, 0
+    gt_done:
+        ret
+
+    function game_proc:
+        call move_down
+        ret
+    }
+}
+
+object Game {
+
+    section module { string }
+
+    section object { Text, SDLCore, GameState }
+
+    section data { 
+        string title = "Puzzle Game [MXVM Edition]"
+    }
+
+    section code {
+    function init:
+        invoke strncpy,SDLCore.text_buffer, title, 256
+        mov SDLCore.x, 100
+        mov SDLCore.y, 100
+        mov SDLCore.w, 1440
+        mov SDLCore.h, 1080
+        call SDLCore.init
+
+        invoke strncpy, SDLCore.text_buffer, GameState.bg_file, 256
+        call SDLCore.load_texture_path
+        mov GameState.bg_tex, SDLCore.tmp_tex
+
+        mov GameState.game_speed, 1000
+        mov GameState.game_over, 0
+        mov GameState.score, 0
+
+        invoke get_ticks
+        return GameState.ticks
+        mov GameState.time_tx, 0
+        call Text.init
+        ret
+
+    function new_game:
+        call Grid.clear_grid
+        mov GameState.game_speed, 1000
+        mov GameState.game_over, 0
+        mov GameState.score, 0
+        call Piece.reset_piece
+        ret
+
+    function cleanup:
+        call Grid.free_grid
+        cmp GameState.bg_tex, 0
+        jl sk1
+        invoke destroy_texture, GameState.bg_tex
+    sk1:
+        call Text.release
+        call SDLCore.shutdown
+        invoke quit
+        ret
+    }
+}
+
+object Text {
+
+    section object { GameState, SDLCore }
+    section module { string }
+
+    section data {
+        export int x = 120
+        export int y = 15
+        string prefix = "Score: %lld"
+        string font_found_err = "Could not find: font.ttf\n"
+        string scorebuf, 256
+        string font_name = "font.ttf"
+        int fnt = -1
+    }
+
+    section code {
+    function init:
+        invoke init_text
+        invoke load_font, font_name, 24
+        return fnt
+        cmp fnt, 0
+        jl fnt_err
+        ret
+    fnt_err:
+        print font_found_err
+        ret
+    function release:
+        invoke quit_text
+        ret
+
+    function draw_score:
+        cmp fnt, 0
+        jl font_err
+        invoke snprintf, scorebuf, 255, prefix, GameState.score
+        # draw at (x,y)
+        invoke draw_text,SDLCore.renderer_id,fnt,scorebuf, x, y, 255, 255, 255, 255
+        ret
+    font_err:
+        print font_found_err
+        ret
+    }
+}

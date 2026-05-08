@@ -1,0 +1,41 @@
+program Fibonacci {
+    section data {
+        int n = 30
+        int a = 0
+        int b = 1
+        int temp = 0
+        int i = 2
+        string format = "%lld "
+        string newline = "\n"
+        string ask = "How many numbers do you wish to output? "
+        string range_error = "Number is out of range or negative for 64 bit integer\n"
+        string input, 256
+    }
+    section code {
+    start:
+        print ask
+        getline input
+        to_int n, input
+        cmp n, 0
+        jle out_of_range
+        cmp n, 92
+        jg out_of_range
+        print format, a
+        print format, b
+    loop:
+        cmp i, n
+        jge done_fib
+        add temp, a, b
+        mov a, b
+        mov b, temp
+        print format, b
+        add i, 1
+        jmp loop
+    done_fib:
+        print newline
+        done
+    out_of_range:
+        print range_error
+        done
+    }
+}

@@ -1,0 +1,4 @@
+/* Left-align Graphviz dot graphs */
+.dotgraph {
+    text-align: left;
+}

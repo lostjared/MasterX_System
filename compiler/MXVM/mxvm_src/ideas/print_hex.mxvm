@@ -1,0 +1,100 @@
+program PrintHex {
+
+    section module { io }
+
+    section data {
+        ptr file_handle = null
+        ptr buffer = null
+        string filename, 256
+        string read_mode = "rb"
+        int file_size = 0
+        string err_msg = "Error has occoured.\n"
+        byte character = 0
+        byte dot_char = 46 
+        string hex_value = "%02x "
+        string prompt = "Enter filename: "
+        int loop_index = 0
+        int mod_check = 0
+        string newline = "\n"
+        byte temp_char = 0
+        string character_fmt = "%c"
+        int ascii_index = 0
+        int hex_index = 0
+        int line_len = 16
+        ptr ascii_buf = null
+        string space_str = "   "
+        string ascii_fmt = "|%s|\n"
+        byte null_term = 0
+    }
+    
+    section code {
+    start:
+        print prompt
+        getline filename
+        invoke fopen, filename, read_mode
+        return file_handle
+        cmp file_handle, 0
+        je error
+        invoke fsize, file_handle
+        return file_size
+        cmp file_size, 0
+        je error
+        alloc buffer, 1, file_size
+        cmp buffer, 0
+        je error
+        alloc ascii_buf, 1, 25
+        invoke fread, buffer, 1, file_size, file_handle
+        mov loop_index, 0
+        mov ascii_index, 0
+    loop:
+        cmp loop_index, file_size
+        jge print_ascii_and_exit
+        load character, buffer, loop_index, 1
+        invoke fprintf, stdout, hex_value, character
+        mov temp_char, character
+        cmp temp_char, 32
+        jl not_printable
+        cmp temp_char, 126
+        jg not_printable
+        store character, ascii_buf,ascii_index, 1
+        jmp after_ascii
+    not_printable:
+        store dot_char, ascii_buf, ascii_index, 1
+    after_ascii:
+        add ascii_index, 1
+        mov mod_check, ascii_index
+        cmp mod_check, line_len
+        jne continue_loop
+        store null_term, ascii_buf, ascii_index, 1
+        invoke fprintf, stdout, ascii_fmt, ascii_buf
+        mov ascii_index, 0
+    continue_loop:
+        add loop_index, 1
+        jmp loop
+    print_ascii_and_exit:
+        cmp ascii_index, 0
+        je stop
+        mov hex_index, ascii_index
+    pad_hex:
+        cmp hex_index, line_len
+        jge print_last_ascii
+        invoke fprintf, stdout, space_str
+        add hex_index, 1
+        jmp pad_hex
+    print_last_ascii:
+        store null_term, ascii_buf, ascii_index, 1
+        invoke fprintf, stdout, ascii_fmt, ascii_buf
+    stop:
+        invoke fprintf, stdout, newline
+        invoke fclose, file_handle
+        free buffer
+        free ascii_buf
+        done
+    error:
+        invoke fprintf, stderr, err_msg
+        exit 1
+    }
+
+
+
+}

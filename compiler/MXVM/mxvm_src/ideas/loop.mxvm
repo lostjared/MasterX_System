@@ -1,0 +1,17 @@
+program Loop {
+    section data {
+        int x = 1
+        string value = "%d\n"
+    }
+    section code {
+        mov x, 0
+    start:
+        add x, 1
+        print value, x
+        cmp x, 0x10
+        je stop
+        jmp start
+    stop:
+        done 
+    }
+}

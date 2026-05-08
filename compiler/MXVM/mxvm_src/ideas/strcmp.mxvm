@@ -1,0 +1,18 @@
+program Compare {
+    section module { string }
+    section data {
+        string fmt = "hey the value is: %s\n"
+        string buffer, 255
+        string buffer2, 512
+        string prompt = "Enter value: "
+
+    }
+    section code {
+    start:
+        print prompt
+        getline buffer
+        invoke snprintf,buffer2,767,fmt,buffer
+        print buffer2
+        done
+    }
+}

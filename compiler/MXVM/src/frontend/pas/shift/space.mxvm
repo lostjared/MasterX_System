@@ -1,0 +1,653 @@
+program AppSkeleton {
+	section module {
+ 		sdl,
+		std
+	}
+	section data {
+		int rax = 0
+		int rbx = 0
+		int rcx = 0
+		int rdx = 0
+		int rsi = 0
+		int rdi = 0
+		int r8 = 0
+		int r9 = 0
+		int r10 = 0
+		int r11 = 0
+		int r12 = 0
+		int r13 = 0
+		int r14 = 0
+		int r15 = 0
+		ptr arg0 = null
+		string str_0 = "Space"
+		string str_1 = "font.ttf"
+		string str_2 = "Grid Shift"
+		string str_3 = "failed to init SDL"
+		string str_4 = "Could not create window"
+		string str_5 = "could not create  renderer"
+		string str_6 = "could not create render target"
+		string str_7 = "Font subsystem failed to load"
+		string str_8 = "failed to open: "
+		string fmt_str = "%s "
+		string newline = "\n"
+		ptr title = null
+		ptr filename = null
+		int running = 0
+		int event_type_result = 0
+		int window_id = 0
+		int renderer = 0
+		int target_id = 0
+		int font_id = 0
+		ptr blocks = null
+		ptr color = null
+		int setcolor_color_index = 0
+		int shift_array_left_wrap_iq = 0
+		int shift_array_left_wrap_first = 0
+		int render_ix = 0
+		int render_iy = 0
+		int render_block = 0
+		int init_array_index = 0
+		ptr init_title = null
+		int init_x = 0
+		int init_y = 0
+		int init_w = 0
+		int init_h = 0
+		int init_result = 0
+		int indexAt_xval = 0
+		int indexAt_yval = 0
+	}
+	section code {
+	start:
+		mov title, str_0
+		mov filename, str_1
+		alloc blocks, 8, 529
+		alloc color, 8, 4
+		mov arg0, title
+		mov rbx, 100
+		mov rcx, 100
+		mov rdx, 1280
+		mov rsi, 720
+		call PROC_init
+		mov rbx, 1
+		mov running, rbx
+	WHILE_0:
+		mov rcx, 1
+		mov rsi, rcx
+		cmp running, rsi
+		je CMP_TRUE_2
+		mov rdx, 0
+		jmp CMP_END_3
+	CMP_TRUE_2:
+		mov rdx, 1
+	CMP_END_3:
+		cmp rdx, 0
+		je ENDWHILE_1
+	WHILE_4:
+		invoke poll_event
+		return rsi
+		mov r8, rsi
+		cmp r8, 0
+		jne CMP_TRUE_6
+		mov rdi, 0
+		jmp CMP_END_7
+	CMP_TRUE_6:
+		mov rdi, 1
+	CMP_END_7:
+		cmp rdi, 0
+		je ENDWHILE_5
+		invoke get_event_type
+		return r8
+		mov event_type_result, r8
+		cmp event_type_result, 256
+		je CMP_TRUE_10
+		mov r9, 0
+		jmp CMP_END_11
+	CMP_TRUE_10:
+		mov r9, 1
+	CMP_END_11:
+		cmp r9, 0
+		je ELSE_8
+		mov r9, 0
+		mov running, r9
+		jmp ENDIF_9
+	ELSE_8:
+	ENDIF_9:
+		cmp event_type_result, 768
+		je CMP_TRUE_14
+		mov r9, 0
+		jmp CMP_END_15
+	CMP_TRUE_14:
+		mov r9, 1
+	CMP_END_15:
+		invoke get_key_code
+		return r10
+		mov r12, r10
+		cmp r12, 27
+		je CMP_TRUE_16
+		mov r11, 0
+		jmp CMP_END_17
+	CMP_TRUE_16:
+		mov r11, 1
+	CMP_END_17:
+		cmp r9, 0
+		je AND_ZERO_18
+		cmp r11, 0
+		je AND_ZERO_18
+		mov r10, 1
+		jmp AND_END_19
+	AND_ZERO_18:
+		mov r10, 0
+	AND_END_19:
+		cmp r10, 0
+		je ELSE_12
+		mov r9, 0
+		mov running, r9
+		jmp ENDIF_13
+	ELSE_12:
+	ENDIF_13:
+		jmp WHILE_4
+	ENDWHILE_5:
+		invoke set_draw_color, renderer, 0, 0, 0, 255
+		invoke clear, renderer
+		call PROC_render
+		invoke present_scaled, renderer, target_id, 1280, 720
+		jmp WHILE_0
+	ENDWHILE_1:
+		call PROC_cleanup
+		free blocks
+		free color
+		done
+	function PROC_setcolor:
+		mov setcolor_color_index, rbx
+		cmp setcolor_color_index, 0
+		je CASE_0_21
+		cmp setcolor_color_index, 1
+		je CASE_1_22
+		cmp setcolor_color_index, 2
+		je CASE_2_23
+		cmp setcolor_color_index, 3
+		je CASE_3_24
+		cmp setcolor_color_index, 4
+		je CASE_4_25
+		jmp CASE_END_20
+	CASE_0_21:
+		mov rbx, 0
+		mov rcx, rbx
+		cmp rcx, 0
+		jl IDX_OOB_28
+		cmp rcx, 3
+		jg IDX_OOB_28
+		jmp IDX_OK_27
+	IDX_OOB_28:
+		exit 1
+	IDX_OK_27:
+		mov rcx, 0
+		store 255, color, rcx, 8
+		mov rcx, 1
+		mov rdx, rcx
+		cmp rdx, 0
+		jl IDX_OOB_30
+		cmp rdx, 3
+		jg IDX_OOB_30
+		jmp IDX_OK_29
+	IDX_OOB_30:
+		exit 1
+	IDX_OK_29:
+		mov rdx, 1
+		store 255, color, rdx, 8
+		mov rdx, 2
+		mov rsi, rdx
+		cmp rsi, 0
+		jl IDX_OOB_32
+		cmp rsi, 3
+		jg IDX_OOB_32
+		jmp IDX_OK_31
+	IDX_OOB_32:
+		exit 1
+	IDX_OK_31:
+		mov rsi, 2
+		store 0, color, rsi, 8
+		jmp CASE_END_20
+	CASE_1_22:
+		mov rsi, 0
+		mov rdi, rsi
+		cmp rdi, 0
+		jl IDX_OOB_34
+		cmp rdi, 3
+		jg IDX_OOB_34
+		jmp IDX_OK_33
+	IDX_OOB_34:
+		exit 1
+	IDX_OK_33:
+		mov rdi, 0
+		store 255, color, rdi, 8
+		mov rdi, 1
+		mov r8, rdi
+		cmp r8, 0
+		jl IDX_OOB_36
+		cmp r8, 3
+		jg IDX_OOB_36
+		jmp IDX_OK_35
+	IDX_OOB_36:
+		exit 1
+	IDX_OK_35:
+		mov r8, 1
+		store 0, color, r8, 8
+		mov r8, 2
+		mov r9, r8
+		cmp r9, 0
+		jl IDX_OOB_38
+		cmp r9, 3
+		jg IDX_OOB_38
+		jmp IDX_OK_37
+	IDX_OOB_38:
+		exit 1
+	IDX_OK_37:
+		mov r9, 2
+		store 0, color, r9, 8
+		jmp CASE_END_20
+	CASE_2_23:
+		mov r9, 0
+		mov r10, r9
+		cmp r10, 0
+		jl IDX_OOB_40
+		cmp r10, 3
+		jg IDX_OOB_40
+		jmp IDX_OK_39
+	IDX_OOB_40:
+		exit 1
+	IDX_OK_39:
+		mov r10, 0
+		store 0, color, r10, 8
+		mov r10, 1
+		mov r11, r10
+		cmp r11, 0
+		jl IDX_OOB_42
+		cmp r11, 3
+		jg IDX_OOB_42
+		jmp IDX_OK_41
+	IDX_OOB_42:
+		exit 1
+	IDX_OK_41:
+		mov r11, 1
+		store 255, color, r11, 8
+		mov r11, 2
+		mov r12, r11
+		cmp r12, 0
+		jl IDX_OOB_44
+		cmp r12, 3
+		jg IDX_OOB_44
+		jmp IDX_OK_43
+	IDX_OOB_44:
+		exit 1
+	IDX_OK_43:
+		mov r12, 2
+		store 0, color, r12, 8
+		jmp CASE_END_20
+	CASE_3_24:
+		mov r12, 0
+		mov r13, r12
+		cmp r13, 0
+		jl IDX_OOB_46
+		cmp r13, 3
+		jg IDX_OOB_46
+		jmp IDX_OK_45
+	IDX_OOB_46:
+		exit 1
+	IDX_OK_45:
+		mov r13, 0
+		store 0, color, r13, 8
+		mov r13, 1
+		mov r14, r13
+		cmp r14, 0
+		jl IDX_OOB_48
+		cmp r14, 3
+		jg IDX_OOB_48
+		jmp IDX_OK_47
+	IDX_OOB_48:
+		exit 1
+	IDX_OK_47:
+		mov r14, 1
+		store 0, color, r14, 8
+		mov r14, 2
+		mov r15, r14
+		cmp r15, 0
+		jl IDX_OOB_50
+		cmp r15, 3
+		jg IDX_OOB_50
+		jmp IDX_OK_49
+	IDX_OOB_50:
+		exit 1
+	IDX_OK_49:
+		mov r15, 2
+		store 255, color, r15, 8
+		jmp CASE_END_20
+	CASE_4_25:
+		mov r15, 0
+		mov r10, r15
+		cmp r10, 0
+		jl IDX_OOB_52
+		cmp r10, 3
+		jg IDX_OOB_52
+		jmp IDX_OK_51
+	IDX_OOB_52:
+		exit 1
+	IDX_OK_51:
+		mov r10, 0
+		store 255, color, r10, 8
+		mov r10, 1
+		mov r11, r10
+		cmp r11, 0
+		jl IDX_OOB_54
+		cmp r11, 3
+		jg IDX_OOB_54
+		jmp IDX_OK_53
+	IDX_OOB_54:
+		exit 1
+	IDX_OK_53:
+		mov r11, 1
+		store 255, color, r11, 8
+		mov r11, 2
+		mov r12, r11
+		cmp r12, 0
+		jl IDX_OOB_56
+		cmp r12, 3
+		jg IDX_OOB_56
+		jmp IDX_OK_55
+	IDX_OOB_56:
+		exit 1
+	IDX_OK_55:
+		mov r12, 2
+		store 255, color, r12, 8
+		jmp CASE_END_20
+	CASE_END_20:
+	PROC_END_setcolor:
+		ret
+	function PROC_shift_array_left_wrap:
+		mov rbx, 0
+		load rcx, blocks, rbx, 8
+		mov shift_array_left_wrap_first, rcx
+		mov shift_array_left_wrap_iq, 0
+	FOR_57:
+		mov rbx, 527
+		cmp shift_array_left_wrap_iq, rbx
+		jg ENDFOR_58
+		mov rdx, shift_array_left_wrap_iq
+		add rdx, 1
+		mov rsi, rdx
+		load rdi, blocks, rsi, 8
+		mov rsi, shift_array_left_wrap_iq
+		mov r8, rsi
+		cmp r8, 0
+		jl IDX_OOB_61
+		cmp r8, 528
+		jg IDX_OOB_61
+		jmp IDX_OK_60
+	IDX_OOB_61:
+		exit 1
+	IDX_OK_60:
+		mov r8, shift_array_left_wrap_iq
+		store rdi, blocks, r8, 8
+	FOR_CONTINUE_59:
+		add shift_array_left_wrap_iq, 1
+		jmp FOR_57
+	ENDFOR_58:
+		mov r8, 528
+		mov r9, r8
+		cmp r9, 0
+		jl IDX_OOB_63
+		cmp r9, 528
+		jg IDX_OOB_63
+		jmp IDX_OK_62
+	IDX_OOB_63:
+		exit 1
+	IDX_OK_62:
+		mov r9, 528
+		store shift_array_left_wrap_first, blocks, r9, 8
+	PROC_END_shift_array_left_wrap:
+		ret
+	function PROC_render:
+		invoke set_render_target, renderer, target_id
+		mov render_iy, 0
+	FOR_64:
+		mov rbx, 21
+		cmp render_iy, rbx
+		jg ENDFOR_65
+		mov render_ix, 0
+	FOR_67:
+		mov rcx, 20
+		cmp render_ix, rcx
+		jg ENDFOR_68
+		mov rbx, render_ix
+		mov rcx, render_iy
+		call FUNC_indexAt
+		mov rdx, rax
+		mov rsi, rdx
+		load rdi, blocks, rsi, 8
+		mov render_block, rdi
+		mov rbx, render_block
+		call PROC_setcolor
+		mov rsi, 0
+		load r8, color, rsi, 8
+		mov rsi, 1
+		load r9, color, rsi, 8
+		mov rsi, 2
+		load r10, color, rsi, 8
+		invoke set_draw_color, renderer, r8, r9, r10, 255
+		mov rsi, render_ix
+		mul rsi, 32
+		mov r8, render_iy
+		mul r8, 16
+		invoke fill_rect, renderer, rsi, r8, 32, 16
+	FOR_CONTINUE_69:
+		add render_ix, 1
+		jmp FOR_67
+	ENDFOR_68:
+	FOR_CONTINUE_66:
+		add render_iy, 1
+		jmp FOR_64
+	ENDFOR_65:
+		invoke rand
+		return rsi
+		mov r8, rsi
+		mod r8, 255
+		invoke rand
+		return r9
+		mod r9, 255
+		invoke rand
+		return r10
+		mod r10, 255
+		invoke draw_text, renderer, font_id, str_2, 15, 15, r8, r9, r10, 255
+		call PROC_shift_array_left_wrap
+	PROC_END_render:
+		ret
+	function PROC_init_array:
+		mov init_array_index, 0
+	FOR_70:
+		mov rbx, 527
+		cmp init_array_index, rbx
+		jg ENDFOR_71
+		invoke rand
+		return rcx
+		mov rdx, rcx
+		mod rdx, 4
+		mov rsi, init_array_index
+		mov rdi, rsi
+		cmp rdi, 0
+		jl IDX_OOB_74
+		cmp rdi, 528
+		jg IDX_OOB_74
+		jmp IDX_OK_73
+	IDX_OOB_74:
+		exit 1
+	IDX_OK_73:
+		mov rdi, init_array_index
+		store rdx, blocks, rdi, 8
+	FOR_CONTINUE_72:
+		add init_array_index, 1
+		jmp FOR_70
+	ENDFOR_71:
+	PROC_END_init_array:
+		ret
+	function PROC_init:
+		mov init_title, arg0
+		mov init_x, rbx
+		mov init_y, rcx
+		mov init_w, rdx
+		mov init_h, rsi
+		invoke init
+		return rbx
+		mov init_result, rbx
+		cmp init_result, 0
+		jne CMP_TRUE_77
+		mov rcx, 0
+		jmp CMP_END_78
+	CMP_TRUE_77:
+		mov rcx, 1
+	CMP_END_78:
+		cmp rcx, 0
+		je ELSE_75
+		print fmt_str, str_3
+		print newline
+		exit 1
+		jmp ENDIF_76
+	ELSE_75:
+	ENDIF_76:
+		invoke create_window, title, init_x, init_y, init_w, init_h, 4
+		return rdx
+		mov window_id, rdx
+		mov rsi, 0
+		sub rsi, 1
+		mov r8, rsi
+		cmp window_id, r8
+		je CMP_TRUE_81
+		mov rdi, 0
+		jmp CMP_END_82
+	CMP_TRUE_81:
+		mov rdi, 1
+	CMP_END_82:
+		cmp rdi, 0
+		je ELSE_79
+		print fmt_str, str_4
+		print newline
+		invoke quit
+		exit 1
+		jmp ENDIF_80
+	ELSE_79:
+	ENDIF_80:
+		mov r8, 0
+		sub r8, 1
+		invoke create_renderer, window_id, r8, 2
+		return r9
+		mov renderer, r9
+		mov r8, 0
+		sub r8, 1
+		mov r10, r8
+		cmp renderer, r10
+		je CMP_TRUE_85
+		mov r9, 0
+		jmp CMP_END_86
+	CMP_TRUE_85:
+		mov r9, 1
+	CMP_END_86:
+		cmp r9, 0
+		je ELSE_83
+		print fmt_str, str_5
+		print newline
+		invoke destroy_window, window_id
+		invoke quit
+		exit 1
+		jmp ENDIF_84
+	ELSE_83:
+	ENDIF_84:
+		invoke create_render_target, renderer, 640, 360
+		return r9
+		mov target_id, r9
+		mov r9, 0
+		sub r9, 1
+		mov r11, r9
+		cmp target_id, r11
+		je CMP_TRUE_89
+		mov r10, 0
+		jmp CMP_END_90
+	CMP_TRUE_89:
+		mov r10, 1
+	CMP_END_90:
+		cmp r10, 0
+		je ELSE_87
+		print fmt_str, str_6
+		print newline
+		invoke destroy_window, window_id
+		invoke destroy_renderer, renderer
+		exit 1
+		invoke quit
+		jmp ENDIF_88
+	ELSE_87:
+	ENDIF_88:
+		invoke get_ticks
+		return r9
+		invoke srand, r9
+		invoke init_text
+		return r9
+		mov r11, r9
+		cmp r11, 1
+		jne CMP_TRUE_93
+		mov r10, 0
+		jmp CMP_END_94
+	CMP_TRUE_93:
+		mov r10, 1
+	CMP_END_94:
+		cmp r10, 0
+		je ELSE_91
+		print fmt_str, str_7
+		print newline
+		exit 1
+		jmp ENDIF_92
+	ELSE_91:
+	ENDIF_92:
+		invoke load_font, filename, 32
+		return r9
+		mov font_id, r9
+		mov r9, 0
+		sub r9, 1
+		mov r11, r9
+		cmp font_id, r11
+		je CMP_TRUE_97
+		mov r10, 0
+		jmp CMP_END_98
+	CMP_TRUE_97:
+		mov r10, 1
+	CMP_END_98:
+		cmp r10, 0
+		je ELSE_95
+		print fmt_str, str_8
+		print fmt_str, filename
+		print newline
+		exit 1
+		jmp ENDIF_96
+	ELSE_95:
+	ENDIF_96:
+		call PROC_init_array
+	PROC_END_init:
+		ret
+	function PROC_cleanup:
+		invoke destroy_render_target, target_id
+		invoke destroy_renderer, renderer
+		invoke destroy_window, window_id
+		invoke quit_text
+		invoke quit
+	PROC_END_cleanup:
+		ret
+	function FUNC_indexAt:
+		mov indexAt_xval, rbx
+		mov indexAt_yval, rcx
+		mov rbx, indexAt_yval
+		mul rbx, 22
+		mov rcx, rbx
+		add rcx, indexAt_xval
+		mov rax, rcx
+	FUNC_END_indexAt:
+		ret
+	}
+}
+

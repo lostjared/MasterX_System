@@ -1,0 +1,11 @@
+module io {
+    extern fopen
+    extern fclose
+    extern fprintf
+    extern fsize
+    extern fread
+    extern fwrite
+    extern fseek
+    extern rand_number
+    extern seed_rand
+}

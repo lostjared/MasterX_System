@@ -1,0 +1,30 @@
+program Sin {
+
+
+    section module { std }
+
+    section data {
+        float value1 =  0.54321
+        float return_value = 0.0
+        string format = "Argc: %lld %s\n"
+	ptr argv1 = null
+	int argc1 = 0
+	int index = 0
+    }
+
+    section code {
+    start:
+        invoke argc
+	return argc1
+	loop:
+	invoke argv, index
+	return argv1
+	print format, argc1, argv1
+	add index, 1
+	cmp index, argc1
+	jge over
+	jmp loop
+ 	over:
+	done
+    }
+}

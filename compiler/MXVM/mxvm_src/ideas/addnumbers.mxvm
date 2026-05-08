@@ -1,0 +1,21 @@
+program AddNumbers {
+	section data {
+		int x = 0
+		int y = 0
+		int result = 0
+		string ask = "Enter a number: "
+		string fmt = "The result of adding %d and %d is: %d\n"
+	}
+
+	section code {
+	start:
+		print ask
+		getline x
+		print ask
+		getline y
+		add result, x, y
+		print fmt, x, y, result
+	stop:
+		done
+	}
+}

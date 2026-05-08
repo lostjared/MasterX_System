@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MXVM Instruction Quick Reference</title>
+<style>
+  body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Arial; background:#0f172a;color:#e6eef8;padding:24px}
+  h1{color:#ff5252}
+  table{width:100%;border-collapse:collapse;margin-top:12px}
+  th,td{padding:10px;border:1px solid #233042;vertical-align:top}
+  th{background:#172033;color:#fff;text-align:left}
+  td.sample{font-family:monospace;background:#06111a;color:#bfe3ff}
+  .note{color:#9fb6c8;font-size:0.95em}
+  .muted{color:#7f98a8}
+  .col-op{width:18%}
+  .col-effect{width:40%}
+  .col-example{width:22%}
+</style>
+</head>
+<body>
+  <h1>MXVM Instruction Quick Reference</h1>
+  <p class="note">Complete instruction list is defined in  MXVM/include/mxvm/instruct.hpp See language reference in MXVM/README.md.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Instruction</th>
+        <th class="col-op">Operands</th>
+        <th class="col-effect">What it does</th>
+        <th class="col-example">Example</th>
+        <th class="muted">Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>mov</td><td class="col-op">dest, src</td><td>Copy <code>src</code> → <code>dest</code>. src can be immediate, variable or load result.</td><td class="sample">mov counter, 1</td><td class="muted">Used for assignments. dest must be a variable.</td></tr>
+
+      <tr><td>load</td><td class="col-op">dest, base, index, size</td><td>Read memory: dest = *(base + index*size). Size in bytes (1/4/8 typical).</td><td class="sample">load ch, buffer, idx, 1</td><td class="muted">Base can be pointer variable; index immediate or var.</td></tr>
+
+      <tr><td>store</td><td class="col-op">src, base, index, size</td><td>Write memory: *(base + index*size) = src.</td><td class="sample">store zero, arr, i, 1</td><td class="muted">Be careful with allocated buffer sizes.</td></tr>
+
+      <tr><td>add</td><td class="col-op">dest, a, b (or dest, a)</td><td>dest = a + b. Two-operand form (dest,a) adds a to dest (in-place).</td><td class="sample">add acc, acc, 1</td><td class="muted">Supports 2 or 3 operands; validator allows both.</td></tr>
+
+      <tr><td>sub</td><td class="col-op">dest, a, b (or dest, a)</td><td>dest = a - b or dest = dest - a for 2-arg form.</td><td class="sample">sub x, x, 1</td><td class="muted">Use for decrement ops.</td></tr>
+
+      <tr><td>mul</td><td class="col-op">dest, a, b (or dest, a)</td><td>dest = a * b (or multiply dest by a).</td><td class="sample">mul r, a, b</td><td class="muted">Strength-reduction possible at codegen.</td></tr>
+
+      <tr><td>div</td><td class="col-op">dest, a, b</td><td>dest = a / b (integer division if ints).</td><td class="sample">div q, n, d</td><td class="muted">Division / modulo use idiv/imul sequences in backend.</td></tr>
+
+      <tr><td>or</td><td class="col-op">dest, a, b</td><td>Bitwise OR. dest = a | b.</td><td class="sample">or flags, flags, mask</td><td class="muted">Logical bit ops available: and, xor</td></tr>
+
+      <tr><td>and</td><td class="col-op">dest, a, b</td><td>Bitwise AND. dest = a & b.</td><td class="sample">and mask, val, 0xff</td><td class="muted">Often used for masking.</td></tr>
+
+      <tr><td>xor</td><td class="col-op">dest, a, b</td><td>Bitwise XOR. xor can also be used to clear a register (xor r,r).</td><td class="sample">xor t, a, b</td><td class="muted">Codegen may replace mov $0 with xor for zeroing.</td></tr>
+
+      <tr><td>not</td><td class="col-op">dest, a</td><td>Bitwise NOT: dest = ~a.</td><td class="sample">not r, x</td><td class="muted">Unary bitwise invert.</td></tr>
+
+      <tr><td>mod</td><td class="col-op">dest, a, b</td><td>dest = a % b.</td><td class="sample">mod r, a, 2</td><td class="muted">Implemented using idiv remainder in codegen.</td></tr>
+
+      <tr><td>cmp</td><td class="col-op">a, b</td><td>Set CPU flags by computing a - b for conditional jumps.</td><td class="sample">cmp x, 0</td><td class="muted">Follow with je/jl/jg/etc.</td></tr>
+
+      <tr><td>jmp</td><td class="col-op">label</td><td>Unconditional jump to label.</td><td class="sample">jmp loop_start</td><td class="muted">Label must exist (or be extern if qualified).</td></tr>
+
+      <tr><td>je / jne / jl / jle / jg / jge / jz / jnz / ja / jb</td><td class="col-op">label</td><td>Conditional jumps that depend on flags set by last cmp (or arithmetic).</td><td class="sample">je equal_case</td><td class="muted">Signed comparisons use jl/jg; unsigned use ja/jb.</td></tr>
+
+      <tr><td>print</td><td class="col-op">fmt, args...</td><td>Formatted output (like printf). First operand is format string variable/name.</td><td class="sample">print fmt, x, y</td><td class="muted">Codegen: see <code>Program::gen_print</code>.</td></tr>
+
+      <tr><td>string_print</td><td class="col-op">ptr</td><td>Print raw string at pointer/variable (no format).</td><td class="sample">string_print msg</td><td class="muted">Simpler than print; used for direct strings.</td></tr>
+
+      <tr><td>exit</td><td class="col-op">code</td><td>Terminate VM/program with return code.</td><td class="sample">exit 1</td><td class="muted">Generates exit/leave/ret sequences.</td></tr>
+
+      <tr><td>alloc</td><td class="col-op">ptr_var, size, count</td><td>Allocate memory: ptr_var = calloc(count, size) or similar.</td><td class="sample">alloc buffer,1,256</td><td class="muted">Backend calls calloc; pointer stored in ptr_var.</td></tr>
+
+      <tr><td>free</td><td class="col-op">ptr</td><td>Free allocated pointer.</td><td class="sample">free buffer</td><td class="muted">Backend emits free call.</td></tr>
+
+      <tr><td>getline</td><td class="col-op">dest_ptr</td><td>Read a line into buffer. Ensures NUL-termination—see codegen.</td><td class="sample">getline input</td><td class="muted">See <code>Program::gen_getline</code></td></tr>
+
+      <tr><td>push</td><td class="col-op">value</td><td>Push value onto VM stack.</td><td class="sample">push x</td><td class="muted">Value can be immediate or var; used with pop.</td></tr>
+
+      <tr><td>pop</td><td class="col-op">dest</td><td>Pop top of stack into dest variable.</td><td class="sample">pop r</td><td class="muted">dest must be variable.</td></tr>
+
+      <tr><td>stack_load</td><td class="col-op">dest, offset</td><td>Load from internal stack at offset into dest.</td><td class="sample">stack_load v, 4</td><td class="muted">Used for stack access separate from push/pop.</td></tr>
+
+      <tr><td>stack_store</td><td class="col-op">src, offset</td><td>Store src into internal stack at offset.</td><td class="sample">stack_store x, 2</td><td class="muted">Index semantics: check VM stack implementation.</td></tr>
+
+      <tr><td>stack_sub</td><td class="col-op">amount</td><td>Adjust stack pointer (allocate/deallocate) by <code>amount</code>.</td><td class="sample">stack_sub 16</td><td class="muted">Used to reserve space for locals.</td></tr>
+
+      <tr><td>call</td><td class="col-op">label or Obj.Function</td><td>Call internal function label or object-qualified function.</td><td class="sample">call Utils.print_line</td><td class="muted">Labels that are external should be registered as externs.</td></tr>
+
+      <tr><td>ret</td><td class="col-op">(none)</td><td>Return from current function to caller.</td><td class="sample">ret</td><td class="muted">Follow 'call' / function conventions.</td></tr>
+
+      <tr><td>done</td><td class="col-op">(none)</td><td>Program termination - normal exit (maps to gen_done).</td><td class="sample">done</td><td class="muted">Emits zero return; leave; ret.</td></tr>
+
+      <tr><td>to_int</td><td class="col-op">dest, ptr</td><td>Convert string at ptr to integer and store in dest.</td><td class="sample">to_int n, s</td><td class="muted">Uses standard library conversion at runtime/codegen.</td></tr>
+
+      <tr><td>to_float</td><td class="col-op">dest, ptr</td><td>Convert string to float and place in dest.</td><td class="sample">to_float f, s</td><td class="muted">See runtime conversion helpers.</td></tr>
+
+      <tr><td>invoke</td><td class="col-op">func, args...</td><td>Call external/C function (module functions). Use return to fetch return value into variable.</td><td class="sample">invoke strlen, strptr</td><td class="muted">See codegen/invoke implementation: registers & stack arranged for C ABI.</td></tr>
+
+      <tr><td>return</td><td class="col-op">var</td><td>Return a value from an 'invoke' target back into caller context (used with invoke/externs).</td><td class="sample">return rval</td><td class="muted">Stores return into variable (gen_return writes %rax into variable).</td></tr>
+
+      <tr><td>neg</td><td class="col-op">dest, a</td><td>dest = -a (arithmetic negation).</td><td class="sample">neg r, x</td><td class="muted">Unary arithmetic negation.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:18px">Quick tips</h2>
+  <ul class="muted">
+    <li>Memory ops: <code>load</code>/<code>store</code> use <code>base + index*size</code>. Always ensure buffer allocated (see <code>alloc</code>).</li>
+    <li>Control flow: use <code>cmp</code> before conditional jumps (<code>je/jne/jl/...</code>).</li>
+    <li>I/O: prefer <code>print</code> for formatted output and <code>string_print</code> for raw strings. See <code>Program::gen_print</code> in   icode_gen.cpp.</li>
+    <li>External calls: <code>invoke</code> calls into modules/C libraries; declare externs/objects so linker resolves symbols.</li>
+    <li>Stack discipline: pair <code>push</code>/<code>pop</code> and track locals with <code>stack_sub</code>.</li>
+  </ul>
+
+  <p class="note" style="margin-top:14px">Use this sheet together with the authoritative definitions in include/mxvm/instruct.hpp and examples in README.md</p>
+</body>
+</html>

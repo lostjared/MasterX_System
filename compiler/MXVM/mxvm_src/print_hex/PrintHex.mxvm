@@ -1,0 +1,11 @@
+program PrintHex {
+    section object { HexFile }
+    section data {
+
+    }
+    section code {
+    start:
+        call HexFile.start_hex
+        done    
+    }
+}

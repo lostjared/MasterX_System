@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MXVM Runtime Modules Reference — io, std, string</title>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#0f1620; --muted:#c9d1d9; --text:#e6edf3; --accent:#67e8f9; --grid:#1b2430; --ok:#10b981; --warn:#f59e0b; --danger:#ef4444;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:15px/1.5 var(--sans)}
+header{position:sticky;top:0;background:linear-gradient(180deg,var(--panel),rgba(15,22,32,.9));backdrop-filter:blur(6px);border-bottom:1px solid #1e293b;z-index:10}
+.container{max-width:1100px;margin:0 auto;padding:22px}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:20px;margin:28px 0 12px}
+p.lead{margin:6px 0 0;color:#9fb3c8}
+.search{margin-top:12px}
+input[type=search]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #233041;background:#0b1220;color:var(--text)}
+table{width:100%;border-collapse:separate;border-spacing:0 6px;margin:10px 0}
+thead th{text-align:left;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#9fb3c8;padding:8px 10px}
+tbody tr{background:var(--panel);border:1px solid #1e293b}
+tbody td{padding:10px 10px;border-top:1px solid #1e293b}
+tbody tr:hover{outline:1px solid #2dd4bf}
+code{font-family:var(--mono);background:#0a1220;padding:2px 6px;border-radius:6px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #1e293b;background:#0b1220;color:#9fb3c8}
+.rtype.integer{color:#fcd34d}
+.rtype.float{color:#60a5fa}
+.rtype.pointer{color:#34d399}
+.rtype.none{color:#9fb3c8}
+.section{margin-top:28px}
+pre{background:#0b1220;border:1px solid #1e293b;border-radius:10px;padding:12px;overflow:auto}
+small.note{color:#9fb3c8}
+.footer{opacity:.7;margin-top:24px;border-top:1px solid #1e293b;padding-top:14px}
+</style>
+<script>
+function filterRows(){
+  const q = document.getElementById('q').value.toLowerCase();
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const text = tr.innerText.toLowerCase();
+    tr.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+</script>
+</head>
+<body>
+<header>
+  <div class="container">
+    <h1>MXVM Runtime Modules Reference</h1>
+    <p class="lead">Functions callable with <code>invoke</code> from the <span class="badge">io</span>, <span class="badge">std</span>, and <span class="badge">string</span> modules.</p>
+    <div class="search"><input id="q" type="search" placeholder="Filter by function, module, return type… (e.g. pointer, fread, math)" oninput="filterRows()" /></div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="section">
+    <h2>How to Call & Capture Returns</h2>
+    <pre>invoke fopen, filename, mode
+return file_ptr
+
+invoke strlen, my_str
+return len</pre>
+    <small class="note">
+      All foreign calls place their result in <code>%rax</code>. In MXVM, you persist it into a variable using <code>return &lt;var&gt;</code> immediately after the <code>invoke</code>.
+    </small>
+
+    <h3>Value Types</h3>
+    <p><code>INTEGER</code> = 64‑bit signed integer, <code>FLOAT</code> = 64‑bit floating point, <code>POINTER</code> = opaque pointer/handle (e.g., <code>FILE*</code>), <code>—</code> = no defined return.</p>
+  </div>
+
+  <div class="section">
+    <h2>Module: io</h2>
+    <table>
+      <thead><tr><th>Function</th><th>Params</th><th>Returns</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>fopen</code></td><td>2</td><td><span class='rtype pointer'>POINTER</span></td><td>Open a file. args: (filename:string var, mode:string var). Returns FILE* handle.</td></tr>
+<tr><td><code>fprintf</code></td><td>≥2</td><td><span class='rtype none'>—</span></td><td>Formatted write to FILE*. args: (fileptr, format, ...). No defined return.</td></tr>
+<tr><td><code>fclose</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>Close FILE*. Returns 0 on success.</td></tr>
+<tr><td><code>fsize</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>Return file length in bytes for FILE* (seeks to end and back).</td></tr>
+<tr><td><code>fread</code></td><td>4</td><td><span class='rtype integer'>INTEGER</span></td><td>Read from FILE* into buffer pointer. args: (dst_ptr, size, count, fileptr). Returns items read.</td></tr>
+<tr><td><code>fwrite</code></td><td>4</td><td><span class='rtype integer'>INTEGER</span></td><td>Write from buffer to FILE*. args: (src_ptr, size, count, fileptr). Returns items written.</td></tr>
+<tr><td><code>fseek</code></td><td>3</td><td><span class='rtype integer'>INTEGER</span></td><td>Seek within FILE*. args: (fileptr, offset, whence). Returns 0 on success.</td></tr>
+<tr><td><code>rand_number</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>Random integer in [0, max). arg: max (const or int var).</td></tr>
+<tr><td><code>seed_random</code></td><td>0</td><td><span class='rtype integer'>INTEGER</span></td><td>Seed RNG with current time. Returns 0.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Module: std</h2>
+    <table>
+      <thead><tr><th>Function</th><th>Params</th><th>Returns</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>abs</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>Absolute value (int).</td></tr>
+<tr><td><code>fabs</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Absolute value (float).</td></tr>
+<tr><td><code>sqrt</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: sqrt</td></tr>
+<tr><td><code>pow</code></td><td>2</td><td><span class='rtype float'>FLOAT</span></td><td>Math: pow</td></tr>
+<tr><td><code>sin</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: sin</td></tr>
+<tr><td><code>cos</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: cos</td></tr>
+<tr><td><code>tan</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: tan</td></tr>
+<tr><td><code>floor</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: floor</td></tr>
+<tr><td><code>ceil</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: ceil</td></tr>
+<tr><td><code>rand</code></td><td>0</td><td><span class='rtype integer'>INTEGER</span></td><td>Random integer from std::rand().</td></tr>
+<tr><td><code>srand</code></td><td>1</td><td><span class='rtype none'>—</span></td><td>Seed std::rand(seed).</td></tr>
+<tr><td><code>malloc</code></td><td>1</td><td><span class='rtype pointer'>POINTER</span></td><td>Allocate memory; returns pointer.</td></tr>
+<tr><td><code>calloc</code></td><td>2</td><td><span class='rtype pointer'>POINTER</span></td><td>Allocate memory; returns pointer.</td></tr>
+<tr><td><code>free</code></td><td>1</td><td><span class='rtype none'>—</span></td><td>Free memory pointer.</td></tr>
+<tr><td><code>toupper</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>C ctype toupper.</td></tr>
+<tr><td><code>tolower</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>C ctype tolower.</td></tr>
+<tr><td><code>isalpha</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>C ctype isalpha.</td></tr>
+<tr><td><code>isdigit</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>C ctype isdigit.</td></tr>
+<tr><td><code>isspace</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>C ctype isspace.</td></tr>
+<tr><td><code>atoi</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>Convert string to int (string var or pointer).</td></tr>
+<tr><td><code>atof</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Convert string to double (string var or pointer).</td></tr>
+<tr><td><code>exit</code></td><td>variable</td><td><span class='rtype none'>—</span></td><td>Terminate the program with exit code.</td></tr>
+<tr><td><code>system</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>Execute shell command string; returns exit code.</td></tr>
+<tr><td><code>memcpy</code></td><td>3</td><td><span class='rtype pointer'>POINTER</span></td><td>C memory memcpy.</td></tr>
+<tr><td><code>memcmp</code></td><td>3</td><td><span class='rtype integer'>INTEGER</span></td><td>C memory memcmp.</td></tr>
+<tr><td><code>memmove</code></td><td>3</td><td><span class='rtype pointer'>POINTER</span></td><td>C memory memmove.</td></tr>
+<tr><td><code>memset</code></td><td>3</td><td><span class='rtype pointer'>POINTER</span></td><td>C memory memset.</td></tr>
+<tr><td><code>exp</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: exp</td></tr>
+<tr><td><code>exp2</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: exp2</td></tr>
+<tr><td><code>log</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: log</td></tr>
+<tr><td><code>log10</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: log10</td></tr>
+<tr><td><code>log2</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: log2</td></tr>
+<tr><td><code>fmod</code></td><td>2</td><td><span class='rtype float'>FLOAT</span></td><td>Math: fmod</td></tr>
+<tr><td><code>atan2</code></td><td>2</td><td><span class='rtype float'>FLOAT</span></td><td>Math: atan2</td></tr>
+<tr><td><code>asin</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: asin</td></tr>
+<tr><td><code>acos</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: acos</td></tr>
+<tr><td><code>atan</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: atan</td></tr>
+<tr><td><code>sinh</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: sinh</td></tr>
+<tr><td><code>cosh</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: cosh</td></tr>
+<tr><td><code>tanh</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: tanh</td></tr>
+<tr><td><code>hypot</code></td><td>2</td><td><span class='rtype float'>FLOAT</span></td><td>Math: hypot</td></tr>
+<tr><td><code>round</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: round</td></tr>
+<tr><td><code>trunc</code></td><td>1</td><td><span class='rtype float'>FLOAT</span></td><td>Math: trunc</td></tr>
+<tr><td><code>argc</code></td><td>0</td><td><span class='rtype integer'>INTEGER</span></td><td>Return number of program arguments.</td></tr>
+<tr><td><code>argv</code></td><td>1</td><td><span class='rtype pointer'>POINTER</span></td><td>Return pointer to Nth argv string. arg: index.</td></tr>
+<tr><td><code>free_program_args</code></td><td>0</td><td><span class='rtype none'>—</span></td><td>Free memory allocated by set_program_args.</td></tr>
+<tr><td><code>set_program_args</code></td><td>2</td><td><span class='rtype none'>—</span></td><td>Install argc/argv for later argc/argv calls.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Module: string</h2>
+    <table>
+      <thead><tr><th>Function</th><th>Params</th><th>Returns</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>strlen</code></td><td>1</td><td><span class='rtype integer'>INTEGER</span></td><td>Length of a string or C-string pointer.</td></tr>
+<tr><td><code>strcmp</code></td><td>2</td><td><span class='rtype integer'>INTEGER</span></td><td>Compare two strings (string var or char* ptr). Returns &lt;0, 0, &gt;0.</td></tr>
+<tr><td><code>strncpy</code></td><td>3</td><td><span class='rtype integer'>INTEGER</span></td><td>Copy up to n chars. args: (dest, src, n). Returns n.</td></tr>
+<tr><td><code>strncat</code></td><td>3</td><td><span class='rtype integer'>INTEGER</span></td><td>Append up to n chars. args: (dest, src, n). Returns n.</td></tr>
+<tr><td><code>snprintf</code></td><td>≥4</td><td><span class='rtype integer'>INTEGER</span></td><td>Printf-style into dest with size. args: (dest, size, fmt, ...). Returns output length.</td></tr>
+<tr><td><code>strfind</code></td><td>3</td><td><span class='rtype integer'>INTEGER</span></td><td>Find substring. args: (haystack, needle, start). Returns index or -1.</td></tr>
+<tr><td><code>substr</code></td><td>5</td><td><span class='rtype integer'>INTEGER</span></td><td>Extract substring into dest. args: (dest, maxsize, src, pos, len). Returns length.</td></tr>
+<tr><td><code>strat</code></td><td>2</td><td><span class='rtype integer'>INTEGER</span></td><td>Return character code at index. args: (string_var, index).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Examples</h2>
+    <pre># Open a file and print a line
+invoke fopen, filename, mode
+return fp
+invoke snprintf, buf, 256, fmt, value
+return out_len
+invoke fprintf, fp, fmt_str, buf
+invoke fclose, fp
+return rc
+
+# Allocate and zero a buffer
+invoke malloc, 4096
+return buf
+invoke memset, buf, 0, 4096
+return _
+</pre>
+  </div>
+
+  <div class="footer">
+    Generated from your repository’s <code>modules/io/*.cpp</code>, <code>modules/std/*.cpp</code>, and <code>modules/string/*.cpp</code>.
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,76 @@
+module sdl {
+    extern init
+    extern quit
+
+    extern create_window
+    extern destroy_window
+    extern set_window_title
+    extern set_window_position
+    extern get_window_size
+    extern set_window_fullscreen
+    extern set_window_icon
+
+    extern create_renderer
+    extern destroy_renderer
+    extern set_draw_color
+    extern clear
+    extern present
+    extern get_renderer_output_size
+
+    extern draw_point
+    extern draw_line
+    extern draw_rect
+    extern fill_rect
+
+    extern poll_event
+    extern get_event_type
+    extern get_key_code
+    extern get_mouse_x
+    extern get_mouse_y
+    extern get_mouse_button
+    extern get_mouse_buttons
+    extern get_relative_mouse_x
+    extern get_relative_mouse_y
+    extern get_relative_mouse_buttons
+
+    extern create_rgb_surface
+    extern free_surface
+    extern blit_surface
+
+    extern get_mouse_state
+    extern get_relative_mouse_state
+
+    extern get_keyboard_state
+    extern is_key_pressed
+    extern get_num_keys
+
+    extern set_clipboard_text
+    extern get_clipboard_text
+
+    extern show_cursor
+
+    extern create_texture
+    extern destroy_texture
+    extern load_texture
+    extern render_texture
+    extern update_texture
+    extern lock_texture
+    extern unlock_texture
+
+    extern get_ticks
+    extern delay
+
+    extern open_audio
+    extern close_audio
+    extern pause_audio
+    extern load_wav
+    extern free_wav
+    extern queue_audio
+    extern get_queued_audio_size
+    extern clear_queued_audio
+
+    extern init_text
+    extern quit_text
+    extern load_font
+    extern draw_text
+}

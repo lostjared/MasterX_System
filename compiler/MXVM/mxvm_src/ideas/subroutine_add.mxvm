@@ -1,0 +1,23 @@
+program SubroutineAdd {
+	section data {
+        int rax = 0
+        int rsi = 0
+        int rdi = 0
+        string message = "enter a number: "
+        string output = "the value is: %d + %d = %d\n"
+ 	}
+
+	section code {
+	start:
+        mov rsi, 5
+        call add_to
+        print output, rdi, rsi, rax
+    stop:
+        done
+    function add_to:
+        print message
+        getline rdi
+        add rax, rdi, rsi
+        ret
+	}
+}

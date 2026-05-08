@@ -1,0 +1,31 @@
+object Input {
+
+    section object { SDLCore, Game }
+
+    section data {
+        export int event_type = 0
+        export int key = 0
+        export int last_key = -1
+        export int SDLK_ESCAPE = 27
+    }
+    section code {
+    function handle:
+        call SDLCore.poll_one_event
+        mov event_type, SDLCore.last_event_type
+        cmp event_type, 0
+        je ih_ret
+        cmp event_type, 256
+        je do_quit
+        cmp event_type, 768
+        jne ih_ret
+        mov key, SDLCore.last_key_code
+        mov last_key, key
+        cmp key, SDLK_ESCAPE
+        je do_quit
+        jmp ih_ret
+    do_quit:
+        mov Game.running, 0
+    ih_ret:
+        ret
+    }
+}

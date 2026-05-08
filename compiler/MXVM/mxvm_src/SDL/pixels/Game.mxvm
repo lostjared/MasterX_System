@@ -1,0 +1,68 @@
+object Game {
+    section object { SDLCore, Text, Input }
+    section data {
+        export int running = 1
+        int delay_ms = 1
+        int x = 0 
+        int y = 0
+        int rand_r = 0
+        int rand_g = 0
+        int rand_b = 0
+    }
+    section code {
+    function init:
+        invoke seed_random
+        call SDLCore.init
+        call Text.init
+        ret
+    function cleanup:
+        call Text.release
+        call SDLCore.shutdown
+        invoke quit
+        ret
+    function frame:
+        call SDLCore.begin_frame
+        call draw_pixels
+        call Text.draw
+        call SDLCore.end_frame
+        ret
+    function loop:
+        mov running, 1
+    lp:
+        cmp running, 1
+        jne lpend
+    ev:
+        call Input.handle
+        cmp Input.event_type, 0
+        jne ev
+        call frame
+        invoke delay, delay_ms
+        jmp lp
+    lpend:
+        ret
+    function draw_pixels:
+        mov x, 0
+        px_row:
+        cmp x, 640
+        jge px_end
+        mov y, 0
+        px_col:
+        cmp y, 480
+        jge px_next_row
+        invoke rand_number, 255
+        return rand_r
+        invoke rand_number, 255
+        return rand_g
+        invoke rand_number, 255
+        return rand_b
+        invoke set_draw_color, SDLCore.renderer_id, rand_r, rand_g, rand_b, 255
+        invoke draw_point, SDLCore.renderer_id, x, y
+        add y,1
+        jmp px_col
+        px_next_row:
+        add x,1
+        jmp px_row
+        px_end:
+        ret
+    }
+}

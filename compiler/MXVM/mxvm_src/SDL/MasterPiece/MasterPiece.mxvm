@@ -1,0 +1,1222 @@
+program MasterPiece {
+    section module { sdl, string, io }
+    section data {
+        string message = "MasterPiece: Init\n"
+    }
+    section object { SDLCore, Assets, Screen, Input, Board, UI, Game }
+    section code {
+    start:
+        call SDLCore.init
+        call Assets.load_data
+        invoke seed_random
+        call Board.init
+        mov Screen.screen, 0
+        call UI.init
+        print message
+        call Game.loop
+        call SDLCore.cleanup
+        done
+    }
+}
+
+
+object SDLCore {
+    section module { sdl }
+    section data {
+        export string title = "MasterPiece - [MXVM Edition]"
+        export int x = 100
+        export int y = 100
+        export int w = 640
+        export int h = 480
+        export int flags = 0
+        export int window_id = 0
+        export int renderer_id = 0
+        export int event_type = 0
+        export int last_key = 0
+        export int last_btn = 0
+        export int last_x = 0
+        export int last_y = 0
+        export int tick = 0
+        export int prev_tick = 0
+        export int dt = 0
+        export int running = 1
+        export int bg_r = 0
+        export int bg_g = 0
+        export int bg_b = 0
+        export int last_event_type = 0
+        export int last_key_code = 0
+        export int last_mouse_btn = 0
+        export int last_mouse_x = 0
+        export int last_mouse_y = 0
+        export int target_id = -1
+        export int target_w = 1440
+        export int target_h = 1080
+    }
+    section code {
+    function init:
+        invoke init
+        invoke create_window, title, x, y, target_w, target_h, flags
+        return window_id
+        invoke create_renderer, window_id, -1, 0
+        return renderer_id
+        invoke create_render_target, renderer_id, w, h
+        return target_id
+        ret
+    function begin_frame:
+        invoke set_render_target, renderer_id, target_id
+        invoke set_draw_color, renderer_id, bg_r, bg_g, bg_b, 255
+        invoke clear, renderer_id
+        ret
+    function end_frame:
+        invoke present_scaled, renderer_id, target_id, target_w, target_h
+        ret
+    function poll_one_event:
+        invoke poll_event
+        return last_event_type
+        cmp last_event_type, 0
+        je pe_ret
+        invoke get_event_type
+        return last_event_type
+        cmp last_event_type, 768
+        je pe_key
+        cmp last_event_type, 769
+        je pe_key
+        cmp last_event_type, 256
+        je pe_ret
+        cmp last_event_type, 1025
+        je pe_mouse
+        cmp last_event_type, 1026
+        je pe_mouse
+        jmp pe_ret
+    pe_key:
+        invoke get_key_code
+        return last_key_code
+        jmp pe_ret
+    pe_mouse:
+        invoke get_mouse_button
+        return last_mouse_btn
+        invoke get_mouse_x
+        return last_mouse_x
+        invoke get_mouse_y
+        return last_mouse_y
+        jmp pe_ret
+    pe_ret:
+        ret
+    function ticks:
+        invoke get_ticks
+        return tick
+        mov dt, tick
+        sub dt, prev_tick
+        mov prev_tick, tick
+        ret
+    function delayms:
+        invoke delay, 8
+        ret
+    function cleanup:
+        cmp target_id, -1
+        jle skip_destroy_target
+        invoke destroy_render_target, target_id
+    skip_destroy_target:
+        invoke destroy_renderer, renderer_id
+        invoke destroy_window, window_id
+        invoke quit
+        exit 0
+        ret
+    }
+}
+
+object Screen {
+    section data {
+        export int screen = 0
+    }
+}
+
+object Assets {
+    section object { SDLCore }
+    section module { sdl, string }
+    section data {
+        export string path_intro = "img/intro.bmp"
+        export string path_start = "img/start.bmp"
+        export string path_cursor = "img/cursor.bmp"
+        export string path_bg = "img/gamebg.bmp"
+        export string blk_red = "img/block_red.bmp"
+        export string blk_orange = "img/block_orange.bmp"
+        export string blk_yellow = "img/block_yellow.bmp"
+        export string blk_green = "img/block_green.bmp"
+        export string blk_ltblue = "img/block_ltblue.bmp"
+        export string blk_dblue = "img/block_dblue.bmp"
+        export string blk_purple = "img/block_purple.bmp"
+        export string blk_pink = "img/block_pink.bmp"
+        export int tex_intro = 0
+        export int tex_start = 0
+        export int tex_cursor = 0
+        export int tex_bg = 0
+        export int tex0 = 0
+        export int tex1 = 0
+        export int tex2 = 0
+        export int tex3 = 0
+        export int tex4 = 0
+        export int tex5 = 0
+        export int tex6 = 0
+        export int tex7 = 0
+        string err_texture = "Failed texture\n"
+        int rax = 0
+    }
+    section code {
+    function load_data:
+        invoke load_texture, SDLCore.renderer_id, blk_red
+        return tex0
+        cmp tex0, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, blk_orange
+        return tex1
+        cmp tex1, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, blk_yellow
+        return tex2
+        cmp tex2, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, blk_green
+        return tex3
+        cmp tex3, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, blk_ltblue
+        return tex4
+        cmp tex4, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, blk_dblue
+        return tex5
+        cmp tex5, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, blk_purple
+        return tex6
+        cmp tex6, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, blk_pink
+        return tex7
+        cmp tex7, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, path_intro
+        return tex_intro
+        cmp tex_intro, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, path_start
+        return tex_start
+        cmp tex_start, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, path_cursor
+        return tex_cursor
+        cmp tex_cursor, 0
+        jl err
+        invoke load_texture, SDLCore.renderer_id, path_bg
+        return tex_bg
+        cmp tex_bg, 0
+        jl err
+        ret
+    err:
+        print err_texture
+        exit 1
+        ret
+    function getBlockTex:
+        cmp rax, 0
+        je r0
+        cmp rax, 1
+        je r1
+        cmp rax, 2
+        je r2
+        cmp rax, 3
+        je r3
+        cmp rax, 4
+        je r4
+        cmp rax, 5
+        je r5
+        cmp rax, 6
+        je r6
+        mov rax, tex7
+        ret
+    r0:
+        mov rax, tex0
+        ret
+    r1:
+        mov rax, tex1
+        ret
+    r2:
+        mov rax, tex2
+        ret
+    r3:
+        mov rax, tex3
+        ret
+    r4:
+        mov rax, tex4
+        ret
+    r5:
+        mov rax, tex5
+        ret
+    r6:
+        mov rax, tex6
+        ret
+    }
+}
+
+object Input {
+    section module { sdl }
+    section data {
+        export int event = 0
+        export int type = 0
+        export int key = 0
+        export int mx = 0
+        export int my = 0
+        export int btn = 0
+    }
+    section code {
+    function poll:
+        invoke poll_event
+        return event
+        mov type, event
+        ret
+    function readKey:
+        invoke get_key_code
+        return key
+        ret
+    function readMouse:
+        invoke get_mouse_x
+        return mx
+        invoke get_mouse_y
+        return my
+        invoke get_mouse_button
+        return btn
+        ret
+    }
+}
+
+object Board {
+    section object { SDLCore, Assets }
+    section module { sdl, string }
+    section data {
+        export int cols = 8
+        export int rows = 17
+        export int cell_w = 32
+        export int cell_h = 16
+        export int ox = 182
+        export int oy = 94
+        export ptr data = null
+        export ptr marks = null
+        export int size = 0
+        export int cx = 3
+        export int cy = 0
+        export int piece_x = 3
+        export int piece_y = 0
+        export int piece_color1 = 1
+        export int piece_color2 = 2
+        export int piece_color3 = 3
+        export int next_color1 = 4
+        export int next_color2 = 5
+        export int next_color3 = 6
+        export int drop_timer = 0
+        export int drop_delay = 60
+        export int game_over = 0
+        export int score = 0
+        export int points_per_block = 10
+        export int next_ox = 520
+        export int next_oy = 200
+        export int match_found = 0
+        export int t_col = 0
+        export int t_row = 0
+        export int t_write = 0
+        export int t_idx = 0
+        export int t_idxw = 0
+        export int t_val = 0
+        int rax = 0
+        int rcx = 0
+        int rdx = 0
+        int r6 = 0
+        int r7 = 0
+        int r8 = 0
+        int r9 = 0
+        int r10 = 0
+        int r11 = 0
+        int r12 = 0
+        int r13 = 0
+        int r14 = 0
+        int r15 = 0
+    }
+    section code {
+    function init:
+        
+        mov size, cols
+        mul size, rows
+        mov rax, size
+        alloc data, size, 8
+        mov rax, size
+        alloc marks, rax, 8
+        mov score, 0
+        invoke rand_number, 7
+        return next_color1
+        add next_color1, 1
+        invoke rand_number, 7
+        return next_color2
+        add next_color2, 1
+        invoke rand_number, 7
+        return next_color3
+        add next_color3, 1
+        call clearBoard
+        call spawnPiece
+        ret
+    function clearBoard:
+        mov rax, 0
+    clear_loop:
+        cmp rax, size
+        jge clear_done
+        store 0, data, rax, 8
+        add rax, 1
+        jmp clear_loop
+    clear_done:
+        ret
+    function indexOf:
+        mov rdx, cols
+        mul rax, rdx
+        add rax, rcx
+        ret
+    function spawnPiece:
+        mov piece_x, 3
+        mov piece_y, 0
+        mov piece_color1, next_color1
+        mov piece_color2, next_color2
+        mov piece_color3, next_color3
+        invoke rand_number, 7
+        return next_color1
+        add next_color1, 1
+        invoke rand_number, 7
+        return next_color2
+        add next_color2, 1
+        invoke rand_number, 7
+        return next_color3
+        add next_color3, 1
+        mov drop_timer, 0
+        call checkGameOver
+        ret
+    function resetGame:
+        call clearBoard
+        mov score, 0
+        mov game_over, 0
+        call spawnPiece
+        ret
+    function checkGameOver:
+        mov rax, piece_y
+        mov rcx, piece_x
+        call indexOf
+        load rdx, data, rax, 8
+        cmp rdx, 0
+        jne game_over_set
+        mov rax, piece_y
+        add rax, 1
+        mov rcx, piece_x
+        call indexOf
+        load rdx, data, rax, 8
+        cmp rdx, 0
+        jne game_over_set
+        mov rax, piece_y
+        add rax, 2
+        mov rcx, piece_x
+        call indexOf
+        load rdx, data, rax, 8
+        cmp rdx, 0
+        jne game_over_set
+        mov rax, 0
+        ret
+    game_over_set:
+        mov game_over, 1
+        ret
+    function canMovePiece:
+        cmp piece_x, 0
+        jl cant_move
+        cmp piece_x, cols
+        jge cant_move
+        cmp piece_y, 0
+        jl cant_move
+        mov rax, piece_y
+        add rax, 2
+        cmp rax, rows
+        jge cant_move
+        mov rax, piece_y
+        mov rcx, piece_x
+        call indexOf
+        load rdx, data, rax, 8
+        cmp rdx, 0
+        jne cant_move
+        mov rax, piece_y
+        add rax, 1
+        mov rcx, piece_x
+        call indexOf
+        load rdx, data, rax, 8
+        cmp rdx, 0
+        jne cant_move
+        mov rax, piece_y
+        add rax, 2
+        mov rcx, piece_x
+        call indexOf
+        load rdx, data, rax, 8
+        cmp rdx, 0
+        jne cant_move
+        mov rax, 1
+        ret
+    cant_move:
+        mov rax, 0
+        ret
+    function dropPiece:
+        add piece_y, 1
+        call canMovePiece
+        cmp rax, 1
+        je drop_ok
+        sub piece_y, 1
+        call placePiece
+        ret
+    drop_ok:
+        ret
+    function placePiece:
+        mov rax, piece_y
+        mov rcx, piece_x
+        call indexOf
+        mov rdx, piece_color1
+        store rdx, data, rax, 8
+        mov rax, piece_y
+        add rax, 1
+        mov rcx, piece_x
+        call indexOf
+        mov rdx, piece_color2
+        store rdx, data, rax, 8
+        mov rax, piece_y
+        add rax, 2
+        mov rcx, piece_x
+        call indexOf
+        mov rdx, piece_color3
+        store rdx, data, rax, 8
+        call checkMatches
+        call spawnPiece
+        ret
+    function checkMatches:
+cm_loop:
+        call clearBlocks
+        call findMatches
+        cmp match_found, 1
+        jne cm_done
+        call removeMarked
+        call dropBlocks
+        jmp cm_loop
+cm_done:
+        ret
+    function clearBlocks:
+        mov rax, 0
+        mov match_found, 0
+cb_loop:
+        cmp rax, size
+        jge cb_done
+        store 0, marks, rax, 8
+        add rax, 1
+        jmp cb_loop
+cb_done:
+        ret
+    function findMatches:
+        mov rax, 0
+fy_loop:
+        cmp rax, rows
+        jge fy_done
+        mov rcx, 0
+fx_loop:
+        cmp rcx, cols
+        jge fx_next
+        call checkHorizontalMatch
+        call checkVerticalMatch
+        call checkDiagonalMatchDownRight
+        call checkDiagonalMatchUpRight
+        add rcx, 1
+        jmp fx_loop
+fx_next:
+        add rax, 1
+        jmp fy_loop
+fy_done:
+        ret
+    function checkHorizontalMatch:
+        mov r6, rax
+        mov r7, rcx
+        mov r8, rcx
+        add r8, 2
+        cmp r8, cols
+        jge chm_exit
+        mov r10, r6
+        mov r11, r7
+        mov rax, r10
+        mov rcx, r11
+        call indexOf
+        load r12, data, rax, 8
+        cmp r12, 0
+        je chm_exit
+        mov rax, r10
+        mov rcx, r11
+        add rcx, 1
+        call indexOf
+        load r13, data, rax, 8
+        cmp r13, r12
+        jne chm_exit
+        mov rax, r10
+        mov rcx, r11
+        add rcx, 2
+        call indexOf
+        load r14, data, rax, 8
+        cmp r14, r12
+        jne chm_exit
+        mov rax, r10
+        mov rcx, r11
+        call markThreeHorizontal
+chm_exit:
+        mov rax, r6
+        mov rcx, r7
+        ret
+    function checkDiagonalMatchDownRight:
+        mov r6, rax
+        mov r7, rcx
+        mov r8, r6
+        add r8, 2
+        cmp r8, rows
+        jge cddr_exit
+        mov r8, r7
+        add r8, 2
+        cmp r8, cols
+        jge cddr_exit
+        mov r10, r6
+        mov r11, r7
+        mov rax, r10
+        mov rcx, r11
+        call indexOf
+        load r12, data, rax, 8
+        cmp r12, 0
+        je cddr_exit
+        mov rax, r10
+        add rax, 1
+        mov rcx, r11
+        add rcx, 1
+        call indexOf
+        load r13, data, rax, 8
+        cmp r13, r12
+        jne cddr_exit
+        mov rax, r10
+        add rax, 2
+        mov rcx, r11
+        add rcx, 2
+        call indexOf
+        load r14, data, rax, 8
+        cmp r14, r12
+        jne cddr_exit
+        mov rax, r10
+        mov rcx, r11
+        call markThreeDiagonalDownRight
+cddr_exit:
+        mov rax, r6
+        mov rcx, r7
+        ret
+    function checkDiagonalMatchUpRight:
+        mov r6, rax
+        mov r7, rcx
+        mov r8, r6
+        sub r8, 2
+        cmp r8, 0
+        jl cdur_exit
+        mov r8, r7
+        add r8, 2
+        cmp r8, cols
+        jge cdur_exit
+        mov r10, r6
+        mov r11, r7
+        mov rax, r10
+        mov rcx, r11
+        call indexOf
+        load r12, data, rax, 8
+        cmp r12, 0
+        je cdur_exit
+        mov rax, r10
+        sub rax, 1
+        mov rcx, r11
+        add rcx, 1
+        call indexOf
+        load r13, data, rax, 8
+        cmp r13, r12
+        jne cdur_exit
+        mov rax, r10
+        sub rax, 2
+        mov rcx, r11
+        add rcx, 2
+        call indexOf
+        load r14, data, rax, 8
+        cmp r14, r12
+        jne cdur_exit
+        mov rax, r10
+        mov rcx, r11
+        call markThreeDiagonalUpRight
+cdur_exit:
+        mov rax, r6
+        mov rcx, r7
+        ret
+    function checkVerticalMatch:
+        mov r6, rax
+        mov r7, rcx
+        mov r8, r6
+        add r8, 2
+        cmp r8, rows
+        jge cvm_exit
+        mov r10, r6
+        mov r11, r7
+        mov rax, r10
+        mov rcx, r11
+        call indexOf
+        load r12, data, rax, 8
+        cmp r12, 0
+        je cvm_exit
+        mov rax, r10
+        add rax, 1
+        mov rcx, r11
+        call indexOf
+        load r13, data, rax, 8
+        cmp r13, r12
+        jne cvm_exit
+        mov rax, r10
+        add rax, 2
+        mov rcx, r11
+        call indexOf
+        load r14, data, rax, 8
+        cmp r14, r12
+        jne cvm_exit
+        mov rax, r10
+        mov rcx, r11
+        call markThreeVertical
+cvm_exit:
+        mov rax, r6
+        mov rcx, r7
+        ret
+    function markThreeHorizontal:
+        mov r8, rax
+        mov r9, rcx
+        mov rax, r8
+        mov rcx, r9
+        call indexOf
+        store 1, marks, rax, 8
+        mov rax, r8
+        mov rcx, r9
+        add rcx, 1
+        call indexOf
+        store 1, marks, rax, 8
+        mov rax, r8
+        mov rcx, r9
+        add rcx, 2
+        call indexOf
+        store 1, marks, rax, 8
+        mov match_found, 1
+        ret
+    function markThreeDiagonalDownRight:
+        mov r8, rax
+        mov r9, rcx
+        mov rax, r8
+        mov rcx, r9
+        call indexOf
+        store 1, marks, rax, 8
+        mov rax, r8
+        add rax, 1
+        mov rcx, r9
+        add rcx, 1
+        call indexOf
+        store 1, marks, rax, 8
+        mov rax, r8
+        add rax, 2
+        mov rcx, r9
+        add rcx, 2
+        call indexOf
+        store 1, marks, rax, 8
+        mov match_found, 1
+        ret
+    function markThreeDiagonalUpRight:
+        mov r8, rax
+        mov r9, rcx
+        mov rax, r8
+        mov rcx, r9
+        call indexOf
+        store 1, marks, rax, 8
+        mov rax, r8
+        sub rax, 1
+        mov rcx, r9
+        add rcx, 1
+        call indexOf
+        store 1, marks, rax, 8
+        mov rax, r8
+        sub rax, 2
+        mov rcx, r9
+        add rcx, 2
+        call indexOf
+        store 1, marks, rax, 8
+        mov match_found, 1
+        ret
+    function markThreeVertical:
+        mov r8, rax
+        mov r9, rcx
+        mov rax, r8
+        mov rcx, r9
+        call indexOf
+        store 1, marks, rax, 8
+        mov rax, r8
+        add rax, 1
+        mov rcx, r9
+        call indexOf
+        store 1, marks, rax, 8
+        mov rax, r8
+        add rax, 2
+        mov rcx, r9
+        call indexOf
+        store 1, marks, rax, 8
+        mov match_found, 1
+        ret
+    function removeMarked:
+        mov rax, 0
+rm_loop:
+        cmp rax, size
+        jge rm_done
+        load rcx, marks, rax, 8
+        cmp rcx, 1
+        jne rm_skip
+        store 0, data, rax, 8
+        add score, points_per_block
+rm_skip:
+        add rax, 1
+        jmp rm_loop
+rm_done:
+        ret
+    function dropBlocks:
+        mov t_col, 0
+db_col_loop:
+        cmp t_col, cols
+        jge db_done
+        mov t_write, rows
+        sub t_write, 1
+        mov t_row, rows
+        sub t_row, 1
+db_row_loop:
+        cmp t_row, 0
+        jl db_fill_above
+        mov rax, t_row
+        mov rcx, t_col
+        call indexOf
+        mov t_idx, rax
+        load t_val, data, t_idx, 8
+        cmp t_val, 0
+        je db_next_row
+        cmp t_row, t_write
+        je db_stay
+        mov rax, t_write
+        mov rcx, t_col
+        call indexOf
+        mov t_idxw, rax
+        store t_val, data, t_idxw, 8
+        store 0, data, t_idx, 8
+db_stay:
+        sub t_write, 1
+db_next_row:
+        sub t_row, 1
+        jmp db_row_loop
+db_fill_above:
+        mov t_row, t_write
+db_zero_loop:
+        cmp t_row, 0
+        jl db_next_col
+        mov rax, t_row
+        mov rcx, t_col
+        call indexOf
+        store 0, data, rax, 8
+        sub t_row, 1
+        jmp db_zero_loop
+db_next_col:
+        add t_col, 1
+        jmp db_col_loop
+db_done:
+        ret
+    function cleanup:
+        free data
+        free marks
+        ret
+    function draw:
+        call drawBoard
+        call drawCurrentPiece
+        ret
+    function drawBoard:
+        mov r8, 0
+dy:
+        cmp r8, rows
+        jge ddone
+        mov r9, 0
+dx:
+        cmp r9, cols
+        jge dnx
+        mov rax, r8
+        mov rcx, r9
+        call indexOf
+        load r10, data, rax, 8
+        cmp r10, 0
+        je dx_skip
+        mov rax, r10
+        call Assets.getBlockTex
+        mov r11, rax
+        mov r12, r9
+        mul r12, cell_w
+        add r12, ox
+        mov r13, r8
+        mul r13, cell_h
+        add r13, oy
+        invoke render_texture, SDLCore.renderer_id, r11, -1, -1, -1, -1, r12, r13, cell_w, cell_h
+dx_skip:
+        add r9, 1
+        jmp dx
+dnx:
+        add r8, 1
+        jmp dy
+ddone:
+        ret
+    function drawCurrentPiece:
+        cmp game_over, 1
+        je dcp_done
+        mov rax, piece_color1
+        call Assets.getBlockTex
+        mov r11, rax
+        mov r12, piece_x
+        mul r12, cell_w
+        add r12, ox
+        mov r13, piece_y
+        mul r13, cell_h
+        add r13, oy
+        invoke render_texture, SDLCore.renderer_id, r11, -1, -1, -1, -1, r12, r13, cell_w, cell_h
+        mov rax, piece_color2
+        call Assets.getBlockTex
+        mov r11, rax
+        mov r12, piece_x
+        mul r12, cell_w
+        add r12, ox
+        mov r13, piece_y
+        add r13, 1
+        mul r13, cell_h
+        add r13, oy
+        invoke render_texture, SDLCore.renderer_id, r11, -1, -1, -1, -1, r12, r13, cell_w, cell_h
+        mov rax, piece_color3
+        call Assets.getBlockTex
+        mov r11, rax
+        mov r12, piece_x
+        mul r12, cell_w
+        add r12, ox
+        mov r13, piece_y
+        add r13, 2
+        mul r13, cell_h
+        add r13, oy
+        invoke render_texture, SDLCore.renderer_id, r11, -1, -1, -1, -1, r12, r13, cell_w, cell_h
+dcp_done:
+        ret
+    function drawNext:
+        mov rax, next_color1
+        call Assets.getBlockTex
+        mov r11, rax
+        invoke render_texture, SDLCore.renderer_id, r11, -1, -1, -1, -1, next_ox, next_oy, cell_w, cell_h
+        mov rax, next_color2
+        call Assets.getBlockTex
+        mov r11, rax
+        mov r12, next_oy
+        add r12, cell_h
+        invoke render_texture, SDLCore.renderer_id, r11, -1, -1, -1, -1, next_ox, r12, cell_w, cell_h
+        mov rax, next_color3
+        call Assets.getBlockTex
+        mov r11, rax
+        mov r12, next_oy
+        add r12, cell_h
+        add r12, cell_h
+        invoke render_texture, SDLCore.renderer_id, r11, -1, -1, -1, -1, next_ox, r12, cell_w, cell_h
+        ret
+    function updateGame:
+        cmp game_over, 1
+        jne ug_tick
+        call resetGame
+        ret
+    ug_tick:
+        add drop_timer, 1
+        cmp drop_timer, drop_delay
+        jl ug_done
+        call dropPiece
+        mov drop_timer, 0
+    ug_done:
+        ret
+
+    function movePieceLeft:
+        cmp game_over, 1
+        je mpl_done
+        sub piece_x, 1
+        call canMovePiece
+        cmp rax, 1
+        je mpl_done
+        add piece_x, 1
+    mpl_done:
+        ret
+
+    function movePieceRight:
+        cmp game_over, 1
+        je mpr_done
+        add piece_x, 1
+        call canMovePiece
+        cmp rax, 1
+        je mpr_done
+        sub piece_x, 1
+    mpr_done:
+        ret
+    function rotatePiece:
+        cmp game_over, 1
+        je rp_done
+        mov rax, piece_color1
+        mov rcx, piece_color2
+        mov rdx, piece_color3
+        mov piece_color1, rdx
+        mov piece_color2, rax
+        mov piece_color3, rcx
+    rp_done:
+        ret
+    function dropPiece:
+        add piece_y, 1
+        call canMovePiece
+        cmp rax, 1
+        je drop_ok
+        sub piece_y, 1
+        call placePiece
+        ret
+    drop_ok:
+        ret
+    function hardDrop:
+        cmp game_over, 1
+        je hd_done
+    hd_step:
+        add piece_y, 1
+        call canMovePiece
+        cmp rax, 1
+        je hd_step
+        sub piece_y, 1
+        call placePiece
+    hd_done:
+        ret
+
+    }
+}
+
+object UI {
+    section object { SDLCore, Assets, Screen, Board }
+    section module { sdl }
+    section data {
+        export int key = 0
+        export int wait = 0
+        export int fnt = -1
+        export string font_name = "img/font.ttf"
+        export string score_buf, 1024
+        export string score_fmt = "Score: %d"
+        export int score_x = 200
+        export int score_y = 55
+        export string error_message = "Could not load font.\n"
+    }
+    section code {
+    function init:
+        invoke init_text
+        invoke load_font, font_name, 18
+        return fnt
+        cmp fnt, 0
+        jl err_msg
+        mov wait, 0
+
+        ret 
+        err_msg:
+        print error_message
+        exit 1
+        ret
+    function renderIntro:
+        call SDLCore.begin_frame
+        invoke render_texture, SDLCore.renderer_id, Assets.tex_intro, -1, -1, -1, -1, 0, 0, SDLCore.w, SDLCore.h
+        call SDLCore.end_frame
+        ret
+    function processIntro:
+    i_tick:
+        call SDLCore.ticks
+        add wait, 1
+        cmp wait, 180
+        jl i_end
+        mov Screen.screen, 1
+        mov wait, 0
+        jmp i_end
+    i_next:
+        mov Screen.screen, 1
+        mov wait, 0
+        jmp i_end
+    i_quit:
+        mov SDLCore.running, 0
+        jmp i_end
+    i_end:
+        ret
+    function renderStart:
+        call SDLCore.begin_frame
+        invoke render_texture, SDLCore.renderer_id, Assets.tex_start, -1, -1, -1, -1, 0, 0, SDLCore.w, SDLCore.h
+        call SDLCore.end_frame
+        ret
+    function renderBG:
+        invoke render_texture, SDLCore.renderer_id, Assets.tex_bg, -1, -1, -1, -1, 0, 0, SDLCore.w, SDLCore.h
+        ret
+    function drawScore:
+        invoke snprintf, score_buf, 254, score_fmt, Board.score
+        invoke draw_text, SDLCore.renderer_id, fnt, score_buf, score_x, score_y, 255, 255, 255, 255
+        ret
+    }
+}
+
+object Game {
+    section object { SDLCore, Board, UI, Screen }
+    section module { sdl }
+    section data {
+        export int action_cooldown = 0
+        export int k = 0
+        export int SDLK_ESCAPE = 27
+        export int SDLK_LEFT = 1073741904
+        export int SDLK_RIGHT = 1073741903
+        export int SDLK_UP = 1073741906
+        export int SDLK_DOWN = 1073741905
+        export int SDLK_SPACE = 32
+        export int SDLK_LSHIFT = 1073742049
+        export int SDLK_RSHIFT = 1073742053
+        export int SDLK_A = 97
+        export int SDLK_D = 100
+        export int SDLK_W = 119
+        export int SDLK_S = 115
+        string goodbye = "MasterPiece: Shutting Down\n"
+    }
+    section code {
+    function loop:
+        mov action_cooldown, 0
+    main_loop:
+        cmp SDLCore.running, 0
+        je quit_game
+         cmp Screen.screen, 2
+        jne skip_update
+        call Board.updateGame
+    skip_update:
+
+    ev_loop:
+        call SDLCore.poll_one_event
+        cmp SDLCore.last_event_type, 0
+        je draw_phase
+        cmp SDLCore.last_event_type, 256
+        je quit_game
+        cmp Screen.screen, 0
+        je ev_intro
+        cmp Screen.screen, 1
+        je ev_start
+        cmp Screen.screen, 2
+        je ev_game
+        jmp ev_loop
+    ev_intro:
+        cmp SDLCore.last_event_type, 768
+        jne ev_loop
+        mov k, SDLCore.last_key_code
+        cmp k, SDLK_ESCAPE
+        je back_to_start
+        cmp k, 13
+        je intro_to_start
+        jmp ev_loop
+    intro_to_start:
+        mov Screen.screen, 1
+        jmp ev_loop
+    ev_start:
+        cmp SDLCore.last_event_type, 768
+        jne ev_loop
+        mov k, SDLCore.last_key_code
+        cmp k, SDLK_ESCAPE
+        je quit_game
+        cmp k, 13
+        je start_to_game
+        jmp ev_loop
+    start_to_game:
+        mov Screen.screen, 2
+        jmp ev_loop
+    ev_game:
+        cmp SDLCore.last_event_type, 768
+        jne ev_loop
+        mov k, SDLCore.last_key_code
+        cmp k, SDLK_ESCAPE
+        je back_to_start
+        cmp k, SDLK_LEFT
+        je mv_left
+        cmp k, SDLK_A
+        je mv_left
+        cmp k, SDLK_RIGHT
+        je mv_right
+        cmp k, SDLK_D
+        je mv_right
+        cmp k, SDLK_DOWN
+        je mv_down
+        cmp k, SDLK_S
+        je mv_down
+        cmp k, SDLK_UP
+        je mv_rotate
+        cmp k, SDLK_W
+        je mv_rotate
+        cmp k, SDLK_LSHIFT
+        je mv_rotate
+        cmp k, SDLK_RSHIFT
+        je mv_rotate
+        cmp k, SDLK_SPACE
+        je mv_hard_drop
+        jmp ev_loop
+    mv_left:
+        call Board.movePieceLeft
+        jmp ev_loop
+    mv_right:
+        call Board.movePieceRight
+        jmp ev_loop
+    mv_down:
+        call Board.dropPiece
+        jmp ev_loop
+    mv_rotate:
+        call Board.rotatePiece
+        jmp ev_loop
+    mv_hard_drop:
+        call Board.hardDrop
+        jmp ev_loop
+    draw_phase:
+        cmp Screen.screen, 0
+        je draw_intro
+        cmp Screen.screen, 1
+        je draw_start
+        cmp Screen.screen, 2
+        je draw_game
+        jmp after_frame
+    draw_intro:
+        call UI.processIntro
+        call UI.renderIntro
+        jmp after_frame
+    draw_start:
+        call UI.renderStart
+        jmp after_frame
+    draw_game:
+        call SDLCore.begin_frame
+        call UI.renderBG
+        call Board.draw
+        call Board.drawNext
+        call UI.drawScore
+        call SDLCore.end_frame
+        jmp after_frame
+    after_frame:
+        call SDLCore.delayms
+        jmp main_loop
+    back_to_start:
+        mov Screen.screen, 1
+        jmp ev_loop
+    quit_game:
+        print goodbye
+        call Board.cleanup
+        call SDLCore.cleanup
+        invoke quit
+        exit 0
+        ret
+    }
+}

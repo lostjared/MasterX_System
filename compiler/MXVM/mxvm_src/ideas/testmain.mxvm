@@ -1,0 +1,18 @@
+program StringMain {   
+
+	section module { io }
+
+    section object { StringPrint }
+
+    section data {
+		string format = "%d\n"
+	}
+	
+	section code {
+	start:
+            call StringPrint.intro
+			print format, StringPrint.value1
+	stop:
+		done
+	}
+}

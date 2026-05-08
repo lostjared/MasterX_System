@@ -1,0 +1,44 @@
+program Comments {
+
+    section object { ReadFile } 
+    
+    section data {
+        byte value = 0
+        int index = 0
+        byte sign = 0x23 
+        byte newline = 0xa 
+        string print_out = "%c"
+        int skip = 0
+    }
+
+    section code {
+    start:
+            call ReadFile.readFile
+    loop:
+            load value, ReadFile.buffer, index, 1
+            add index, 1
+            cmp value, 0
+            je stop
+
+            cmp skip, 1
+            je check_newline
+
+            cmp value, sign
+            jne print_char
+            mov skip, 1
+            jmp check_newline
+
+    print_char:
+        print print_out, value
+
+    check_newline:
+        cmp value, newline
+        jne loop
+        mov skip, 0
+        jmp loop
+
+    stop:
+            free ReadFile.buffer
+            done
+    }
+}

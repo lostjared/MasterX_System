@@ -1,0 +1,26 @@
+program SubAdd {
+
+	section data {
+        int rax = 0
+        int rsi = 0
+        int rdi = 0
+        string message = "enter a number: "
+        string output = "the value is: %d + %d = %d\n"
+ 	}
+
+	section code {
+	start:
+        call get_number
+        mov rsi, rax
+        call get_number
+        mov rdi, rax
+        add rax, rsi, rdi
+        print output, rsi, rdi, rax
+    stop:
+        done
+    function get_number:
+        print message
+        getline rax
+        ret
+ 	}
+}

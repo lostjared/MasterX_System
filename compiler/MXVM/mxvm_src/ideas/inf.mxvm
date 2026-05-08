@@ -1,0 +1,15 @@
+program Inf {
+	section data {
+		int counter = 0
+		string fmt_str = "Count is %d\n"
+	}
+
+	section code {
+	start:
+        print fmt_str, counter
+        add counter, 1
+        jmp start
+	stop:
+		done
+	}
+}

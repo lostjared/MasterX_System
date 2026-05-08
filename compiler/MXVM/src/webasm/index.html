@@ -1,0 +1,350 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MXVM Language & Usage Guide</title>
+  <meta name="description" content="Guide to MXVM: custom virtual machine language, instruction reference, examples, and getting started."/>
+  <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #e0e0e0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: #222;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(183, 28, 28, 0.2);
+            border: 1px solid #b71c1c;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #ff5252;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+            text-shadow: 1px 1px 2px #000;
+        }
+        
+        .header p {
+            color: #e57373;
+            font-size: 1.1rem;
+        }
+        
+        .section-block {
+            background: #181818;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(183, 28, 28, 0.1);
+            border: 1px solid #b71c1c;
+            padding: 25px 30px;
+        }
+        .section-block h2 {
+            font-size: 1.9rem;
+            margin-bottom: 10px;
+            color: #ff5252;
+            border-bottom: 2px solid #b71c1c;
+            padding-bottom: 6px;
+        }
+        .section-block h3 {
+            margin-top: 1rem;
+            font-size: 1.4rem;
+            color: #ff8a80;
+        }
+        pre { 
+            background: #222; 
+            border:1px solid #b71c1c; 
+            padding: 15px; 
+            border-radius: 10px;
+            overflow:auto;
+            font-size: 0.9rem;
+            margin: 12px 0;
+        }
+        code { font-family: 'Courier New', monospace; }
+        table { width:100%; border-collapse:collapse; margin:14px 0; }
+        th, td { padding:10px 8px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.08); }
+        th { background:#1f1f1f; position:sticky; top:0; }
+        a { color:#ff5252; text-decoration:none; }
+        a:hover { text-decoration:underline; }
+        .inline-code { background:#111; padding:2px 6px; border-radius:4px; }
+        .quick-ref { background:#1f1f1f; padding:10px; border-radius:8px; margin-top:10px; }
+        .footer { text-align:center; padding:30px 10px; font-size:.75rem; color:#888; }
+        @media (max-width: 900px) {
+            .header h1 { font-size:2rem; }
+        }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📝 MXVM Language &amp; Usage Guide</h1>
+      <p>Custom VM &amp; compiler sandbox – language reference, examples, and how-to. Updated: 2025-08-04</p>
+    </div>
+
+    <div class="section-block" id="overview">
+      <h2>Overview</h2>
+      <p>MXVM is a custom virtual machine, interpreter, and compiler project designed as a learning sandbox. It is not intended for production; instead it helps users explore and experiment with:</p>
+      <ul>
+        <li>Virtual machine design and instruction execution.</li>
+        <li>Custom language parsing and abstract syntax tree generation.</li>
+        <li>Modular system architecture with external and runtime externs.</li>
+        <li>Code generation (including x86_64 translation) and execution.</li>
+        <li>Memory &amp; stack manipulation, control flow, and debugging.</li>
+        <li>C++ integration, build systems (CMake), and cross-platform thinking.</li>
+      </ul>
+      <p>The language combines assembly-like instructions with higher-level constructs like functions, modules, and formatted I/O to create an accessible pedagogical VM environment.</p>
+    </div>
+
+    <div class="section-block" id="getting-started">
+      <h2>Getting Started</h2>
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>C++20 compatible compiler (gcc, clang, MSVC)  or <a href="/MXVM/compiler">MXVM Online</a></li>
+        <li><code class="inline-code">cmake</code> (version 3.15+ recommended)</li>
+        <li>Make or ninja for building</li>
+        <li>Git (for cloning if not already local)</li>
+      </ul>
+      <h3>Typical Build</h3>
+      <pre><code># Clone or go into your copy of the repo
+cd MXVM-main/MXVM-main
+mkdir build
+cd build
+cmake ..
+make</code></pre>
+      <p>This produces the compiler/interpreter binary (e.g., <code class="inline-code">src/vm/mxvmc</code>) and supporting modules.</p>
+      <h3>Running a Sample Program</h3>
+      <pre><code># from inside the build directory, run an example like demo.mxvm
+./src/vm/mxvmc ../mxvm_src/demo.mxvm</code></pre>
+      <p>Replace <code class="inline-code">demo.mxvm</code> with other examples such as <code class="inline-code">fibonacci.mxvm</code>, <code class="inline-code">Comments.mxvm</code>, or your own programs.</p>
+    </div>
+
+    <div class="section-block" id="language-basics">
+      <h2>Language Basics</h2>
+      <h3>Program and Object</h3>
+      <p>The entry point is a <code class="inline-code">program</code> block. Objects are reusable units that encapsulate code, data, and expose functions. Syntax:</p>
+      <pre><code>program Name { ... }</code></pre>
+      <pre><code>object Name { ... }</code></pre>
+      <p>Objects are referenced via <code class="inline-code">section object</code>.</p>
+      <h3>Sections</h3>
+      <ul>
+        <li><strong>module</strong>: Include external functionality (e.g., <code class="inline-code">io</code>, <code class="inline-code">string</code>).</li>
+        <li><strong>data</strong>: Declare variables, pointers, strings, constants, and exports.</li>
+        <li><strong>object</strong>: Declare dependencies on other objects.</li>
+        <li><strong>code</strong>: Control flow, functions, labels, and instructions.</li>
+      </ul>
+      <h3>Variables and Types</h3>
+      <p>Supported types include:</p>
+      <table>
+        <thead>
+          <tr><th>Type</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code class="inline-code">int</code></td><td>Integer value (typically 64-bit)</td></tr>
+          <tr><td><code class="inline-code">float</code></td><td>Floating point value</td></tr>
+          <tr><td><code class="inline-code">string</code></td><td>Null-terminated character sequences. Can specify size, e.g., <code class="inline-code">string name, 256</code>.</td></tr>
+          <tr><td><code class="inline-code">ptr</code></td><td>Pointer to buffer or memory region</td></tr>
+          <tr><td><code class="inline-code">byte</code></td><td>8-bit value</td></tr>
+          <tr><td><code class="inline-code">export</code> prefix</td><td>Marks data as externally visible from an object.</td></tr>
+        </tbody>
+      </table>
+      <p>Example:</p>
+      <pre><code>section data { 
+    int x = 0
+    string message = "Hello, MXVM!\n"
+}</code></pre>
+      <h3>Functions and Labels</h3>
+      <p>Define functions with the <code class="inline-code">function name:</code> syntax. Use <code class="inline-code">call</code> to invoke and <code class="inline-code">ret</code> to return. Labels serve as jump targets.</p>
+      <pre><code>section code {
+    start:
+        call some_function
+        done
+
+    function some_function:
+        ; work
+        ret
+}</code></pre>
+    </div>
+
+    <div class="section-block" id="instructions">
+      <h2>Instruction Reference</h2>
+      <p>Detailed description of available instructions:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Instruction</th><th>Operands</th><th>Description</th><th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline-code">mov</code></td><td><code class="inline-code">dest, src</code></td><td>Copy <code class="inline-code">src</code> into <code class="inline-code">dest</code>.</td><td><code class="inline-code">mov x, 1</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline-code">load</code></td><td><code class="inline-code">dest, base, index, size</code></td><td>Load memory at base+index size bytes into dest.</td><td><code class="inline-code">load character, buffer, loop_index, 1</code></td>
+          </tr>
+          <tr>
+            <td><code class="inline-code">store</code></td><td><code class="inline-code">value, base, index, size</code></td><td>Store value into memory at base+index.</td><td><code class="inline-code">store zero_byte, buffer, file_size, 1</code></td>
+          </tr>
+          <tr><td><code class="inline-code">add</code></td><td><code class="inline-code">dest, value</code></td><td>Add value to dest.</td><td><code class="inline-code">add x, 1</code></td></tr>
+          <tr><td><code class="inline-code">sub</code></td><td><code class="inline-code">dest, value</code></td><td>Subtract value from dest.</td><td><code class="inline-code">sub x, 1</code></td></tr>
+          <tr><td><code class="inline-code">mul</code></td><td><code class="inline-code">dest, value</code></td><td>Multiply dest by value.</td><td><code class="inline-code">mul x, 2</code></td></tr>
+          <tr><td><code class="inline-code">div</code></td><td><code class="inline-code">dest, value</code></td><td>Divide dest by value.</td><td><code class="inline-code">div x, 2</code></td></tr>
+          <tr><td><code class="inline-code">mod</code></td><td><code class="inline-code">dest, value</code></td><td>Compute dest %= value.</td><td><code class="inline-code">mod accum, 2</code></td></tr>
+          <tr><td><code class="inline-code">or</code></td><td><code class="inline-code">dest, value</code></td><td>Bitwise OR.</td><td><code class="inline-code">or a, b</code></td></tr>
+          <tr><td><code class="inline-code">and</code></td><td><code class="inline-code">dest, value</code></td><td>Bitwise AND.</td><td><code class="inline-code">and a, mask</code></td></tr>
+          <tr><td><code class="inline-code">xor</code></td><td><code class="inline-code">dest, value</code></td><td>Bitwise XOR.</td><td><code class="inline-code">xor a, b</code></td></tr>
+          <tr><td><code class="inline-code">not</code></td><td><code class="inline-code">dest</code></td><td>Bitwise NOT.</td><td><code class="inline-code">not flag</code></td></tr>
+          <tr><td><code class="inline-code">neg</code></td><td><code class="inline-code">dest</code></td><td>Arithmetic negation.</td><td><code class="inline-code">neg x</code></td></tr>
+          <tr><td><code class="inline-code">cmp</code></td><td><code class="inline-code">a, b</code></td><td>Compare a and b; sets flags for conditionals.</td><td><code class="inline-code">cmp x, 10</code></td></tr>
+          <tr><td><code class="inline-code">jmp</code></td><td><code class="inline-code">label</code></td><td>Unconditional jump.</td><td><code class="inline-code">jmp loop</code></td></tr>
+          <tr><td><code class="inline-code">je</code></td><td><code class="inline-code">label</code></td><td>Jump if equal.</td><td><code class="inline-code">je done</code></td></tr>
+          <tr><td><code class="inline-code">jne</code></td><td><code class="inline-code">label</code></td><td>Jump if not equal.</td><td><code class="inline-code">jne start</code></td></tr>
+          <tr><td><code class="inline-code">jl</code></td><td><code class="inline-code">label</code></td><td>Jump if less than.</td><td><code class="inline-code">jl smaller</code></td></tr>
+          <tr><td><code class="inline-code">jle</code></td><td><code class="inline-code">label</code></td><td>Jump if less or equal.</td><td><code class="inline-code">jle end</code></td></tr>
+          <tr><td><code class="inline-code">jg</code></td><td><code class="inline-code">label</code></td><td>Jump if greater than.</td><td><code class="inline-code">jg bigger</code></td></tr>
+          <tr><td><code class="inline-code">jge</code></td><td><code class="inline-code">label</code></td><td>Jump if greater or equal.</td><td><code class="inline-code">jge ok</code></td></tr>
+          <tr><td><code class="inline-code">jz</code></td><td><code class="inline-code">label</code></td><td>Jump if zero.</td><td><code class="inline-code">jz zero_case</code></td></tr>
+          <tr><td><code class="inline-code">jnz</code></td><td><code class="inline-code">label</code></td><td>Jump if not zero.</td><td><code class="inline-code">jnz nonzero</code></td></tr>
+          <tr><td><code class="inline-code">print</code></td><td><code class="inline-code">format, args...</code></td><td>Formatted output.</td><td><code class="inline-code">print fmt, x</code></td></tr>
+          <tr><td><code class="inline-code">getline</code></td><td><code class="inline-code">dest</code></td><td>Read line into buffer.</td><td><code class="inline-code">getline input</code></td></tr>
+          <tr><td><code class="inline-code">alloc</code></td><td><code class="inline-code">ptr_var, count, size</code></td><td>Allocate memory.</td><td><code class="inline-code">alloc buffer,1,256</code></td></tr>
+          <tr><td><code class="inline-code">free</code></td><td><code class="inline-code">ptr</code></td><td>Free memory.</td><td><code class="inline-code">free buffer</code></td></tr>
+          <tr><td><code class="inline-code">call</code></td><td><code class="inline-code">function</code></td><td>Invoke function.</td><td><code class="inline-code">call foo.init</code></td></tr>
+          <tr><td><code class="inline-code">ret</code></td><td>none</td><td>Return from function.</td><td><code class="inline-code">ret</code></td></tr>
+          <tr><td><code class="inline-code">invoke</code></td><td><code class="inline-code">external, args...</code></td><td>Call external runtime API.</td><td><code class="inline-code">invoke fopen, name, mode</code></td></tr>
+          <tr><td><code class="inline-code">return</code></td><td><code class="inline-code">value</code></td><td>Set return value from invoke.</td><td><code class="inline-code">return size</code></td></tr>
+          <tr><td><code class="inline-code">done</code></td><td>none</td><td>Program exit normally.</td><td><code class="inline-code">done</code></td></tr>
+          <tr><td><code class="inline-code">exit</code></td><td><code class="inline-code">code</code></td><td>Exit with code.</td><td><code class="inline-code">exit 1</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-block" id="examples">
+      <h2>Example Walkthroughs</h2>
+      <h3>Demo</h3>
+      <p>A simple program that increments a variable from 0 to 10, then decrements it back to 0, demonstrating loops, comparison, and conditional jumps.</p>
+      <pre><code>program Demo {
+    section data {
+        int x = 0;
+        string fmt_str = "Hello World! Value of x is: %d\n";
+        string fmt_end = "Goodbye!\n";
+    }
+    section code {
+        mov x, 1
+    start:
+        add x, 1
+        print fmt_str, x
+        cmp x, 10
+        jne start
+        print fmt_end
+    loop:
+        sub x, 1
+        print fmt_str, x
+        cmp x, 0
+        jg loop
+        print fmt_end
+    stop:
+        done
+    }
+}</code></pre>
+      <h3>Fibonacci</h3>
+      <p>Computes Fibonacci numbers up to <code class="inline-code">n</code> safely with range checking.</p>
+      <pre><code>program Fibonacci {
+    section data {
+        int n = 30
+        int a = 0
+        int b = 1
+        int i = 2
+        string format = "%lld "
+        string newline = "\n"
+    }
+    section code {
+        cmp n, 0
+        jl out_of_range
+        print format, a
+        print format, b
+    loop:
+        cmp i, n
+        jge done_fib
+        add temp, a, b
+        mov a, b
+        mov b, temp
+        print format, b
+        add i, 1
+        jmp loop
+    done_fib:
+        print newline
+        done
+    }
+}</code></pre>
+      <h3><a href="https://github.com/lostjared/MXVM/tree/main/mxvm_src/print_hex">ReadFile &amp; Hex Printer</a></h3>
+      <p>Demonstrates external module usage, file I/O, buffer manipulation, and formatting with <code class="inline-code">invoke</code>, <code class="inline-code">load</code>, and <code class="inline-code">store</code>.</p>
+      <p>Key pattern: allocate a buffer, read file contents, and print bytes in hex.</p>
+      <h3><a href="https://github.com/lostjared/MXVM/tree/main/mxvm_src/comments">Comments Example</a></h3>
+      <p>Shows looping, formatted printing, and decrementing counters.</p>
+    </div>
+
+    <div class="section-block" id="quick-ref">
+      <h2>Quick Reference</h2>
+      <p>Minimal cheat sheet for writing MXVM programs:</p>
+      <div class="quick-ref">
+<pre><code>// Program skeleton
+program Name {
+    section module { io, string }
+    section object { other_object }
+    section data {
+        int counter = 0
+        string msg = "Hi\n"
+    }
+    section code {
+        mov counter, 5
+        start:
+            print msg, counter
+            done
+    }
+}</code></pre>
+      </div>
+      <p>Use labels and conditional jumps (<code class="inline-code">jmp</code>, <code class="inline-code">je</code>, etc.), <code class="inline-code">call</code> / <code class="inline-code">ret</code> for functions, and <code class="inline-code">invoke</code> to call external APIs.</p>
+    </div>
+
+    <div class="section-block" id="appendix">
+      <h2>Appendix</h2>
+      <h3>Module Inclusion</h3>
+      <p>Include built-in functionality by adding it to the <code class="inline-code">module</code> section. Example:</p>
+      <pre><code>section module { io }</code></pre>
+      <p>This enables functions like <code class="inline-code">fopen</code>, <code class="inline-code">fread</code>, <code class="inline-code">fprintf</code>, and formatted I/O.</p>
+      <h3>Common Patterns</h3>
+      <ul>
+        <li><strong>Looping:</strong> Use <code class="inline-code">cmp</code> + conditional jumps with labels.</li>
+        <li><strong>Function calls:</strong> Define reusable routines with <code class="inline-code">function name:</code> and invoke via <code class="inline-code">call</code>.</li>
+        <li><strong>External Interop:</strong> <code class="inline-code">invoke</code> + <code class="inline-code">return</code> to communicate with C-style APIs.</li>
+      </ul>
+      <h3>Debug Tips</h3>
+      <p>Watch comparisons feeding conditional jumps. Maintain stack discipline when using <code class="inline-code">push</code> / <code class="inline-code">pop</code> / <code class="inline-code">stack_load</code> / <code class="inline-code">stack_store</code>. Use clear format strings to trace state.</p>
+    </div>
+
+    <div class="footer">
+      <p>MXVM reference guide. Adapt and expand examples for teaching and experimentation.</p>
+      <p>Jared Bruni / LostSideDead &copy; 2025</p>
+    </div>
+  </div>
+</body>
+</html>

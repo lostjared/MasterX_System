@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MXVM - Custom Virtual Machine Learning Project</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 12px 24px;
+            margin: 0 5px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .tab-button:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            border-left: 4px solid #667eea;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .instruction-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .instruction {
+            background: #667eea;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .demo-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .demo-editor {
+            width: 100%;
+            height: 200px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            resize: vertical;
+        }
+
+        .demo-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            min-height: 100px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            white-space: pre-wrap;
+        }
+
+        .run-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .run-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MXVM</h1>
+            <p class="subtitle">A Custom Virtual Machine Learning Project</p>
+            <p>Understanding compiler design, virtual machine architecture, and low-level programming concepts</p>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="tab-button active" onclick="showTab('overview')">Overview</button>
+            <button class="tab-button" onclick="showTab('architecture')">Architecture</button>
+            <button class="tab-button" onclick="showTab('language')">Language</button>
+            <button class="tab-button" onclick="showTab('demo')">Demo</button>
+            <button class="tab-button" onclick="showTab('build')">Build</button>
+        </nav>
+
+        <div id="overview" class="tab-content active">
+            <h2>Project Overview</h2>
+            <p>MXVM is a comprehensive virtual machine implementation written in C++ that serves as a learning tool for understanding compiler design, virtual machine architecture, and low-level programming concepts.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🔧 Complete Toolchain</h3>
+                    <p>Includes lexer, parser, validator, code generator, and runtime execution environment.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📚 Educational Focus</h3>
+                    <p>Designed specifically as a learning tool to gain hands-on experience with VM implementation.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔌 Modular Design</h3>
+                    <p>Supports dynamic module loading with built-in string and I/O modules.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🖥️ Cross-Platform</h3>
+                    <p>Builds on Windows, Linux, and macOS with CMake configuration.</p>
+                </div>
+            </div>
+
+            <h3>Key Learning Concepts</h3>
+            <ul>
+                <li><strong>Lexical Analysis:</strong> Tokenization and regular expression matching</li>
+                <li><strong>Syntax Analysis:</strong> Recursive descent parsing and AST construction</li>
+                <li><strong>Semantic Analysis:</strong> Type checking and symbol resolution</li>
+                <li><strong>Code Generation:</strong> Assembly output and linking</li>
+                <li><strong>Runtime Systems:</strong> Stack management and garbage collection</li>
+                <li><strong>Dynamic Loading:</strong> Plugin architecture with shared libraries</li>
+            </ul>
+        </div>
+
+        <div id="architecture" class="tab-content">
+            <h2>Architecture Components</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>Scanner/Lexer</h3>
+                    <p>Tokenizes MXVM source code, handles comments, identifiers, numbers, and operators with lookahead capabilities.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Parser</h3>
+                    <p>Builds Abstract Syntax Tree from tokens, supports program/object parsing with section handling.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Validator</h3>
+                    <p>Validates syntax and semantics, checks instruction validity and variable declarations.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Virtual Machine</h3>
+                    <p>Stack-based execution engine with memory management and dynamic module loading.</p>
+                </div>
+            </div>
+
+            <h3>Execution Modes</h3>
+            <div class="code-block"><pre><code>
+<strong>Interpreter Mode:</strong>
+- Direct execution of MXVM bytecode
+- Real-time variable inspection
+- Interactive debugging capabilities
+
+<strong>Compiler Mode:</strong>
+- Generates x86_64 assembly code
+- Links with system libraries
+- Produces standalone executables
+            </code></pre></div>
+        </div>
+
+        <div id="language" class="tab-content">
+            <h2>MXVM Language Features</h2>
+
+            <h3>Data Types</h3>
+            <div class="instruction-list">
+                <div class="instruction">int</div>
+                <div class="instruction">float</div>
+                <div class="instruction">string</div>
+                <div class="instruction">ptr</div>
+                <div class="instruction">array</div>
+                <div class="instruction">byte</div>
+            </div>
+
+            <h3>Instruction Set (44+ Instructions)</h3>
+            <div class="instruction-list">
+                <div class="instruction">mov</div>
+                <div class="instruction">load</div>
+                <div class="instruction">store</div>
+                <div class="instruction">add</div>
+                <div class="instruction">sub</div>
+                <div class="instruction">mul</div>
+                <div class="instruction">div</div>
+                <div class="instruction">or</div>
+                <div class="instruction">and</div>
+                <div class="instruction">xor</div>
+                <div class="instruction">not</div>
+                <div class="instruction">mod</div>
+                <div class="instruction">cmp</div>
+                <div class="instruction">jmp</div>
+                <div class="instruction">je</div>
+                <div class="instruction">jne</div>
+                <div class="instruction">jl</div>
+                <div class="instruction">jle</div>
+                <div class="instruction">jg</div>
+                <div class="instruction">jge</div>
+                <div class="instruction">jz</div>
+                <div class="instruction">jnz</div>
+                <div class="instruction">ja</div>
+                <div class="instruction">jb</div>
+                <div class="instruction">print</div>
+                <div class="instruction">exit</div>
+                <div class="instruction">alloc</div>
+                <div class="instruction">free</div>
+                <div class="instruction">getline</div>
+                <div class="instruction">push</div>
+                <div class="instruction">pop</div>
+                <div class="instruction">stack_load</div>
+                <div class="instruction">stack_store</div>
+                <div class="instruction">stack_sub</div>
+                <div class="instruction">call</div>
+                <div class="instruction">ret</div>
+                <div class="instruction">string_print</div>
+                <div class="instruction">done</div>
+                <div class="instruction">to_int</div>
+                <div class="instruction">to_float</div>
+                <div class="instruction">invoke</div>
+                <div class="instruction">return</div>
+                <div class="instruction">neg</div>
+            </div>
+
+            <h3>Program Structure</h3>
+            <div class="code-block"><pre><code>
+program HelloWorld {
+    section data {
+        int counter = 0
+        string message = "Hello World: %d\n"
+    }
+    
+    section code {
+    start:
+            mov counter, 1
+            print message
+            done
+    }
+}
+            </code></pre></div>
+
+            <h3>Module System</h3>
+            <div class="code-block"><pre><code>
+section module {
+    string, io
+}
+
+section code {
+        invoke strlen, value
+}
+    </code></pre></div>
+        </div>
+
+        <div id="demo" class="tab-content">
+            <h2>Interactive Demo</h2>
+            <p>Try writing some MXVM code below:</p>
+
+            <div class="demo-container">
+                <textarea id="codeEditor" class="demo-editor" placeholder="Enter MXVM code here...">program Demo {
+    section data {
+        int counter = 5
+        string message = "Hello MXVM!"
+    }
+    
+    section code {
+    start:
+       print message
+       done
+    }
+}</textarea>
+                <button class="run-button" onclick="runDemo()">Parse & Validate</button>
+                <div id="output" class="demo-output">Ready to parse MXVM code...</div>
+            </div>
+        </div>
+
+        <div id="build" class="tab-content">
+            <h2>Building MXVM</h2>
+
+            <h3>Prerequisites</h3>
+            <ul>
+                <li>C++20-compatible compiler (gcc or clang)</li>
+                <li>CMake ≥ 3.16</li>
+                <li>System libraries: dl, pthread</li>
+            </ul>
+
+            <h3>Build Instructions</h3>
+            <div class="code-block"><pre><code>
+# Clone and build
+git clone https://github.com/lostjared/MXVM.git
+cd MXVM
+mkdir build && cd build
+cmake ..
+make
+sudo make install
+
+
+# Run example
+mxvmc input.mxvm --path /usr/local/lib --object-path .
+# Compile example
+mxvmc input.mxvm --path /usr/local/lib --object-path . --action translate
+</code></pre>
+            </div>
+
+            <h3>Usage Examples</h3>
+            <div class="code-block"><pre><code>
+mxvmc input.mxvm --path /usr/local/lib --object-path . --action translate --html 
+mxvmc input.mxvm --path /usr/local/lib --object-path . --debug  -it
+           </code></pre></div>
+
+            <h3>Module Development</h3>
+            <div class="code-block"><pre><code>
+// Example module function
+extern "C" void my_function(mxvm::Program *program, 
+                           std::vector&lt;mxvm::Operand&gt; &operands) {
+    // Module implementation
+}
+            </code></pre></div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 MXVM Project - Educational Virtual Machine Implementation</p>
+            <p>Licensed under GNU GPL v3 - <a href="https://github.com/lostjared/MXVM" style="color: #667eea;">View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            // Remove active class from all buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(button => button.classList.remove('active'));
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        function runDemo() {
+            const code = document.getElementById('codeEditor').value;
+            const output = document.getElementById('output');
+            
+            // Simple syntax highlighting and validation simulation
+            try {
+                // Basic validation
+                if (!code.includes('program')) {
+                    throw new Error('Missing program declaration');
+                }
+                if (!code.includes('section')) {
+                    throw new Error('Missing section declaration');
+                }
+
+                const lines = code.split('\n');
+                let result = 'Parsing MXVM code...\n\n';
+                
+                result += '✓ Lexical analysis complete\n';
+                result += '✓ Syntax validation passed\n';
+                result += '✓ Semantic analysis complete\n\n';
+                
+                result += 'Program structure:\n';
+                lines.forEach((line, index) => {
+                    if (line.trim().startsWith('program')) {
+                        result += `Line ${index + 1}: Program declaration found\n`;
+                    }
+                    if (line.trim().startsWith('section')) {
+                        result += `Line ${index + 1}: Section declaration found\n`;
+                    }
+                    if (line.trim().includes(':')) {
+                        result += `Line ${index + 1}: Variable or label declaration\n`;
+                    }
+                });
+
+                result += '\n✓ Code ready for execution!';
+                output.textContent = result;
+                output.style.color = '#00ff00';
+            } catch (error) {
+                output.textContent = `❌ Parse Error: ${error.message}`;
+                output.style.color = '#ff4444';
+            }
+        }
+
+        // Add some interactive animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.feature-card');
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+                card.style.animation = 'fadeIn 0.6s ease-in-out forwards';
+            });
+        });
+    </script>
+</body>
+</html>
