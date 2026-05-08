@@ -27,6 +27,13 @@ on Arch install required dependencies:
 
 sudo pacman -S base-devel make cmake git gdb sdl2 sdl2_ttf zlib libpng libglvnd
 
+or run
+
+```bash
+
+./compile-arch.sh
+
+```
 
 <img width="2560" height="1440" alt="vlcsnap-2026-05-07-21h03m56s040" src="https://github.com/user-attachments/assets/2f8f901c-f597-4b32-8c3c-46fc3ce5732e" />
 
