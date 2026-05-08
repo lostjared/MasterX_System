@@ -608,14 +608,17 @@ namespace mx {
 
             // Edge-drag resize: takes priority over title-bar drag so corners that
             // overlap the title bar still resize instead of moving.
-            int edges = hitTestEdges(e.button.x, e.button.y);
-            if (edges) {
-                resizing_ = true;
-                resizeEdges_ = edges;
-                resizeStartX_ = x; resizeStartY_ = y;
-                resizeStartW_ = w; resizeStartH_ = h;
-                resizeMouseX_ = e.button.x; resizeMouseY_ = e.button.y;
-                return true;
+            // Do not steal clicks from the window control buttons.
+            if (!inWindowButtons) {
+                int edges = hitTestEdges(e.button.x, e.button.y);
+                if (edges) {
+                    resizing_ = true;
+                    resizeEdges_ = edges;
+                    resizeStartX_ = x; resizeStartY_ = y;
+                    resizeStartW_ = w; resizeStartH_ = h;
+                    resizeMouseX_ = e.button.x; resizeMouseY_ = e.button.y;
+                    return true;
+                }
             }
 
             if (inTitleBar && !inWindowButtons && e.button.clicks >= 2) {
@@ -694,8 +697,8 @@ namespace mx {
             }
         }
 
-        for (auto &c : children) {
-            if (c->event(app, e)) return true;
+        for (auto it = children.rbegin(); it != children.rend(); ++it) {
+            if ((*it)->event(app, e)) return true;
         }
      
       
