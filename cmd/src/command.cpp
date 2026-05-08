@@ -6,8 +6,6 @@
 #include<iomanip>
 #include<cstdlib>
 #include<random>
-#include<algorithm>
-#include<cctype>
 #include"game_state.hpp"
 #include"parser.hpp"
 #include"html.hpp"
@@ -19,12 +17,7 @@
 #include<signal.h>
 #include<fcntl.h>
 #include<sys/select.h>
-#include<sys/ioctl.h>
-#ifdef __APPLE__
-#include<util.h>
-#else
 #include<pty.h>
-#endif
 #include<sys/stat.h>
 #endif
 #if !defined(__EMSCRIPTEN__) && defined(_WIN32)
@@ -44,299 +37,6 @@ namespace state {
 
 namespace cmd {
 
-    namespace {
-        class PathPatternMatcher {
-        public:
-            static std::vector<std::string> expand(const std::string& token,
-                                                   bool matchFiles,
-                                                   bool matchDirectories,
-                                                   bool keepUnmatched = true) {
-                if (!containsWildcard(token)) {
-                    return {token};
-                }
-
-                std::filesystem::path raw(token);
-                const std::filesystem::path cwd = std::filesystem::current_path();
-                std::vector<std::filesystem::path> candidates;
-
-                if (raw.is_absolute()) {
-                    candidates.push_back(raw.root_path());
-                } else {
-                    candidates.push_back(cwd);
-                }
-
-                std::filesystem::path relative = raw.is_absolute() ? raw.relative_path() : raw;
-                std::vector<std::string> segments;
-                for (const auto& part : relative) {
-                    std::string segment = part.string();
-                    if (!segment.empty()) {
-                        segments.push_back(segment);
-                    }
-                }
-
-                for (const auto& segment : segments) {
-                    std::vector<std::filesystem::path> nextCandidates;
-
-                    if (segment == ".") {
-                        nextCandidates = candidates;
-                    } else if (segment == "..") {
-                        for (const auto& base : candidates) {
-                            nextCandidates.push_back(base.parent_path());
-                        }
-                    } else if (!containsWildcard(segment)) {
-                        for (const auto& base : candidates) {
-                            std::filesystem::path candidate = base / segment;
-                            if (std::filesystem::exists(candidate)) {
-                                nextCandidates.push_back(candidate);
-                            }
-                        }
-                    } else {
-                        std::regex matcher = wildcardToRegex(segment);
-                        for (const auto& base : candidates) {
-                            if (!std::filesystem::exists(base) || !std::filesystem::is_directory(base)) {
-                                continue;
-                            }
-                            try {
-                                for (const auto& entry : std::filesystem::directory_iterator(base)) {
-                                    if (std::regex_match(entry.path().filename().string(), matcher)) {
-                                        nextCandidates.push_back(entry.path());
-                                    }
-                                }
-                            } catch (const std::filesystem::filesystem_error&) {
-                            }
-                        }
-                    }
-
-                    candidates = dedupe(nextCandidates);
-                    if (candidates.empty()) {
-                        break;
-                    }
-                }
-
-                std::vector<std::string> expanded;
-                for (const auto& path : candidates) {
-                    if (!std::filesystem::exists(path)) {
-                        continue;
-                    }
-                    if (std::filesystem::is_directory(path) && !matchDirectories) {
-                        continue;
-                    }
-                    if (std::filesystem::is_regular_file(path) && !matchFiles) {
-                        continue;
-                    }
-                    if (!std::filesystem::is_directory(path) && !std::filesystem::is_regular_file(path)) {
-                        continue;
-                    }
-
-                    if (raw.is_absolute()) {
-                        expanded.push_back(path.lexically_normal().string());
-                    } else {
-                        std::filesystem::path relativePath = path.lexically_relative(cwd);
-                        if (relativePath.empty()) {
-                            expanded.push_back(path.lexically_normal().string());
-                        } else {
-                            expanded.push_back(relativePath.lexically_normal().string());
-                        }
-                    }
-                }
-
-                std::sort(expanded.begin(), expanded.end());
-                expanded.erase(std::unique(expanded.begin(), expanded.end()), expanded.end());
-
-                if (expanded.empty() && keepUnmatched) {
-                    return {token};
-                }
-                return expanded;
-            }
-
-        private:
-            static bool containsWildcard(const std::string& value) {
-                return value.find('*') != std::string::npos;
-            }
-
-            static std::regex wildcardToRegex(const std::string& wildcardSegment) {
-                std::string pattern;
-                pattern.reserve(wildcardSegment.size() * 2);
-                pattern += '^';
-
-                for (char c : wildcardSegment) {
-                    if (c == '*') {
-                        pattern += ".*";
-                    } else {
-                        if (c == '.' || c == '^' || c == '$' || c == '|' || c == '(' || c == ')' ||
-                            c == '[' || c == ']' || c == '{' || c == '}' || c == '+' || c == '?' || c == '\\') {
-                            pattern += '\\';
-                        }
-                        pattern += c;
-                    }
-                }
-
-                pattern += '$';
-                return std::regex(pattern);
-            }
-
-            static std::vector<std::filesystem::path> dedupe(const std::vector<std::filesystem::path>& values) {
-                std::vector<std::filesystem::path> result = values;
-                std::sort(result.begin(), result.end(), [](const std::filesystem::path& left,
-                                                           const std::filesystem::path& right) {
-                    return left.lexically_normal().string() < right.lexically_normal().string();
-                });
-                result.erase(std::unique(result.begin(), result.end(), [](const std::filesystem::path& left,
-                                                                           const std::filesystem::path& right) {
-                    return left.lexically_normal().string() == right.lexically_normal().string();
-                }), result.end());
-                return result;
-            }
-        };
-
-        class CommandArgumentValidator {
-        public:
-            static bool ensureQuotedStringOrVariable(const Argument& arg,
-                                                     const std::string& commandName,
-                                                     std::ostream& output,
-                                                     const std::string& usageExample,
-                                                     bool allowOptionLiteral = false) {
-                if (arg.type == ARG_STRING_LITERAL || arg.type == ARG_COMMAND_SUBST) {
-                    return true;
-                }
-
-                if (arg.type == ARG_VARIABLE) {
-                    try {
-                        (void)getVar(arg);
-                        return true;
-                    } catch (const std::runtime_error&) {
-                        output << commandName << ": variable '" << arg.value << "' was not found." << std::endl;
-                        output << "If this is a literal path/string, wrap it in quotes." << std::endl;
-                        output << "Example: " << usageExample << std::endl;
-                        return false;
-                    }
-                }
-
-                if (arg.type == ARG_LITERAL) {
-                    if (isIntegerLiteral(arg.value)) {
-                        return true;
-                    }
-                    if (allowOptionLiteral && !arg.value.empty() && arg.value[0] == '-') {
-                        return true;
-                    }
-                }
-
-                output << commandName << ": unquoted string argument '" << arg.value << "'" << std::endl;
-                output << "MXCMD reminder: non-variable string arguments must be wrapped in quotes." << std::endl;
-                output << "Example: " << usageExample << std::endl;
-                output << "Allowed without quotes: variables (ex: $path) and integers." << std::endl;
-                return false;
-            }
-
-            static bool ensureAllQuotedStringOrVariable(const std::vector<Argument>& args,
-                                                        const std::string& commandName,
-                                                        std::ostream& output,
-                                                        const std::string& usageExample,
-                                                        bool allowOptionLiteral = false) {
-                for (const auto& arg : args) {
-                    if (!ensureQuotedStringOrVariable(arg, commandName, output, usageExample, allowOptionLiteral)) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-
-        private:
-            static bool isIntegerLiteral(const std::string& value) {
-                if (value.empty()) {
-                    return false;
-                }
-                size_t index = (value[0] == '+' || value[0] == '-') ? 1 : 0;
-                if (index >= value.size()) {
-                    return false;
-                }
-                for (; index < value.size(); ++index) {
-                    if (!std::isdigit(static_cast<unsigned char>(value[index]))) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-        };
-
-        const std::vector<std::pair<std::string, std::string>>& builtinHelpEntries() {
-            static const std::vector<std::pair<std::string, std::string>> entries = {
-                {"help", "help [\"command\"]"},
-                {"echo", "echo \"text\""},
-                {"print", "print [--i|--f] value"},
-                {"cat", "cat \"file\""},
-                {"grep", "grep [--r|--e] \"pattern\" \"file\""},
-                {"cd", "cd \"path\""},
-                {"ls", "ls \"path\""},
-                {"dir", "dir \"path\""},
-                {"find", "find \"path\" \"pattern\""},
-                {"sort", "sort \"file\""},
-                {"pwd", "pwd"},
-                {"mkdir", "mkdir [--p] \"dir\""},
-                {"cp", "cp [--r] \"src\" \"dest\""},
-                {"mv", "mv \"src\" \"dest\""},
-                {"touch", "touch \"file\""},
-                {"head", "head [--n N] \"file\""},
-                {"tail", "tail [--n N] \"file\""},
-                {"wc", "wc [--l] [--w] [--c] \"file\""},
-                {"sed", "sed [--n] [--i] \"s/old/new/g\" \"file\""},
-                {"printf", "printf \"format\" \"arg\" ..."},
-                {"stringf", "stringf \"format\" \"arg\" ..."},
-                {"test", "test value --eq value"},
-                {"cmd", "cmd \"script.mx\" [args...]"},
-                {"visual", "visual \"script.mx\" \"output.html\""},
-                {"at", "at \"list\" index"},
-                {"len", "len \"list\""},
-                {"index", "index \"string\" start length"},
-                {"strlen", "strlen \"string\""},
-                {"strfind", "strfind start \"string\" \"search\""},
-                {"strfindr", "strfindr start \"string\" \"search\""},
-                {"strtok", "strtok \"string\" \"separator\""},
-                {"exec", "exec \"shell command\""},
-                {"cmdlist", "cmdlist"},
-                {"debug_cmd", "debug_cmd"},
-                {"argv", "argv \"length\" | argv index"},
-                {"extern", "extern \"library\" \"function\" \"command\""},
-                {"extern_cleanup", "extern_cleanup [--all|\"command\"]"},
-                {"debug_set", "debug_set \"name\" value"},
-                {"debug_get", "debug_get \"name\""},
-                {"debug_list", "debug_list"},
-                {"debug_clear", "debug_clear \"name\""},
-                {"debug_clear_all", "debug_clear_all"},
-                {"debug_search", "debug_search \"pattern\""},
-                {"debug_dump", "debug_dump"},
-                {"list_new", "list_new \"name\""},
-                {"list_add", "list_add \"name\" \"value\""},
-                {"list_remove", "list_remove \"name\" index"},
-                {"list_get", "list_get \"name\" index"},
-                {"list_set", "list_set \"name\" index \"value\""},
-                {"list_clear", "list_clear \"name\""},
-                {"list_erase", "list_erase \"name\""},
-                {"list_exists", "list_exists \"name\""},
-                {"list_init", "list_init \"name\" size \"value\""},
-                {"list_len", "list_len \"name\""},
-                {"list_tokens", "list_tokens \"name\""},
-                {"list_sort", "list_sort \"name\""},
-                {"list_reverse", "list_reverse \"name\""},
-                {"list_shuffle", "list_shuffle \"name\""},
-                {"list_copy", "list_copy \"from\" \"to\""},
-                {"list_pop", "list_pop \"name\""},
-                {"list_concat", "list_concat \"name1\" \"name2\""},
-                {"rand", "rand min max"},
-                {"expr", "expr \"expression\""},
-                {"getline", "getline var"},
-                {"regex_match", "regex_match \"pattern\" \"string\""},
-                {"regex_replace", "regex_replace \"pattern\" \"replacement\" \"string\""},
-                {"regex_search", "regex_search \"pattern\" \"string\""},
-                {"regex_split", "regex_split \"pattern\" \"string\""},
-                {"tokenize", "tokenize \"file\""},
-                {"exit", "exit [code]"},
-                {"quit", "quit [code]"}
-            };
-            return entries;
-        }
-    }
-
     std::vector<std::string> argv;
     std::string app_name;    
     std::string cmd_type = "cmd.exe /c ";
@@ -351,45 +51,6 @@ namespace cmd {
         }
         throw Exit_Exception(0);
         return 0;     
-    }
-
-    int helpCommand(const std::vector<Argument>& args, std::istream& input, std::ostream& output) {
-        if (args.size() > 1) {
-            output << "Usage: help [\"command\"]" << std::endl;
-            return 1;
-        }
-
-        const auto& entries = builtinHelpEntries();
-        std::vector<std::pair<std::string, std::string>> sortedEntries(entries.begin(), entries.end());
-        std::sort(sortedEntries.begin(), sortedEntries.end(),
-                  [](const auto& left, const auto& right) {
-                      return left.first < right.first;
-                  });
-        if (args.size() == 1) {
-            if (!CommandArgumentValidator::ensureQuotedStringOrVariable(args[0], "help", output, "help \"cd\"")) {
-                return 1;
-            }
-            std::string requested = getVar(args[0]);
-            bool found = false;
-            for (const auto& entry : sortedEntries) {
-                if (entry.first == requested) {
-                    output << entry.first << " - " << entry.second << std::endl;
-                    found = true;
-                }
-            }
-            if (!found) {
-                output << "help: no built-in command named '" << requested << "'" << std::endl;
-                output << "Run help with no arguments to list all commands." << std::endl;
-                return 1;
-            }
-            return 0;
-        }
-
-        output << "Built-in commands:" << std::endl;
-        for (const auto& entry : sortedEntries) {
-            output << "  " << std::left << std::setw(16) << entry.first << " " << entry.second << std::endl;
-        }
-        return 0;
     }
     
     int echoCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream& stream) {
@@ -406,42 +67,46 @@ namespace cmd {
             }
         }
         output << std::endl;
-        
-        if(&stream != &std::cout) {
-            stream << output.str();
-        } else  {
-            printf("%s", output.str().c_str());
-            fflush(stdout);
-        }
+
+        stream << output.str();
         return 0;
     }
 
     int catCommand(const std::vector<Argument>& args, std::istream& input, std::ostream& output) {
         if (args.empty()) {
             std::string line;
-            while (std::getline(input, line)) {
-                output << line << std::endl;
+            AstExecutor &executor = AstExecutor::getExecutor();
+            if (executor.hasInputCallback()) {
+                while (true) {
+                    line = executor.getInput();
+                    if (line.empty()) break;
+                    std::string out = line + "\n";
+                    output << out;
+                    executor.execUpdateCallback(out);
+                }
+            } else {
+                while (std::getline(input, line)) {
+                    std::string out = line + "\n";
+                    output << out;
+                    executor.execUpdateCallback(out);
+                }
             }
             return 0; 
         } else {
             bool success = true;
             for (const auto& filename : args) {
-                if (!CommandArgumentValidator::ensureQuotedStringOrVariable(filename, "cat", output, "cat \"file.txt\"")) {
-                    return 1;
+                std::string filen_ = getVar(filename);
+                std::ifstream file(filen_);
+                if (!file) {
+                    output << "cat: " << filen_ << ": No such file" << std::endl;
+                    success = false;
+                    continue;
                 }
-                std::string fileToken = getVar(filename);
-                auto expanded = PathPatternMatcher::expand(fileToken, true, false, true);
-                for (const auto& filen_ : expanded) {
-                    std::ifstream file(filen_);
-                    if (!file) {
-                        output << "cat: " << filen_ << ": No such file" << std::endl;
-                        success = false;
-                        continue;
-                    }
-                    std::string line;
-                    while (std::getline(file, line)) {
-                        output << line << std::endl;
-                    }
+                std::string line;
+                while (std::getline(file, line)) {
+                    std::string out = line + "\n";
+                    output << out;
+                    AstExecutor::getExecutor().execUpdateCallback(out);
                 }
             }
     
@@ -455,12 +120,6 @@ namespace cmd {
         if (args.empty()) {
             output << "grep: missing pattern" << std::endl;
             return 1;
-        }
-
-        for (const auto& arg : args) {
-            if (!CommandArgumentValidator::ensureQuotedStringOrVariable(arg, "grep", output, "grep \"pattern\" \"file.txt\"", true)) {
-                return 1;
-            }
         }
         
         bool useRegex = false;
@@ -481,8 +140,7 @@ namespace cmd {
         std::vector<std::string> fileNames;
         for (size_t i = patternIndex + 1; i < args.size(); i++) {
             std::string file_n = getVar(args[i]);
-            auto expanded = PathPatternMatcher::expand(file_n, true, false, true);
-            fileNames.insert(fileNames.end(), expanded.begin(), expanded.end());
+            fileNames.push_back(file_n);
         }
         
         if (useRegex) {
@@ -547,7 +205,7 @@ namespace cmd {
 
     int printCommand(const std::vector<std::string>& args, std::istream& input, std::ostream& output) {
         if (args.empty()) {
-            output << "print: missing variable name" << std::endl;
+            output << "print: missing argument" << std::endl;
             return 1;
         }
 
@@ -565,14 +223,24 @@ namespace cmd {
             else {
                 if(output_integer == true) {
                     try {
-                        output << std::stoi(arg) << std::endl;
+                        const std::string line = std::to_string(std::stoi(arg)) + "\n";
+                        if (&output == &std::cout) {
+                            output << line;
+                        } else {
+                            AstExecutor::getExecutor().execUpdateCallback(line);
+                        }
                         output_integer = false;
                     } catch (const std::exception& e) {
                         output << "print: can't convert '" << arg << "' to integer" << std::endl;
                         success = false;
                     }
                 } else {
-                    output << arg << std::endl;
+                    const std::string line = arg + "\n";
+                    if (&output == &std::cout) {
+                        output << line;
+                    } else {
+                        AstExecutor::getExecutor().execUpdateCallback(line);
+                    }
                 }
             }
         }
@@ -583,26 +251,9 @@ namespace cmd {
     int cdCommand(const std::vector<Argument> &args, std::istream& input, std::ostream& output) {
         if (args.size() != 1) {
             output << "cd: expected exactly one argument" << std::endl;
-            output << "cd: this command requires a single quoted string path." << std::endl;
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureQuotedStringOrVariable(args[0], "cd", output, "cd \"sdl\"")) {
             return 1;
         }
         std::string path = getVar(args[0]);
-        auto expanded = PathPatternMatcher::expand(path, false, true, false);
-        if (expanded.empty()) {
-            output << "cd: " << path << ": No matches found" << std::endl;
-            return 1;
-        }
-        if (expanded.size() > 1) {
-            output << "cd: " << path << ": matches multiple directories" << std::endl;
-            for (const auto& match : expanded) {
-                output << "  " << match << std::endl;
-            }
-            return 1;
-        }
-        path = expanded.front();
         try {
             std::filesystem::current_path(path);
             return 0;
@@ -613,35 +264,12 @@ namespace cmd {
     }
 
     int listCommand(const std::vector<Argument> &args, std::istream& input, std::ostream& output) {
-        std::vector<std::string> targets;
-        if (args.empty()) {
-            targets.push_back(".");
-        } else {
-            for (const auto& arg : args) {
-                if (!CommandArgumentValidator::ensureQuotedStringOrVariable(arg, "ls", output, "ls \"path\"")) {
-                    return 1;
-                }
-                std::string token = getVar(arg);
-                auto expanded = PathPatternMatcher::expand(token, true, true, true);
-                targets.insert(targets.end(), expanded.begin(), expanded.end());
-            }
-        }
-
-        bool success = true;
+        std::string path = args.empty() ? "." : getVar(args[0]);
         try {
-            for (const auto& path : targets) {
-                if (std::filesystem::is_directory(path)) {
-                    for (const auto& entry : std::filesystem::directory_iterator(path)) {
-                        output << entry.path().filename().string() << std::endl;
-                    }
-                } else if (std::filesystem::exists(path)) {
-                    output << std::filesystem::path(path).filename().string() << std::endl;
-                } else {
-                    output << "ls: cannot access '" << path << "': No such file or directory" << std::endl;
-                    success = false;
-                }
+            for (const auto& entry : std::filesystem::directory_iterator(path)) {
+                output << entry.path().filename().string() << std::endl;
             }
-            return success ? 0 : 1;
+            return 0;
         } catch (const std::filesystem::filesystem_error& e) {
             output << "ls: " << e.what() << std::endl;
             return 1;
@@ -658,20 +286,14 @@ namespace cmd {
             }
         } else {
             for (const auto& filename : args) {
-                if (!CommandArgumentValidator::ensureQuotedStringOrVariable(filename, "sort", output, "sort \"file.txt\"")) {
+                std::string file_n = getVar(filename);
+                std::ifstream file(file_n);
+                if (!file) {
+                    output << "sort: " << file_n << ": No such file" << std::endl;
                     return 1;
-                }
-                std::string token = getVar(filename);
-                auto expanded = PathPatternMatcher::expand(token, true, false, true);
-                for (const auto& file_n : expanded) {
-                    std::ifstream file(file_n);
-                    if (!file) {
-                        output << "sort: " << file_n << ": No such file" << std::endl;
-                        return 1;
-                    }
-                    while (std::getline(file, line)) {
-                        lines.push_back(line);
-                    }
+                } 
+                while (std::getline(file, line)) {
+                    lines.push_back(line);
                 }
             }
         }
@@ -687,35 +309,20 @@ namespace cmd {
             output << "find: expected at least two arguments" << std::endl;
             return 1;
         }
-        if (!CommandArgumentValidator::ensureQuotedStringOrVariable(args[0], "find", output, "find \"path\" \"pattern\"")) {
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureQuotedStringOrVariable(args[1], "find", output, "find \"path\" \"pattern\"")) {
-            return 1;
-        }
-        std::string pathToken = getVar(args[0]);
+        std::string path = getVar(args[0]);
         std::string pattern = getVar(args[1]);
-        auto roots = PathPatternMatcher::expand(pathToken, false, true, false);
-        if (roots.empty()) {
-            output << "find: " << pathToken << ": No matches found" << std::endl;
-            return 1;
-        }
-
-        bool success = true;
+        
         try {
-            for (const auto& root : roots) {
-                for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
-                    if (entry.path().filename().string().find(pattern) != std::string::npos) {
-                        output << entry.path().string() << std::endl;
-                    }
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
+                if (entry.path().filename().string().find(pattern) != std::string::npos) {
+                    output << entry.path().string() << std::endl;
                 }
             }
-            return success ? 0 : 1;
+            return 0;
         } catch (const std::filesystem::filesystem_error& e) {
             output << "find: " << e.what() << std::endl;
-            success = false;
+            return 1;
         }
-        return success ? 0 : 1;
     }
 
     int pwdCommand(const std::vector<std::string>& args, std::istream& input, std::ostream& output) {
@@ -737,9 +344,6 @@ namespace cmd {
         std::vector<std::string> dirs;
         bool success = true;
         for (const auto& arg : args) {
-            if (!CommandArgumentValidator::ensureQuotedStringOrVariable(arg, "mkdir", output, "mkdir \"new_dir\"", true)) {
-                return 1;
-            }
             std::string a = getVar(arg);
             if (a == "--p") {
                 parents = true;
@@ -767,12 +371,6 @@ namespace cmd {
             output << "cp: missing destination file operand after '" << (args.empty() ? "cp" : args[0].value) << "'" << std::endl;
             return 1;
         }
-
-        for (const auto& arg : args) {
-            if (!CommandArgumentValidator::ensureQuotedStringOrVariable(arg, "cp", output, "cp \"src.txt\" \"dest.txt\"", true)) {
-                return 1;
-            }
-        }
         
         bool recursive = false;
         std::vector<std::string> files;
@@ -793,19 +391,9 @@ namespace cmd {
         
         std::string dest = files.back();
         files.pop_back();
-
-        std::vector<std::string> expandedSources;
-        for (const auto& src : files) {
-            auto expanded = PathPatternMatcher::expand(src, true, true, true);
-            expandedSources.insert(expandedSources.end(), expanded.begin(), expanded.end());
-        }
-        if (expandedSources.empty()) {
-            output << "cp: missing source file operand" << std::endl;
-            return 1;
-        }
         
         bool success = true;
-        for (const auto& src : expandedSources) {
+        for (const auto& src : files) {
             try {
                 if (recursive && std::filesystem::is_directory(src)) {
                     std::filesystem::copy(src, dest, std::filesystem::copy_options::recursive);
@@ -826,33 +414,17 @@ namespace cmd {
             output << "mv: missing destination file operand after '" << (args.empty() ? "mv" : args[0].value) << "'" << std::endl;
             return 1;
         }
-
-        for (const auto& arg : args) {
-            if (!CommandArgumentValidator::ensureQuotedStringOrVariable(arg, "mv", output, "mv \"src.txt\" \"dest.txt\"")) {
-                return 1;
-            }
-        }
         
         std::string dest = getVar(args.back());
-
-        std::vector<std::string> sources;
-        for (size_t i = 0; i < args.size() - 1; ++i) {
-            std::string token = getVar(args[i]);
-            auto expanded = PathPatternMatcher::expand(token, true, true, true);
-            sources.insert(sources.end(), expanded.begin(), expanded.end());
-        }
-        if (sources.empty()) {
-            output << "mv: missing source file operand" << std::endl;
-            return 1;
-        }
         
         bool success = true;
 
-        for (const auto& src : sources) {
+        for (size_t i = 0; i < args.size() - 1; ++i) {
             try {  
-                std::filesystem::rename(src, dest);
+                std::string a = getVar(args[i]);
+                std::filesystem::rename(a, dest);
             } catch (const std::filesystem::filesystem_error& e) {
-                output << "mv: cannot move '" << src << "' to '" << dest << "': " << e.what() << std::endl;
+                output << "mv: cannot move '" << args[i].value << "' to '" << dest << "': " << e.what() << std::endl;
                 success = false;
             } 
         }
@@ -867,19 +439,13 @@ namespace cmd {
         }
         bool success = true;
         for (const auto& file : args) {
-            if (!CommandArgumentValidator::ensureQuotedStringOrVariable(file, "touch", output, "touch \"file.txt\"")) {
-                return 1;
-            }
             try {
-                std::string token = getVar(file);
-                auto expanded = PathPatternMatcher::expand(token, true, true, true);
-                for (const auto& f : expanded) {
-                    if (!std::filesystem::exists(f)) {
-                        std::ofstream(f).close();
-                    } else {
-                        auto now = std::filesystem::file_time_type::clock::now();
-                        std::filesystem::last_write_time(f, now);
-                    }
+                std::string f = getVar(file);
+                if (!std::filesystem::exists(f)) {
+                    std::ofstream(f).close();
+                } else {
+                    auto now = std::filesystem::file_time_type::clock::now();
+                    std::filesystem::last_write_time(f, now);
                 }
             } catch (const std::filesystem::filesystem_error& e) {
                 output << "touch: cannot touch '" << file.value << "': " << e.what() << std::endl;
@@ -903,8 +469,7 @@ namespace cmd {
                     return 1;
                 }
             } else {
-                auto expanded = PathPatternMatcher::expand(args[i], true, false, true);
-                files.insert(files.end(), expanded.begin(), expanded.end());
+                files.push_back(args[i]);
             }
         }
         
@@ -954,8 +519,7 @@ namespace cmd {
                     return 1;
                 }
             } else {
-                auto expanded = PathPatternMatcher::expand(args[i], true, false, true);
-                files.insert(files.end(), expanded.begin(), expanded.end());
+                files.push_back(args[i]);
             }
         }
         
@@ -1008,9 +572,6 @@ namespace cmd {
         std::vector<std::string> files;
     
         for (const auto& arg : args) {
-            if (!CommandArgumentValidator::ensureQuotedStringOrVariable(arg, "wc", output, "wc --l \"file.txt\"", true)) {
-                return 1;
-            }
             std::string a = getVar(arg);
             if (a == "--l") {
                 countLines = true;
@@ -1019,8 +580,7 @@ namespace cmd {
             } else if (a == "--c") {
                 countChars = true;
             } else {
-                auto expanded = PathPatternMatcher::expand(a, true, false, true);
-                files.insert(files.end(), expanded.begin(), expanded.end());
+                files.push_back(a);
             }
         }
         
@@ -1095,12 +655,6 @@ namespace cmd {
         bool editInPlace = false;
         std::string expression;
         std::string filename;
-
-        for (const auto& arg : args) {
-            if (!CommandArgumentValidator::ensureQuotedStringOrVariable(arg, "sed", output, "sed \"s/old/new/g\" \"file.txt\"", true)) {
-                return 1;
-            }
-        }
         
         for (const auto& arg : args) {
             std::string a = getVar(arg);
@@ -1116,22 +670,6 @@ namespace cmd {
             } else {
                 filename = a;
             }
-        }
-
-        if (!filename.empty()) {
-            auto expanded = PathPatternMatcher::expand(filename, true, false, false);
-            if (expanded.empty()) {
-                output << "Error: Cannot open file '" << filename << "'" << std::endl;
-                return 1;
-            }
-            if (expanded.size() > 1) {
-                output << "Error: sed filename pattern matches multiple files:" << std::endl;
-                for (const auto& match : expanded) {
-                    output << "  " << match << std::endl;
-                }
-                return 1;
-            }
-            filename = expanded.front();
         }
 
         if (expression.empty() || expression[0] != 's') {
@@ -1220,9 +758,6 @@ namespace cmd {
         if (args.empty()) {
             output << "Usage: printf FORMAT [ARGUMENTS...]" << std::endl;
             output << "Print ARGUMENTS according to FORMAT" << std::endl;
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "printf", stream_output, "printf \"%s\" \"text\"")) {
             return 1;
         }
         std::vector<std::string> expandedArgs;
@@ -1348,13 +883,7 @@ namespace cmd {
             pos = specPos + 1;
         }
 
-        if(&stream_output != &std::cout) {
-            stream_output << output.str();
-            stream_output.flush();
-        } else {
-            printf("%s", output.str().c_str());
-            fflush(stdout);
-        }
+        stream_output << output.str();
         return 0;
     }
 
@@ -1466,9 +995,6 @@ namespace cmd {
             return 1; 
         }
 
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "test", output, "test \"left\" --eq \"right\"", true)) {
-            return 1;
-        }
         if (args.size() == 2) {
             const std::string& op = args[0].value;
             const std::string value = getVar(args[1]);
@@ -1567,47 +1093,17 @@ namespace cmd {
             throw AstFailure("Exception: Script: execution failed missing operand.\n");
         }
 
-        if (!CommandArgumentValidator::ensureQuotedStringOrVariable(args[0], "cmd", output, "cmd \"script.mx\"")) {
-            throw AstFailure("Exception: Script: execution failed invalid argument format.\n");
-        }
-
         std::string filename = getVar(args[0]);
         if (filename.size() >= 2 && 
             ((filename.front() == '"' && filename.back() == '"') || 
              (filename.front() == '\'' && filename.back() == '\''))) {
             filename = filename.substr(1, filename.size() - 2);
         }
-
-        auto expandedScript = PathPatternMatcher::expand(filename, true, false, false);
-        if (expandedScript.empty()) {
+        cmd::app_name = filename;
+        std::ifstream file(filename);
+        if (!file.is_open()) {
             output << "cmd: cannot open file '" << filename << "': No such file or directory" << std::endl;
             throw AstFailure("Exception: Script: " + filename + " execution failed. File not found\n");
-        }
-        if (expandedScript.size() > 1) {
-            output << "cmd: script pattern matches multiple files:" << std::endl;
-            for (const auto& match : expandedScript) {
-                output << "  " << match << std::endl;
-            }
-            throw AstFailure("Exception: Script pattern matched multiple files.\n");
-        }
-        filename = expandedScript.front();
-
-        cmd::AstExecutor &scriptExecutor = cmd::AstExecutor::getExecutor();
-        std::filesystem::path resolvedPath(filename);
-        if (!resolvedPath.is_absolute()) {
-            std::string basePath = scriptExecutor.getPath();
-            if (basePath.empty()) {
-                basePath = std::filesystem::current_path().string();
-            }
-            resolvedPath = std::filesystem::path(basePath) / resolvedPath;
-        }
-        resolvedPath = resolvedPath.lexically_normal();
-
-        cmd::app_name = resolvedPath.string();
-        std::ifstream file(resolvedPath);
-        if (!file.is_open()) {
-            output << "cmd: cannot open file '" << resolvedPath.string() << "': No such file or directory" << std::endl;
-            throw AstFailure("Exception: Script: " + resolvedPath.string() + " execution failed. File not found\n");
         }
         std::stringstream buffer;
         buffer << file.rdbuf();
@@ -1628,53 +1124,12 @@ namespace cmd {
             return 1;
         }
 
-        std::string previousPath = scriptExecutor.getPath();
-        std::filesystem::path parent = resolvedPath.parent_path();
-        if (parent.empty()) {
-            scriptExecutor.setPath(std::filesystem::current_path().string());
-        } else {
-            scriptExecutor.setPath(parent.string());
-        }
-
-        struct CmdModeEnvGuard {
-            std::string previous;
-            bool hadPrevious = false;
-
-            CmdModeEnvGuard() {
-                const char* value = std::getenv("MXCMD_CMD_MODE");
-                if (value != nullptr) {
-                    hadPrevious = true;
-                    previous = value;
-                }
-#ifdef _WIN32
-                _putenv_s("MXCMD_CMD_MODE", "1");
-#else
-                setenv("MXCMD_CMD_MODE", "1", 1);
-#endif
-            }
-
-            ~CmdModeEnvGuard() {
-                if (hadPrevious) {
-#ifdef _WIN32
-                    _putenv_s("MXCMD_CMD_MODE", previous.c_str());
-#else
-                    setenv("MXCMD_CMD_MODE", previous.c_str(), 1);
-#endif
-                } else {
-#ifdef _WIN32
-                    _putenv_s("MXCMD_CMD_MODE", "");
-#else
-                    unsetenv("MXCMD_CMD_MODE");
-#endif
-                }
-            }
-        } cmdModeGuard;
-
         try {
             scan::TString string_buffer(script);
             scan::Scanner scanner(string_buffer);
             cmd::Parser parser(scanner);
             auto ast = parser.parse();
+            cmd::AstExecutor &scriptExecutor = cmd::AstExecutor::getExecutor();
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
             program_running = 1;
@@ -1683,25 +1138,18 @@ namespace cmd {
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
             program_running = 0;
 #endif
-            scriptExecutor.setPath(previousPath);
 
             return 0;
         } catch (const scan::ScanExcept &e) {
-            scriptExecutor.setPath(previousPath);
-            output << "cmd: Scan error in " << resolvedPath.string() << ": " << e.why() << std::endl;
+            output << "cmd: Scan error in " << filename << ": " << e.why() << std::endl;
             return 1;
+        } catch(const AstFailure &e) {
+            throw AstFailure("Exception: Script: " + filename + " execution failed: " + std::string(e.what()) + "\n");
         } catch (const std::exception &e) {
-            scriptExecutor.setPath(previousPath);
-            output << "cmd: Error in " << resolvedPath.string() << ": " << e.what() << std::endl;
+            output << "cmd: Error in " << filename << ": " << e.what() << std::endl;
             return 1;
-        } 
-        catch(const AstFailure &e) {
-            scriptExecutor.setPath(previousPath);
-            throw AstFailure("Exception: Script: " + resolvedPath.string() + " execution failed: " + std::string(e.what()) + "\n");
-        } 
-        catch (...) {
-            scriptExecutor.setPath(previousPath);
-            output << "cmd: Unknown error occurred while executing " << resolvedPath.string() << std::endl;
+        } catch (...) {
+            output << "cmd: Unknown error occurred while executing " << filename << std::endl;
             return 1;
         }
         return 0;
@@ -1710,9 +1158,6 @@ namespace cmd {
     int visualCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream& output) {
         if(args.empty() || args.size() != 2) {
             output << "Usage: visual script output_filel.\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "visual", output, "visual \"script.mx\" \"out.html\"")) {
             return 1;
         }
         std::string op1 = getVar(args[0]), op2 = getVar(args[1]);
@@ -1757,9 +1202,6 @@ namespace cmd {
             output << "Usage: at <list> index\n";
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "at", output, "at \"item1 item2\" 0")) {
-            return 1;
-        }
 
         std::string op1= getVar(args[0]);
         std::string op2= getVar(args[1]);
@@ -1778,9 +1220,6 @@ namespace cmd {
     int lenCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if(args.empty() || args.size() != 1) {
             output << "Usage: len <list>\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "len", output, "len \"a b c\"")) {
             return 1;
         }
         std::string op1 = getVar(args[0]);          
@@ -1808,13 +1247,10 @@ namespace cmd {
         }
         return 0;
     }
-    
+    // index <string> start len
     int indexCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if(args.empty() || args.size() != 3) {
             output << "Usage: index <string> start leenn\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "index", output, "index \"hello\" 1 3")) {
             return 1;
         }
 
@@ -1840,9 +1276,6 @@ namespace cmd {
             output <<  "Usage: strlen <string>\n";
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "strlen", output, "strlen \"hello\"")) {
-            return 1;
-        }
         std::string v = getVar(args[0]);
         output << v.length();
         return 0;
@@ -1853,9 +1286,6 @@ namespace cmd {
             output << "Usage: <start> <string> <search>\n";
             return 1;
          }
-            if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "strfind", output, "strfind 0 \"hello world\" \"world\"")) {
-                return 1;
-            }
 
          std::string op1 = getVar(args[0]);
          std::string op2 = getVar(args[1]);
@@ -1876,9 +1306,6 @@ namespace cmd {
             output << "Usage: <start> <string> <search>\n";
             return 1;
          }
-            if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "strfindr", output, "strfindr 0 \"hello world\" \"world\"")) {
-                return 1;
-            }
 
          std::string op1 = getVar(args[0]);
          std::string op2 = getVar(args[1]);
@@ -1897,9 +1324,6 @@ namespace cmd {
     int strtokCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if(args.empty() || args.size() != 2) {
             output << "Usage: strtok string seperator\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "strtok", output, "strtok \"a,b,c\" \",\"")) {
             return 1;
         }
         std::string op1 = getVar(args[0]);
@@ -1932,7 +1356,7 @@ namespace cmd {
             }
         }
         std::string command_str = all_args.str();
-#if !defined(__EMSCRIPTEN__) && !defined(_WIN32) && defined(__linux__) || defined(__APPLE__)
+#if !defined(__EMSCRIPTEN__) && !defined(_WIN32) && defined(__linux__)
         int master_fd, slave_fd;
         pid_t pid;
         
@@ -1963,7 +1387,6 @@ namespace cmd {
             exit(127);
         } else {
             close(slave_fd);
-            
             int flags = fcntl(master_fd, F_GETFL, 0);
             fcntl(master_fd, F_SETFL, flags | O_NONBLOCK);
             
@@ -2125,6 +1548,7 @@ namespace cmd {
 
         bool isStdOut = (&output == &std::cout);
         
+        std::string line_buffer;
         bool still_running = true;
         
         while (still_running) {
@@ -2140,13 +1564,32 @@ namespace cmd {
                 
                 if (ReadFile(hStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
                     buffer[bytesRead] = '\0';
-
-                    if (isStdOut) {
-                        printf("%s", buffer);
-                        fflush(stdout);
-                    } else {
-                        output << buffer;
-                        output.flush();
+                    line_buffer += buffer;
+                    
+                    size_t pos = 0;
+                    while ((pos = line_buffer.find('\n')) != std::string::npos) {
+                        std::string line = line_buffer.substr(0, pos + 1);
+                        
+                        if (isStdOut) {
+                            printf("%s", line.c_str());
+                            fflush(stdout);
+                        } else {
+                            output << line;
+                            output.flush();
+                        }
+                        
+                        line_buffer.erase(0, pos + 1);
+                    }
+                    
+                    if (line_buffer.length() > 80) {
+                        if (isStdOut) {
+                            printf("%s", line_buffer.c_str());
+                            fflush(stdout);
+                        } else {
+                            output << line_buffer;
+                            output.flush();
+                        }
+                        line_buffer.clear();
                     }
                 } else {
                     still_running = false;
@@ -2156,6 +1599,16 @@ namespace cmd {
                 DWORD currentChildExitCode;
                 if (GetExitCodeProcess(pi.hProcess, &currentChildExitCode)) {
                     if (currentChildExitCode != STILL_ACTIVE) {
+                        // Output any remaining buffer
+                        if (!line_buffer.empty()) {
+                            if (isStdOut) {
+                                printf("%s", line_buffer.c_str());
+                                fflush(stdout);
+                            } else {
+                                output << line_buffer;
+                                output.flush();
+                            }
+                        }
                         still_running = false;
                     }
                 } else {
@@ -2232,8 +1685,9 @@ namespace cmd {
         CloseHandle(hStdInRead);
         CloseHandle(hStdInWrite);
 
-        
+        // Same output handling as above...
         bool isStdOut = (&output == &std::cout);
+        std::string line_buffer;
         bool still_running = true;
         
         while (still_running) {
@@ -2249,13 +1703,32 @@ namespace cmd {
                 
                 if (ReadFile(hStdOutRead, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
                     buffer[bytesRead] = '\0';
-
-                    if (isStdOut) {
-                        printf("%s", buffer);
-                        fflush(stdout);
-                    } else {
-                        output << buffer;
-                        output.flush();
+                    line_buffer += buffer;
+                    
+                    size_t pos = 0;
+                    while ((pos = line_buffer.find('\n')) != std::string::npos) {
+                        std::string line = line_buffer.substr(0, pos + 1);
+                        
+                        if (isStdOut) {
+                            printf("%s", line.c_str());
+                            fflush(stdout);
+                        } else {
+                            output << line;
+                            output.flush();
+                        }
+                        
+                        line_buffer.erase(0, pos + 1);
+                    }
+                    
+                    if (line_buffer.length() > 80) {
+                        if (isStdOut) {
+                            printf("%s", line_buffer.c_str());
+                            fflush(stdout);
+                        } else {
+                            output << line_buffer;
+                            output.flush();
+                        }
+                        line_buffer.clear();
                     }
                 } else {
                     still_running = false;
@@ -2265,6 +1738,15 @@ namespace cmd {
                 DWORD currentChildExitCode;
                 if (GetExitCodeProcess(pi.hProcess, &currentChildExitCode)) {
                     if (currentChildExitCode != STILL_ACTIVE) {
+                        if (!line_buffer.empty()) {
+                            if (isStdOut) {
+                                printf("%s", line_buffer.c_str());
+                                fflush(stdout);
+                            } else {
+                                output << line_buffer;
+                                output.flush();
+                            }
+                        }
                         still_running = false;
                     }
                 } else {
@@ -2289,6 +1771,7 @@ namespace cmd {
         return static_cast<int>(final_child_exit_code);
     }
 #endif
+        return 0;
     }
 
     int commandListCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
@@ -2299,9 +1782,6 @@ namespace cmd {
     int argvCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if (args.empty()) {
             output << "Usage: argv <index>\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureQuotedStringOrVariable(args[0], "argv", output, "argv \"length\"")) {
             return 1;
         }
         if(args[0].type == ArgType::ARG_STRING_LITERAL && args[0].value == "length") {
@@ -2341,109 +1821,12 @@ namespace cmd {
             output << "\n";
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "extern", output, "extern \"libname.so\" \"func\" \"cmdname\"")) {
-            return 1;
-        }
         std::string libPath = getVar(args[0]);
         std::string funcName = getVar(args[1]);
         std::string cmdName = getVar(args[2]);
-
-        std::string libLookup = libPath;
-
-        std::vector<std::string> lookupCandidates;
-        auto addCandidate = [&lookupCandidates](const std::filesystem::path& value) {
-            std::string normalized = value.lexically_normal().string();
-            for (const auto& existing : lookupCandidates) {
-                if (existing == normalized) {
-                    return;
-                }
-            }
-            lookupCandidates.push_back(normalized);
-        };
-
-        try {
-            std::filesystem::path requested(libLookup);
-            if (requested.is_absolute()) {
-                addCandidate(requested);
-            } else {
-                addCandidate(std::filesystem::absolute(requested));
-            }
-
-            std::filesystem::path appDir = std::filesystem::path(app_name).parent_path();
-            if (!appDir.empty()) {
-                addCandidate(std::filesystem::absolute(appDir / requested));
-                addCandidate(std::filesystem::absolute(appDir / requested.filename()));
-            }
-
-#if defined(__linux__)
-            addCandidate(std::filesystem::path("/usr/local/lib") / requested);
-            addCandidate(std::filesystem::path("/usr/local/lib") / requested.filename());
-            if (!requested.has_extension()) {
-                std::string baseName = requested.filename().string();
-                if (baseName.rfind("lib", 0) == 0) {
-                    addCandidate(std::filesystem::path("/usr/local/lib") / (baseName + ".so"));
-                } else {
-                    addCandidate(std::filesystem::path("/usr/local/lib") / ("lib" + baseName + ".so"));
-                }
-            }
-#elif defined(__APPLE__)
-            addCandidate(std::filesystem::path("/usr/local/lib") / requested);
-            addCandidate(std::filesystem::path("/usr/local/lib") / requested.filename());
-            if (!requested.has_extension()) {
-                std::string baseName = requested.filename().string();
-                if (baseName.rfind("lib", 0) == 0) {
-                    addCandidate(std::filesystem::path("/usr/local/lib") / (baseName + ".dylib"));
-                } else {
-                    addCandidate(std::filesystem::path("/usr/local/lib") / ("lib" + baseName + ".dylib"));
-                }
-            }
-#endif
-
-#ifdef _WIN32
-            char modulePath[MAX_PATH] = {0};
-            DWORD modulePathLen = GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
-            if (modulePathLen > 0 && modulePathLen < MAX_PATH) {
-                std::filesystem::path exeDir = std::filesystem::path(modulePath).parent_path();
-                addCandidate(std::filesystem::absolute(exeDir / requested));
-                addCandidate(std::filesystem::absolute(exeDir / requested.filename()));
-            }
-#endif
-        } catch (...) {
-            lookupCandidates.push_back(libLookup);
-        }
-
-        std::vector<std::string> orderedCandidates;
-#ifdef _WIN32
-        for (const auto& candidate : lookupCandidates) {
-            try {
-                std::filesystem::path dllPath = std::filesystem::path(candidate + ".dll");
-                if (std::filesystem::exists(dllPath)) {
-                    orderedCandidates.push_back(candidate);
-                }
-            } catch (...) {
-            }
-        }
-        for (const auto& candidate : lookupCandidates) {
-            if (std::find(orderedCandidates.begin(), orderedCandidates.end(), candidate) == orderedCandidates.end()) {
-                orderedCandidates.push_back(candidate);
-            }
-        }
-#else
-        orderedCandidates = lookupCandidates;
-#endif
-
+        
         auto &reg = AstExecutor::getRegistry();
-        std::shared_ptr<Library> lib;
-        std::string loadedLibraryPath = libPath;
-        for (const auto& candidate : orderedCandidates) {
-            std::shared_ptr<Library> &candidateLib = reg.setLibrary(candidate);
-            if (candidateLib) {
-                lib = candidateLib;
-                loadedLibraryPath = candidate;
-                break;
-            }
-        }
-
+        std::shared_ptr<Library> &lib = reg.setLibrary(libPath);
         if(!lib) {
             std::cerr << "extern: failed to load library " << libPath << "\n";
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
@@ -2464,9 +1847,9 @@ namespace cmd {
         }
         ExternCommandInfo info;
         info.library = lib;
-        info.func = lib->getFunction<plugin_func_t>(funcName);
+        info.func = lib->getFunction<int(*)(const std::vector<cmd::Argument>&, std::istream&, std::ostream&)>(funcName);
         info.functionName = funcName;
-        info.libraryPath = loadedLibraryPath;
+        info.libraryPath = libPath;
 
         if(info.func) {
             reg.registerExternCommand(cmdName, info);            
@@ -2482,54 +1865,10 @@ namespace cmd {
         }
     }
 
-    int externCleanupCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
-        auto& reg = AstExecutor::getRegistry();
-
-        if (args.empty()) {
-            std::size_t removedCommands = reg.clearExternCommands();
-            std::size_t removedLibraries = reg.pruneLibraries();
-            output << "extern_cleanup: removed " << removedCommands << " command(s), released "
-                   << removedLibraries << " librar(y/ies)" << std::endl;
-            return 0;
-        }
-
-        if (args.size() != 1) {
-            output << "Usage: extern_cleanup [--all|<command_name>]" << std::endl;
-            return 1;
-        }
-
-        if (!CommandArgumentValidator::ensureQuotedStringOrVariable(args[0], "extern_cleanup", output, "extern_cleanup \"command_name\"", true)) {
-            return 1;
-        }
-
-        std::string arg = getVar(args[0]);
-        if (arg == "--all" || arg == "all") {
-            std::size_t removedCommands = reg.clearExternCommands();
-            std::size_t removedLibraries = reg.pruneLibraries();
-            output << "extern_cleanup: removed " << removedCommands << " command(s), released "
-                   << removedLibraries << " librar(y/ies)" << std::endl;
-            return 0;
-        }
-
-        bool removed = reg.unregisterExternCommand(arg);
-        std::size_t removedLibraries = reg.pruneLibraries();
-        if (!removed) {
-            output << "extern_cleanup: command not found: " << arg << std::endl;
-            return 1;
-        }
-
-        output << "extern_cleanup: removed command '" << arg << "', released "
-               << removedLibraries << " librar(y/ies)" << std::endl;
-        return 0;
-    }
-
     
     int newListCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if (args.empty()) {
             output << "Usage: list_new <name>\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_new", output, "list_new \"my_list\"")) {
             return 1;
         }
         std::string name = getVar(args[0]);
@@ -2551,9 +1890,6 @@ namespace cmd {
             output << "Usage: list_add <name> <value>\n";
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_add", output, "list_add \"my_list\" \"value\"")) {
-            return 1;
-        }
         std::string name = getVar(args[0]);
         std::string value = getVar(args[1]);
         state::GameState *gameState = state::getGameState();
@@ -2567,9 +1903,6 @@ namespace cmd {
     int newListRemoveCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if (args.size() < 2) {
             output << "Usage: list_remove <name> <value>\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_remove", output, "list_remove \"my_list\" 0")) {
             return 1;
         }
         std::string name = getVar(args[0]);
@@ -2586,9 +1919,6 @@ namespace cmd {
     int newListGetCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if (args.size() < 2) {
             throw cmd::AstFailure("Usage: list_get <name> <index>");
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_get", output, "list_get \"my_list\" 0")) {
             return 1;
         }
         std::string name = getVar(args[0]);
@@ -2613,9 +1943,6 @@ namespace cmd {
             output << "Usage: list_set <name> <index> <value>\n";
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_set", output, "list_set \"my_list\" 0 \"value\"")) {
-            return 1;
-        }
         std::string name = getVar(args[0]);
         std::string indexStr = getVar(args[1]);
         std::string value = getVar(args[2]);
@@ -2632,9 +1959,6 @@ namespace cmd {
     int newListClearCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if (args.empty()) {
             output << "Usage: list_clear <name>\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_clear", output, "list_clear \"my_list\"")) {
             return 1;
         }
         std::string name = getVar(args[0]);
@@ -2656,9 +1980,6 @@ namespace cmd {
             throw cmd::AstFailure("Usage: list_exists <name>");
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_exists", output, "list_exists \"my_list\"")) {
-            return 1;
-        }
         std::string name = getVar(args[0]);
         state::GameState *gameState = state::getGameState();
         if (gameState->hasList(name)) {
@@ -2671,9 +1992,6 @@ namespace cmd {
     int newListInitCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if(args.empty()) {
             output << "Usage: list_init <name> <size> <value>\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_init", output, "list_init \"my_list\" 10 \"value\"")) {
             return 1;
         }
         std::string name = getVar(args[0]);
@@ -2694,9 +2012,6 @@ namespace cmd {
             throw cmd::AstFailure("Usage: list_len <name>");
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_len", output, "list_len \"my_list\"")) {
-            return 1;
-        }
         std::string name = getVar(args[0]);
         state::GameState *gameState = state::getGameState();
         if (!gameState->hasList(name)) {
@@ -2713,9 +2028,6 @@ namespace cmd {
             throw cmd::AstFailure("Usage: list_tokens <name>");
             return 1;
         }   
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_tokens", output, "list_tokens \"my_list\"")) {
-            return 1;
-        }
         std::string name = getVar(args[0]);
         state::GameState *gameState = state::getGameState();
         if (!gameState->hasList(name)) {
@@ -2735,9 +2047,6 @@ namespace cmd {
             throw cmd::AstFailure("Usage: list_sort <name>");
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_sort", output, "list_sort \"my_list\"")) {
-            return 1;
-        }
         std::string name = getVar(args[0]); 
         state::GameState *gameState = state::getGameState();
         if (!gameState->hasList(name)) {
@@ -2752,9 +2061,6 @@ namespace cmd {
             throw cmd::AstFailure("Usage: list_reverse <name>");
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_reverse", output, "list_reverse \"my_list\"")) {
-            return 1;
-        }
         std::string name = getVar(args[0]);
         state::GameState *gameState = state::getGameState();
         if (!gameState->hasList(name)) {
@@ -2767,9 +2073,6 @@ namespace cmd {
     int newListShuffleCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream  &output) {
         if (args.empty()) {
             throw cmd::AstFailure("Usage: list_shuffle <name>");
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_shuffle", output, "list_shuffle \"my_list\"")) {
             return 1;
         }
         std::string name = getVar(args[0]); 
@@ -2791,9 +2094,6 @@ namespace cmd {
             throw cmd::AstFailure("Usage: list_copy <name> <name2>");
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_copy", output, "list_copy \"list1\" \"list2\"")) {
-            return 1;
-        }
         std::string name1 = getVar(args[0]);
         std::string name2 = getVar(args[1]);
 
@@ -2809,9 +2109,6 @@ namespace cmd {
     int newListPopCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if (args.empty()) {
             throw cmd::AstFailure("Usage: list_pop <name>");
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_pop", output, "list_pop \"my_list\"")) {
             return 1;
         }
         std::string name = getVar(args[0]);
@@ -2831,9 +2128,6 @@ namespace cmd {
         }
         if(args.size() < 2) {
             throw cmd::AstFailure("Usage: list_concat <name1> <name2> <name3>");
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "list_concat", output, "list_concat \"list1\" \"list2\"")) {
             return 1;
         }
         std::string name1 = getVar(args[0]);
@@ -3102,9 +2396,6 @@ namespace cmd {
             throw AstFailure("Usage: expr <expression>\n");
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "expr", output, "expr \"1 + 2 * 3\"")) {
-            return 1;
-        }
         std::string expression = getVar(args[0]);
         try {
             expr_parser::ExprLexer lexer(expression);
@@ -3124,7 +2415,14 @@ namespace cmd {
             return 1;
         }
         std::string line;
-        std::getline(input, line);
+        
+        AstExecutor &executor = AstExecutor::getExecutor();
+        if (executor.hasInputCallback()) {
+            line = executor.getInput(output);
+        } else {
+            std::getline(input, line);
+        }
+        
         if(line.empty()) {
             return 0;
         }
@@ -3138,9 +2436,6 @@ namespace cmd {
     int regexMatchCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if (args.empty() || args.size() != 2) {
             output << "Usage: regex_match <pattern> <string>\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "regex_match", output, "regex_match \"pattern\" \"text\"")) {
             return 1;
         }
         std::string pattern = getVar(args[0]);
@@ -3158,9 +2453,6 @@ namespace cmd {
             output << "Usage: regex_replace <pattern> <replacement> <string>\n";
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "regex_replace", output, "regex_replace \"pattern\" \"replacement\" \"text\"")) {
-            return 1;
-        }
         std::string pattern = getVar(args[0]);
         std::string replacement = getVar(args[1]);
         std::string str = getVar(args[2]);
@@ -3172,9 +2464,6 @@ namespace cmd {
     int regexSearchCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream &output) {
         if (args.empty() || args.size() != 2) {
             output << "Usage: regex_search <pattern> <string>\n";
-            return 1;
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "regex_search", output, "regex_search \"pattern\" \"text\"")) {
             return 1;
         }
         std::string pattern = getVar(args[0]);
@@ -3192,9 +2481,6 @@ namespace cmd {
             output << "Usage: regex_split <pattern> <string>\n";
             return 1;
         }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "regex_split", output, "regex_split \"pattern\" \"text\"")) {
-            return 1;
-        }
         std::string pattern = getVar(args[0]);
         std::string str = getVar(args[1]);
         std::regex re(pattern);
@@ -3210,9 +2496,6 @@ namespace cmd {
         if(args.empty()) {
             output << "Usage: tokenize <filename>\n";
             return 1; 
-        }
-        if (!CommandArgumentValidator::ensureAllQuotedStringOrVariable(args, "tokenize", output, "tokenize \"script.mx\"")) {
-            return 1;
         }
         if(args.size() > 0) {
             std::string filename = getVar(args[0]);

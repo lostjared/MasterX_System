@@ -1,11 +1,12 @@
 #ifndef _SCANNER_H_
 #define _SCANNER_H_
 
-#include "string_buffer.hpp"
-#include <iostream>
-#include <optional>
-#include <string>
-#include <vector>
+#include<iostream>
+#include<string>
+#include"string_buffer.hpp"
+#include<vector>
+#include<string>
+#include<optional>
 
 namespace scan {
 
@@ -15,7 +16,7 @@ namespace scan {
     using TMap = token::TokenMap<char>;
 
     class Scanner {
-      public:
+    public:
         Scanner(const TString &b);
         uint64_t scan();
         std::optional<TToken> grabId();
@@ -26,28 +27,28 @@ namespace scan {
 
         TToken &operator[](size_t index);
         size_t size() const;
-
-      private:
+    private:
         TString string_buffer;
         TMap token_map;
         std::vector<TToken> tokens;
 
-        bool is_c_sym(const StringType &str);
+        bool is_c_sym(const StringType& str);
         uint64_t parseLineNumber();
         std::string parseFileName();
     };
 
     class ScanExcept {
-      public:
+    public:
         ScanExcept() = default;
         ScanExcept(const StringType &why) : msg{why} {}
         StringType why() const { return msg; }
-
-      private:
+    private:
         StringType msg;
     };
-} // namespace scan
+}
 std::ostream &operator<<(std::ostream &out, const types::CharType &c);
 std::ostream &operator<<(std::ostream &out, const types::TokenType &t);
+
+
 
 #endif

@@ -15,7 +15,6 @@
 #include<thread>
 #include<filesystem>
 #include<mutex>
-#include<condition_variable>
 #include<fstream>
 #include<iostream>
 #include"loadpng.hpp"
@@ -29,148 +28,21 @@ printf("OpenGL Error: %d at %s:%d\n", err, __FILE__, __LINE__); }
 #define M_PI 3.14159265358979323846
 #endif
 
-// Real-time console output stream: every write is immediately forwarded
-// to the GLWindow console instead of buffering in an ostringstream.
-class ConsoleStreamBuf : public std::streambuf {
-public:
-    ConsoleStreamBuf(gl::GLWindow *win) : window(win) {}
-protected:
-    int overflow(int c) override {
-        if (c != EOF) {
-            char ch = static_cast<char>(c);
-            buf += ch;
-            if (ch == '\n') {
-                flush_buf();
-            }
-        }
-        return c;
-    }
-    std::streamsize xsputn(const char *s, std::streamsize n) override {
-        buf.append(s, static_cast<size_t>(n));
-        // flush on every newline or when buffer gets large
-        if (buf.find('\n') != std::string::npos || buf.size() > 256) {
-            flush_buf();
-        }
-        return n;
-    }
-    int sync() override {
-        flush_buf();
-        return 0;
-    }
-private:
-    void flush_buf() {
-        if (!buf.empty()) {
-            window->console.thread_safe_print(buf);
-            window->console.process_message_queue();
-            buf.clear();
-        }
-    }
-    gl::GLWindow *window;
-    std::string buf;
-};
-
-struct MultiLineState {
-    bool needsMoreInput;
-    int blockDepth;
-    bool lineContinuation;
-};
-
-static int countWord(const std::string& input, const std::string& word) {
-    int count = 0;
-    size_t pos = 0;
-    while ((pos = input.find(word, pos)) != std::string::npos) {
-        bool validStart = (pos == 0 || !std::isalnum(input[pos - 1]));
-        bool validEnd = (pos + word.length() >= input.length() || 
-                        !std::isalnum(input[pos + word.length()]));
-        if (validStart && validEnd) {
-            count++;
-        }
-        pos += word.length();
-    }
-    return count;
-}
-
-static bool endsWithBackslash(const std::string& input) {
-    if (input.empty()) return false;
-    size_t lastNonSpace = input.find_last_not_of(" \t\n\r");
-    if (lastNonSpace != std::string::npos && input[lastNonSpace] == '\\') {
-        return true;
-    }
-    return false;
-}
-
-static MultiLineState checkMultiLineState(const std::string& input) {
-    MultiLineState state;
-    state.needsMoreInput = false;
-    state.blockDepth = 0;
-    state.lineContinuation = false;
-    
-    if (input.empty()) {
-        return state;
-    }
-    
-    if (endsWithBackslash(input)) {
-        state.lineContinuation = true;
-        state.needsMoreInput = true;
-        return state;
-    }
-    
-    int forCount = countWord(input, "for");
-    int whileCount = countWord(input, "while");
-    int ifCount = countWord(input, "if");
-    int defineCount = countWord(input, "define");
-    
-    int doneCount = countWord(input, "done");
-    int fiCount = countWord(input, "fi");
-    int endCount = countWord(input, "end");
-    
-    int loopDepth = (forCount + whileCount) - doneCount;
-    int ifDepth = ifCount - fiCount;
-    int defineDepth = defineCount - endCount;
-    
-    state.blockDepth = loopDepth + ifDepth + defineDepth;
-    
-    if (state.blockDepth > 0) {
-        state.needsMoreInput = true;
-    }
-    
-    return state;
-}
 
 class Game : public gl::GLObject {
-    int start_shader = 10;
+    int start_shader = -1;
     public:
 
     Game(int start_shader_ = -1) : gl::GLObject(), start_shader(start_shader_) {
         cmd::AstExecutor::getExecutor().setInterrupt(&interrupt_command);
     }
-    virtual ~Game() override {
-        interrupt_command = true;
-        executor.setUpdateCallback(nullptr);
-        std::lock_guard<std::mutex> lock(worker_mutex);
-        for (auto &worker : workers) {
-            if (worker.joinable()) {
-                worker.join();
-            }
-        }
-        workers.clear();
-        executor.setInterrupt(nullptr);
-    }
+    virtual ~Game() override {}
     std::atomic<bool> interrupt_command{false};
     std::atomic<bool> program_running{false};
-    std::atomic<bool> command_active{false};
     cmd::AstExecutor &executor = cmd::AstExecutor::getExecutor();
     bool cmd_echo = true;
-    std::string multiLineBuffer;
-    bool isMultiLineInput = false;
-    int blockDepth = 0;
-    std::string savedPrompt;
     std::mutex task_mutex;
     std::vector<std::function<void(gl::GLWindow*)>> main_thread_tasks;
-    std::mutex worker_mutex;
-    std::vector<std::thread> workers;
-    std::thread::id ui_thread_id;
-    bool background_shader_enabled = true;
 
     void queueTaskForMainThread(std::function<void(gl::GLWindow*)> task) {
         std::lock_guard<std::mutex> lock(task_mutex);
@@ -210,7 +82,6 @@ class Game : public gl::GLObject {
     }
     
     void load(gl::GLWindow *win) override {
-        ui_thread_id = std::this_thread::get_id();
         font.loadFont(win->util.getFilePath("data/font.ttf"), 36);
         win->console.print("Console Skeleton Example\nLostSideDead Software\nhttps://lostsidedead.biz\n");
         win->console.setPrompt("$> ");
@@ -246,66 +117,13 @@ class Game : public gl::GLObject {
 
             try {
                 if(text.empty()) {
-                    if(isMultiLineInput) {
-                        multiLineBuffer += "\n";
-                        window->console.thread_safe_print("\n");
-                        window->console.process_message_queue();
-                        return 0;
-                    }
                     return 0; 
-                }
-
-                bool lineContinuation = false;
-                std::string inputLine = text;
-
-                if (!inputLine.empty()) {
-                    size_t lastNonSpace = inputLine.find_last_not_of(" \t");
-                    if (lastNonSpace != std::string::npos && inputLine[lastNonSpace] == '\\') {
-                        lineContinuation = true;
-                        inputLine = inputLine.substr(0, lastNonSpace);
-                    }
-                }
-
-                if (isMultiLineInput) {
-                    multiLineBuffer += "\n" + inputLine;
-                    MultiLineState state = checkMultiLineState(multiLineBuffer);
-
-                    if (lineContinuation || state.needsMoreInput) {
-                        blockDepth = state.blockDepth;
-                        window->console.thread_safe_print(".. " + text + "\n");
-                        window->console.process_message_queue();
-                        return 0;
-                    } else {
-                        window->console.thread_safe_print(".. " + text + "\n");
-                        window->console.process_message_queue();
-                        std::string fullCommand = multiLineBuffer;
-                        isMultiLineInput = false;
-                        multiLineBuffer.clear();
-                        blockDepth = 0;
-                        window->console.setPrompt(savedPrompt);
-                        const_cast<std::string&>(text) = fullCommand;
-                    }
-                } else {
-                    MultiLineState state = checkMultiLineState(inputLine);
-
-                    if (lineContinuation || state.needsMoreInput) {
-                        isMultiLineInput = true;
-                        multiLineBuffer = inputLine;
-                        blockDepth = state.blockDepth;
-                        savedPrompt = "$> ";
-                        window->console.setPrompt(".. ");
-                        if(cmd_echo) {
-                            window->console.thread_safe_print("$> " + text + "\n");
-                            window->console.process_message_queue();
-                        }
-                        return 0;
-                    }
                 }
                 if(text == "random_shader") {
                     queueTaskForMainThread([this](gl::GLWindow* main_thread_win_param) {
                         this->setRandomShader(main_thread_win_param, -1);
                     });
-                    window->console.thread_safe_print("Random shader command queued.\n"); 
+                    window->console.thread_safe_print("Random shader command queued.\n"); // Feedback
                     window->console.process_message_queue();
                     return 0;
                 } else if(text == "default_shader") {
@@ -370,7 +188,7 @@ class Game : public gl::GLObject {
                     return 0;
                 } else if(text == "about") {
                     window->console.thread_safe_print("Console Skeleton Example v1.0\n");
-                    window->console.thread_safe_print("MX2 version v" + std::to_string(PROJECT_VERSION_MAJOR) + "." + std::to_string(PROJECT_VERSION_MINOR) + "\n");
+                    window->console.thread_safe_print("MX2 version " + std::to_string(PROJECT_VERSION_MAJOR) + "." + std::to_string(PROJECT_VERSION_MINOR) + "\n");
                     window->console.thread_safe_print("Written by Jared Bruni\n");
                     window->console.thread_safe_print("https://lostsidedead.biz\n");
                     window->console.process_message_queue();
@@ -389,10 +207,6 @@ class Game : public gl::GLObject {
                     window->console.thread_safe_print(" - clear: Clear the console.\n");
                     window->console.thread_safe_print(" - about: Show information about this application.\n");
                     window->console.thread_safe_print(" - exit: Exit the application.\n");
-                    window->console.thread_safe_print("\nMulti-line Input:\n");
-                    window->console.thread_safe_print("  for/while ... done, if ... fi, define ... end\n");
-                    window->console.thread_safe_print("  Use \\ at end of line for line continuation\n");
-                    window->console.thread_safe_print("  CTRL+C cancels multi-line input\n");
                     window->console.process_message_queue();
                     return 0;
                 }
@@ -416,40 +230,24 @@ class Game : public gl::GLObject {
                     window->console.thread_safe_print("$ " + text + "\n");
                     window->console.process_message_queue();
                 }
-
-                bool expected = false;
-                if (!command_active.compare_exchange_strong(expected, true)) {
-                    window->console.thread_safe_print("A command is already running. Press CTRL+C to interrupt.\n");
-                    window->console.process_message_queue();
-                    return 0;
-                }
-
-                auto runCommand = [this, text, window]() {
+                std::thread([this, text, window]() {
                     try {
                         executor.setInterrupt(&this->interrupt_command);
                         std::cout << "Executing: " << text << std::endl;
-                        bool update_callback_printed = false;
-                        struct ExecutionGuard {
-                            cmd::AstExecutor &exec;
-                            std::atomic<bool> &running;
-                            std::atomic<bool> &active;
-                            ~ExecutionGuard() {
-                                exec.setUpdateCallback(nullptr);
-                                running = false;
-                                active = false;
-                            }
-                        } guard{executor, program_running, command_active};
-
-                        program_running = true;
+                        std::string lineBuf;
+                        
                         executor.setUpdateCallback(
-                            [window,this,&update_callback_printed](const std::string &chunk) {
-                                if(!chunk.empty()) {
-                                    window->console.thread_safe_print(chunk);
-                                    window->console.process_message_queue();
-                                    update_callback_printed = true;
+                            [&lineBuf,window,this](const std::string &chunk) {
+                                lineBuf += chunk;
+                                size_t nl;
+                                while ((nl = lineBuf.find('\n')) != std::string::npos) {
+                                    std::string oneLine = lineBuf.substr(0, nl+1);
+                                    lineBuf.erase(0, nl+1);
+                                    window->console.thread_safe_print(oneLine);
+                                    window->console.process_message_queue();             
                                 }
                                 if(interrupt_command) {
-                                    interrupt_command = false;
+				                    interrupt_command = false;
                                     throw cmd::Exit_Exception(100);
                                 }
                             }
@@ -460,10 +258,18 @@ class Game : public gl::GLObject {
                         scan::Scanner scanner(string_buffer);
                         cmd::Parser parser(scanner);
                         auto ast = parser.parse();
-                        ConsoleStreamBuf consoleBuf(window);
-                        std::ostream out_stream(&consoleBuf);
+                        std::ostringstream out_stream;
+                        program_running = true;
                         executor.execute(input_stream, out_stream, ast);
-                        out_stream.flush(); 
+                        if(!lineBuf.empty()) {
+                            window->console.thread_safe_print(lineBuf);
+                            window->console.process_message_queue();
+                        }
+                        if(!out_stream.str().empty()) {
+                            window->console.thread_safe_print(out_stream.str());
+                            window->console.process_message_queue();
+                        }
+                        program_running = false;
                     } catch(const scan::ScanExcept &e) {
                         window->console.thread_safe_print("Scanner Exception: " + e.why() + "\n");
                         window->console.process_message_queue();
@@ -492,53 +298,8 @@ class Game : public gl::GLObject {
                     } catch(...) {
                         window->console.thread_safe_print("Unknown Error: Command execution failed\n");
                         window->console.process_message_queue();
-                        command_active = false;
                     }
-                };
-
-                auto trimLeft = [](const std::string &value) {
-                    size_t first = value.find_first_not_of(" \t\r\n");
-                    if (first == std::string::npos) {
-                        return std::string();
-                    }
-                    return value.substr(first);
-                };
-
-                std::string commandText = trimLeft(text);
-                bool runOnMainThread = false;
-                if (commandText.rfind("cmd ", 0) == 0 || commandText.rfind("cmd\t", 0) == 0) {
-                    runOnMainThread = true;
-                }
-
-                if (runOnMainThread) {
-                    if (std::this_thread::get_id() == ui_thread_id) {
-                        runCommand();
-                    } else {
-                        std::mutex done_mutex;
-                        std::condition_variable done_cv;
-                        bool done = false;
-
-                        queueTaskForMainThread([runCommand, &done_mutex, &done_cv, &done](gl::GLWindow*) mutable {
-                            runCommand();
-                            {
-                                std::lock_guard<std::mutex> lock(done_mutex);
-                                done = true;
-                            }
-                            done_cv.notify_one();
-                        });
-
-                        std::unique_lock<std::mutex> lock(done_mutex);
-                        done_cv.wait(lock, [&done]() { return done; });
-                    }
-                } else {
-                    try {
-                        std::lock_guard<std::mutex> lock(worker_mutex);
-                        workers.emplace_back(std::move(runCommand));
-                    } catch (...) {
-                        command_active = false;
-                        throw;
-                    }
-                }
+                }).detach();
                 
                 return 0;
             } catch(const std::exception &e) {
@@ -558,7 +319,7 @@ class Game : public gl::GLObject {
         std::string img_index = img.at(mx::generateRandomInt(0, img.size()-1));
         setRandomShader(win, start_shader);
         logo.initSize(win->w, win->h);
-        logo.loadTexture(program.get(), win->util.getFilePath(img_index), 0.0f, 0.0f, win->w, win->h);
+        logo.loadTexture(&program, win->util.getFilePath(img_index), 0.0f, 0.0f, win->w, win->h);
         CHECK_GL_ERROR();
     }
     
@@ -598,16 +359,14 @@ class Game : public gl::GLObject {
         std::ostringstream shader_source;
         shader_source << file.rdbuf();
         file.close();
-    	program.reset(new gl::ShaderProgram());
-        if(program->loadProgramFromText(vSource, shader_source.str())) {
-            program->setSilent(true);
-            program->useProgram();
-            program->setUniform("textTexture", 0);
-            program->setUniform("time_f", 0.0f);
-            program->setUniform("alpha", 1.0f);
-            GLint windowSizeLoc = glGetUniformLocation(program->id(), "iResolution");
+        if(program.loadProgramFromText(vSource, shader_source.str())) {
+            program.setSilent(true);
+            program.useProgram();
+            program.setUniform("textTexture", 0);
+            program.setUniform("time_f", 0.0f);
+            program.setUniform("alpha", 1.0f);
+            GLint windowSizeLoc = glGetUniformLocation(program.id(), "iResolution");
             glUniform2f(windowSizeLoc, static_cast<float>(win->w), static_cast<float>(win->h));
-            logo.setShader(program.get());
         } else {
             std::cerr << "Failed to load shader program from file: " << filename  << std::endl;
         }
@@ -623,16 +382,15 @@ class Game : public gl::GLObject {
         std::ostringstream shader_source;
         shader_source << file.rdbuf();  
         file.close();
-	    program.reset(new gl::ShaderProgram());
-        if(program->loadProgramFromText(vSource, shader_source.str())) {
-            program->setSilent(true);
-            program->useProgram();
-            program->setUniform("textTexture", 0);
-            program->setUniform("time_f", 0.0f);
-            program->setUniform("alpha", 1.0f);
-            GLint windowSizeLoc = glGetUniformLocation(program->id(), "iResolution");
+
+        if(program.loadProgramFromText(vSource, shader_source.str())) {
+            program.setSilent(true);
+            program.useProgram();
+            program.setUniform("textTexture", 0);
+            program.setUniform("time_f", 0.0f);
+            program.setUniform("alpha", 1.0f);
+            GLint windowSizeLoc = glGetUniformLocation(program.id(), "iResolution");
             glUniform2f(windowSizeLoc, static_cast<float>(win->w), static_cast<float>(win->h));
-            logo.setShader(program.get());
             win->console.thread_safe_print("Shader program loaded successfully from file: " + shader_path + "\n");
             win->console.process_message_queue();
         } else {
@@ -644,31 +402,17 @@ class Game : public gl::GLObject {
     }
     void draw(gl::GLWindow *win) override {
         processMainThreadTasks(win);
-        win->makeCurrent();
         glDisable(GL_DEPTH_TEST);
         Uint32 currentTime = SDL_GetTicks();
         float deltaTime = (currentTime - lastUpdateTime) / 1000.0f; 
         lastUpdateTime = currentTime;
-        if(background_shader_enabled) {
-            logo.draw();
-            update(deltaTime);
-        } else {
-            glUseProgram(0);
-        }
+        logo.draw();
+        update(deltaTime);
     }
     
     void event(gl::GLWindow *win, SDL_Event &e) override {
         if(e.type == SDL_KEYDOWN) {
             if(e.key.keysym.sym == SDLK_c && (e.key.keysym.mod & KMOD_CTRL)) {
-                if(isMultiLineInput) {
-                    win->console.thread_safe_print("\n^C - Multi-line input cancelled\n");
-                    multiLineBuffer.clear();
-                    isMultiLineInput = false;
-                    blockDepth = 0;
-                    win->console.setPrompt(savedPrompt);
-                    win->console.process_message_queue();
-                    return;
-                }
                 if(program_running && interrupt_command == false) {
                     win->console.thread_safe_print("\nCTRL+C Interrupt - Command interrupted\n");
                     interrupt_command = true;
@@ -684,28 +428,18 @@ class Game : public gl::GLObject {
                 setRandomShader(win, -1);
                 return;
             }
-            if(e.key.keysym.sym == SDLK_F10) {
-                background_shader_enabled = !background_shader_enabled;
-                if(background_shader_enabled) {
-                    win->console.thread_safe_print("\nF10 - Shader background enabled\n");
-                } else {
-                    win->console.thread_safe_print("\nF10 - Shader background disabled (black screen mode)\n");
-                }
-                win->console.process_message_queue();
-                return;
-            }
         }
     }
 
     void update(float deltaTime) {
         float time_f = 0.0f;
         time_f = fmod(static_cast<float>(SDL_GetTicks()) / 1000.0f, 10000.0f);
-        program->setUniform("time_f", time_f);
+        program.setUniform("time_f", time_f);
     }
 private:
     mx::Font font;
     gl::GLSprite logo;
-    std::unique_ptr<gl::ShaderProgram> program;
+    gl::ShaderProgram program;
     Uint32 lastUpdateTime = SDL_GetTicks();
 };
 

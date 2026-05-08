@@ -1,10 +1,7 @@
-#include "plugin_api.h"
-#include "plugin_output.hpp"
-
+#include"ast.hpp"
 extern "C" {
-    int HelloWorldCommand(int argc, const char** argv, void* out_ctx, plugin_output_fn out_fn) {
-        PluginOutput output(out_ctx, out_fn);
-        output << "Hello, World!\n";
+    int HelloWorldCommand(const std::vector<cmd::Argument>& args, std::istream& input, std::ostream& output) {
+        output << "Hello, World!" << std::endl;
         return 0;
     }
 }
