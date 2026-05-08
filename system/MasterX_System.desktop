@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.1
+Type=Application
+Name=MasterX System
+Comment=Launch MasterX with system assets
+Exec=MasterX -p /usr/local/share/applications/MasterX/assets
+Icon=/usr/local/share/applications/MasterX/assets/images/xicon.png
+Terminal=false
+Categories=Utility;Graphics;
