@@ -23,7 +23,10 @@ libpng
 
 zlib
 
-To install, you must compile the compiler from the source code by first compiling the library cxx_scan for the lexical analyzer then  ETL, and installing both in /usr/local on your WSL2 or Linux System.
+on Arch install required dependencies:
+
+sudo pacman -S base-devel make cmake git gdb sdl2 sdl2_ttf zlib libpng libglvnd
+
 
 <img width="2560" height="1440" alt="vlcsnap-2026-05-07-21h03m56s040" src="https://github.com/user-attachments/assets/2f8f901c-f597-4b32-8c3c-46fc3ce5732e" />
 
