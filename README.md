@@ -6,13 +6,12 @@
 
 ![image](https://github.com/user-attachments/assets/5f40ce93-134e-4c53-9fc3-f4e86c43c263)
 
-MasterX System is an application prototype featuring a custom-built compiler designed for Linux/macOS for ETL (Easy Toy Language), accompanied by a virtual playground for testing and exploration. This project is a personal endeavor in its early stages, aimed at enhancing my learning through practical application. 
+MasterX System is an application prototype featuring a custom-built compiler designed for Linux/macOS for ETL (deprecated) , accompanied by a virtual playground for testing and exploration. This project is a personal endeavor in its early stages, aimed at enhancing my learning through practical application. 
 For a demonstration of the WebAssembly version, which runs MXCMD as the shell and serves as a demo, please visit https://lostsidedead.biz/MasterX
 
-Demo of the programming running on Arch Linux: https://youtu.be/gyDIUrI4gtI
+Video Walkthrough for compiling this program: https://youtu.be/z5zznskYwns
 
-MXVM is meant as a replacement for the old ETL (Easy Toy Language) it contains a full virtual machine/script bytecode and pascal frontend/backend compiler I have left the ETL source code in the project just incase you want to see 
-my first attempt at writing the compiler for this application.
+MXVM is meant as a replacement for the old ETL (Easy Toy Language) it contains a full virtual machine/script bytecode and pascal frontend/backend compiler I have left the ETL source code in the project just incase you want to see my first attempt at writing the compiler for this application.
 
 The Dependencies are:
 
