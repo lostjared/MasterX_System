@@ -1512,8 +1512,20 @@ namespace mx {
         SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
         if (activeEffect_ != TermEffect::None && !dim->getMatrix()) {
             drawEffectBackground(app);
-        } else if (!embedded_) {
-            SDL_RenderCopy(app.ren, dim->getMatrix() ? dim->matrix_tex : wallpaper, nullptr, nullptr);
+        } else if (!embedded_ && dim->getMatrix()) {
+            SDL_RenderCopy(app.ren, dim->matrix_tex, nullptr, nullptr);
+        } else if (dim->wallpaper) {
+            // Fake transparency: blit the portion of the desktop wallpaper
+            // that lies behind this window, then let the dark overlay follow.
+            int wpW = dim->wallpaper->w;
+            int wpH = dim->wallpaper->h;
+            SDL_Rect src = {
+                rc.x * wpW / app.width,
+                rc.y * wpH / app.height,
+                rc.w * wpW / app.width,
+                rc.h * wpH / app.height
+            };
+            SDL_RenderCopy(app.ren, dim->wallpaper, &src, &rc);
         }
         // Translucent dark overlay for the terminal content area. When
         // embedded, the parent draws title bar / tab strip on top of us
