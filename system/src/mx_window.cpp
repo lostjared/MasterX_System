@@ -10,6 +10,12 @@ namespace mx {
     extern bool cursor_shown;
 
     namespace {
+        // kTitleBarHeight is defined in mx_window.hpp and shared across TUs.
+        static constexpr int kClientInsetLeft = 4;
+        static constexpr int kClientInsetRight = 4;
+        static constexpr int kClientInsetTop = kTitleBarHeight + 1;
+        static constexpr int kClientInsetBottom = 4;
+
         // Custom resize cursors loaded lazily on first hover. These are
         // bundled PNGs (Adwaita, LGPL) under assets/images/cursors/. If
         // loading fails we fall back to SDL's built-in system cursors.
@@ -120,10 +126,10 @@ namespace mx {
 
     void Window::getDrawRect(SDL_Rect &rc) {
         getRect(rc);
-        rc.x += 4;
-        rc.w -= 7;
-        rc.y += 31;
-        rc.h -= 35;
+        rc.x += kClientInsetLeft;
+        rc.w -= (kClientInsetLeft + kClientInsetRight);
+        rc.y += kClientInsetTop;
+        rc.h -= (kClientInsetTop + kClientInsetBottom);
     }
 
     void Window::setIcon(SDL_Texture *icon) {
@@ -135,8 +141,8 @@ namespace mx {
     }
 
     bool Window::isPointInside(int xx, int yy) {
-        return (xx >= x && xx <= x + w &&
-                yy >= y && yy <= y + h);
+        return (xx >= x && xx < x + w &&
+            yy >= y && yy < y + h);
     }
 
     void Window::draw(mxApp &app) {
@@ -160,18 +166,24 @@ namespace mx {
         }
 
         if (isRestoring) {
-            
-            x += (restoreTargetX - x) / restoreAnimationStep;
-            y += (restoreTargetY - y) / restoreAnimationStep;
-            w += (restoreTargetW - w) / restoreAnimationStep;
-            h += (restoreTargetH - h) / restoreAnimationStep;
+            // Robust integer easing: always make at least 1 pixel of
+            // progress in the correct direction, otherwise the integer
+            // division (delta/step) rounds to 0 once delta < step and the
+            // window freezes a few pixels short of the original size.
+            auto easeAxis = [&](int curr, int target) -> int {
+                int delta = target - curr;
+                if (delta == 0) return curr;
+                int step = delta / restoreAnimationStep;
+                if (step == 0) step = (delta > 0) ? 1 : -1;
+                return curr + step;
+            };
+            x = easeAxis(x, restoreTargetX);
+            y = easeAxis(y, restoreTargetY);
+            w = easeAxis(w, restoreTargetW);
+            h = easeAxis(h, restoreTargetH);
 
-            if (abs(x - restoreTargetX) < 1 && abs(y - restoreTargetY) < 1 && 
-                abs(w - restoreTargetW) < 1 && abs(h - restoreTargetH) < 1) {
-                x = restoreTargetX;
-                y = restoreTargetY;
-                w = restoreTargetW;
-                h = restoreTargetH;
+            if (x == restoreTargetX && y == restoreTargetY &&
+                w == restoreTargetW && h == restoreTargetH) {
                 isRestoring = false;
                 minimized = false;
                 minimizeHovered = SDL_FALSE;
@@ -192,17 +204,28 @@ namespace mx {
 
         int startGray = 165;
         int endGray = 205;
+        const int frameRight = x + w - 1;
         for (int i = 0; i < h; ++i) {
             int grayValue = startGray + (endGray - startGray) * i / h;
             SDL_SetRenderDrawColor(app.ren, grayValue, grayValue, grayValue, 255);
-            SDL_RenderDrawLine(app.ren, x, y + i, x + w, y + i);
+            SDL_RenderDrawLine(app.ren, x, y + i, frameRight, y + i);
         }
         drawMenubar(app);
 
+        // Clip children to the client area so no content overflows the
+        // window's frame border on any side.
+        SDL_Rect clientClip = {
+            x + 1,
+            y + kTitleBarHeight + 1,
+            w - 2,
+            h - kTitleBarHeight - 2
+        };
+        SDL_RenderSetClipRect(app.ren, &clientClip);
         for (auto &c : children) {
             c->setWindowPos(x, y);
             c->draw(app);
         }
+        SDL_RenderSetClipRect(app.ren, nullptr);
     }
 
     bool Window::isVisible() const {
@@ -217,97 +240,125 @@ namespace mx {
    void Window::drawMenubar(mxApp &app) {
         SDL_Color lightBlue = {173, 216, 230}; 
         SDL_Color darkBlue = {0, 0, 139};     
-        int titleBarHeight = 30;
+        const int frameRight = x + w - 1;
+        const int frameBottom = y + h - 1;
 
-        for (int i = 0; i < titleBarHeight; ++i) {
-            int red = lightBlue.r + (darkBlue.r - lightBlue.r) * i / titleBarHeight;
-            int green = lightBlue.g + (darkBlue.g - lightBlue.g) * i / titleBarHeight;
-            int blue = lightBlue.b + (darkBlue.b - lightBlue.b) * i / titleBarHeight;
+        for (int i = 0; i < kTitleBarHeight; ++i) {
+            int red = lightBlue.r + (darkBlue.r - lightBlue.r) * i / kTitleBarHeight;
+            int green = lightBlue.g + (darkBlue.g - lightBlue.g) * i / kTitleBarHeight;
+            int blue = lightBlue.b + (darkBlue.b - lightBlue.b) * i / kTitleBarHeight;
             SDL_SetRenderDrawColor(app.ren, red, green, blue, 255);
-            SDL_RenderDrawLine(app.ren, x, y + i, x + w, y + i);
+            SDL_RenderDrawLine(app.ren, x, y + i, frameRight, y + i);
         }
 
-        int buttonSize = 19;
-        int buttonPadding = 5;
+        // Windows-style title bar buttons: wide flat rectangles that span
+        // the full titlebar height, with a crisp icon always visible.
+        // Close=rightmost, Maximize=middle, Minimize=left of those.
+        const int btnW  = 46;
+        const int btnH  = kTitleBarHeight;   // full bar height
         const bool allowMaximizeButton = canResize();
 
-        const int closeButtonX = x + w - (buttonSize + buttonPadding);
-        const int minimizeButtonX = allowMaximizeButton
-            ? x + w - 3 * (buttonSize + buttonPadding)
-            : x + w - 2 * (buttonSize + buttonPadding);
+        const int closeBtnX    = x + w - btnW;
+        const int maximizeBtnX = closeBtnX - btnW;
+        const int minimizeBtnX = allowMaximizeButton
+            ? maximizeBtnX - btnW
+            : closeBtnX   - btnW;
 
-        minimizeButton = {minimizeButtonX, y + 5, buttonSize, buttonSize};
+        // Store hit rects (full height so click targets match visual).
+        minimizeButton = { minimizeBtnX, y, btnW, btnH };
         maximizeButton = allowMaximizeButton
-            ? SDL_Rect{x + w - 2 * (buttonSize + buttonPadding), y + 5, buttonSize, buttonSize}
-            : SDL_Rect{0, 0, 0, 0};
-        closeButton = {closeButtonX, y + 5, buttonSize, buttonSize};
+            ? SDL_Rect{ maximizeBtnX, y, btnW, btnH }
+            : SDL_Rect{ 0, 0, 0, 0 };
+        closeButton    = { closeBtnX, y, btnW, btnH };
 
-        
-        auto drawButtonWithBevel = [&](SDL_Rect button, bool hovered) {
-            for (int i = 0; i < button.h; ++i) {
-                int gray = 200 - i * 4; 
-                SDL_SetRenderDrawColor(app.ren, gray, gray, gray, 255);
-                SDL_RenderDrawLine(app.ren, button.x, button.y + i, button.x + button.w, button.y + i);
-            }
-            SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255); 
-            SDL_RenderDrawLine(app.ren, button.x, button.y, button.x + button.w - 1, button.y);       
-            SDL_RenderDrawLine(app.ren, button.x, button.y, button.x, button.y + button.h - 1);       
-            SDL_SetRenderDrawColor(app.ren, 100, 100, 100, 255); 
-            SDL_RenderDrawLine(app.ren, button.x, button.y + button.h - 1, button.x + button.w - 1, button.y + button.h - 1); 
-            SDL_RenderDrawLine(app.ren, button.x + button.w - 1, button.y, button.x + button.w - 1, button.y + button.h - 1); 
+        // Draw one button: optional hover fill, then icon.
+        // 'closeStyle': if true, hover fill is red; otherwise light gray.
+        auto drawWinBtn = [&](SDL_Rect btn, bool hovered, bool closeStyle) {
             if (hovered) {
-                SDL_SetRenderDrawColor(app.ren, 255, 0, 0, 255); 
-                SDL_RenderDrawRect(app.ren, &button);
+                if (closeStyle)
+                    SDL_SetRenderDrawColor(app.ren, 196, 43, 28, 255);  // Win11 red
+                else
+                    SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 40); // subtle tint
+                SDL_RenderFillRect(app.ren, &btn);
             }
         };
 
-        drawButtonWithBevel(minimizeButton, minimizeHovered);
-        if (allowMaximizeButton) {
-            drawButtonWithBevel(maximizeButton, maximizeHovered);
-        }
-        drawButtonWithBevel(closeButton, closeHovered);
-        if (allowMaximizeButton) {
-            SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);  
-            int padding = 4; 
-            SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + padding);
-            SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + padding, maximizeButton.x + padding - 1, maximizeButton.y + buttonSize - padding);
-            SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + buttonSize - padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + buttonSize - padding);
-            SDL_RenderDrawLine(app.ren, maximizeButton.x + buttonSize - padding, maximizeButton.y + padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + buttonSize - padding);
+        drawWinBtn(minimizeButton, minimizeHovered, false);
+        if (allowMaximizeButton)
+            drawWinBtn(maximizeButton, maximizeHovered, false);
+        drawWinBtn(closeButton, closeHovered, true);
+
+        // Icon colour: white normally, slightly dimmed when not hovered.
+        // Icons are always visible (Windows convention).
+        const SDL_Color iconCol      = { 255, 255, 255, 255 };
+        const SDL_Color iconColDim   = { 200, 200, 200, 255 };
+
+        // ── Minimize: single horizontal bar near the bottom of the icon area ──
+        {
+            const int cx   = minimizeButton.x + minimizeButton.w / 2;
+            const int cy   = minimizeButton.y + minimizeButton.h / 2;
+            const SDL_Color &c = minimizeHovered ? iconCol : iconColDim;
+            SDL_SetRenderDrawColor(app.ren, c.r, c.g, c.b, 255);
+            // Two-pixel-thick bar centred horizontally, sitting just below centre.
+            SDL_RenderDrawLine(app.ren, cx - 5, cy + 3, cx + 5, cy + 3);
+            SDL_RenderDrawLine(app.ren, cx - 5, cy + 4, cx + 5, cy + 4);
         }
 
-        SDL_Surface* minimizeSurface = TTF_RenderText_Blended(app.font, "_", {255, 255, 255});
-        SDL_Texture* minimizeTexture = SDL_CreateTextureFromSurface(app.ren, minimizeSurface);
-        int minimizeTextW = 0, minimizeTextH = 0;
-        SDL_QueryTexture(minimizeTexture, nullptr, nullptr, &minimizeTextW, &minimizeTextH);
-        SDL_Rect minimizeTextRect = {minimizeButton.x + (buttonSize - minimizeTextW) / 2, minimizeButton.y + (buttonSize - minimizeTextH) / 2, minimizeTextW, minimizeTextH};
-        SDL_RenderCopy(app.ren, minimizeTexture, nullptr, &minimizeTextRect);
-        SDL_DestroyTexture(minimizeTexture);
-        SDL_FreeSurface(minimizeSurface);
+        // ── Maximize / Restore: square outline with bold top edge ──
+        if (allowMaximizeButton) {
+            const int cx   = maximizeButton.x + maximizeButton.w / 2;
+            const int cy   = maximizeButton.y + maximizeButton.h / 2;
+            const SDL_Color &c = maximizeHovered ? iconCol : iconColDim;
+            SDL_SetRenderDrawColor(app.ren, c.r, c.g, c.b, 255);
+            if (!maximized) {
+                // Single square.
+                SDL_Rect sq{ cx - 5, cy - 5, 11, 11 };
+                SDL_RenderDrawRect(app.ren, &sq);
+                // Bold top edge (title-bar line convention).
+                SDL_RenderDrawLine(app.ren, sq.x, sq.y + 1, sq.x + sq.w - 1, sq.y + 1);
+            } else {
+                // Restore: two overlapping squares (back square offset +2,+2).
+                SDL_Rect back { cx - 3, cy - 7,  9, 9 };
+                SDL_Rect front{ cx - 7, cy - 3,  9, 9 };
+                SDL_RenderDrawRect(app.ren, &back);
+                SDL_RenderDrawLine(app.ren, back.x, back.y + 1, back.x + back.w - 1, back.y + 1);
+                // Redraw the front square on top.
+                SDL_RenderDrawRect(app.ren, &front);
+                SDL_RenderDrawLine(app.ren, front.x, front.y + 1, front.x + front.w - 1, front.y + 1);
+            }
+        }
 
-        SDL_Surface* closeSurface = TTF_RenderText_Blended(app.font, "X", {255, 255, 255});
-        SDL_Texture* closeTexture = SDL_CreateTextureFromSurface(app.ren, closeSurface);
-        int closeTextW = 0, closeTextH = 0;
-        SDL_QueryTexture(closeTexture, nullptr, nullptr, &closeTextW, &closeTextH);
-        SDL_Rect closeTextRect = {closeButton.x + (buttonSize - closeTextW) / 2, closeButton.y + (buttonSize - closeTextH) / 2, closeTextW, closeTextH};
-        SDL_RenderCopy(app.ren, closeTexture, nullptr, &closeTextRect);
-        SDL_DestroyTexture(closeTexture);
-        SDL_FreeSurface(closeSurface);
+        // ── Close: × made of two diagonal line pairs (2px thick each) ──
+        {
+            const int cx   = closeButton.x + closeButton.w / 2;
+            const int cy   = closeButton.y + closeButton.h / 2;
+            const SDL_Color &c = closeHovered ? iconCol : iconColDim;
+            SDL_SetRenderDrawColor(app.ren, c.r, c.g, c.b, 255);
+            // Main diagonals.
+            SDL_RenderDrawLine(app.ren, cx - 5, cy - 5, cx + 5, cy + 5);
+            SDL_RenderDrawLine(app.ren, cx + 5, cy - 5, cx - 5, cy + 5);
+            // Thicken by 1px offset.
+            SDL_RenderDrawLine(app.ren, cx - 4, cy - 5, cx + 5, cy + 4);
+            SDL_RenderDrawLine(app.ren, cx - 5, cy - 4, cx + 4, cy + 5);
+            SDL_RenderDrawLine(app.ren, cx + 4, cy - 5, cx - 5, cy + 4);
+            SDL_RenderDrawLine(app.ren, cx + 5, cy - 4, cx - 4, cy + 5);
+        }
         
         SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
-        SDL_RenderDrawLine(app.ren, x, y + titleBarHeight, x + w - 1, y + titleBarHeight);
-        SDL_RenderDrawLine(app.ren, x, y, x + w - 1, y);
-        SDL_RenderDrawLine(app.ren, x, y, x, y + h - 1);
+        SDL_RenderDrawLine(app.ren, x, y + kTitleBarHeight, frameRight, y + kTitleBarHeight);
+        SDL_RenderDrawLine(app.ren, x, y, frameRight, y);
+        SDL_RenderDrawLine(app.ren, x, y, x, frameBottom);
 
 
         SDL_SetRenderDrawColor(app.ren, 192, 192, 192, 255);
-        SDL_RenderDrawLine(app.ren, x + w , y, x + w , y + h - 1);
-        SDL_RenderDrawLine(app.ren, x, y + h - 1, x + w , y + h - 1);
+        SDL_RenderDrawLine(app.ren, frameRight, y, frameRight, frameBottom);
+        SDL_RenderDrawLine(app.ren, x, frameBottom, frameRight, frameBottom);
 
         SDL_SetRenderDrawColor(app.ren, 192, 192, 192, 255);
 
 
-        SDL_RenderDrawLine(app.ren, x + 1, y + titleBarHeight + 1, x + w - 2, y + titleBarHeight + 1);
-        SDL_RenderDrawLine(app.ren, x + w - 1, y + titleBarHeight + 1, x + w - 1, y + h - 2); 
+        SDL_RenderDrawLine(app.ren, x + 1, y + kTitleBarHeight + 1, frameRight - 1, y + kTitleBarHeight + 1);
+        SDL_RenderDrawLine(app.ren, frameRight, y + kTitleBarHeight + 1, frameRight, frameBottom - 1); 
 
         SDL_SetRenderDrawColor(app.ren, 64, 64, 64, 255);
         SDL_Surface* surface = TTF_RenderText_Blended(app.font, title.c_str(), {255, 255, 255});
@@ -321,12 +372,37 @@ namespace mx {
         int iconWidth = 16;
         int iconHeight = 16;
         int iconX = x + 5;  
-        int iconY = y + (titleBarHeight - iconHeight) / 2;  
+        int iconY = y + (kTitleBarHeight - iconHeight) / 2;  
         SDL_Rect iconRect = { iconX, iconY, iconWidth, iconHeight };
         SDL_RenderCopy(app.ren, icon == nullptr ? app.icon : icon, nullptr, &iconRect);
     }
 
     void Window::show(bool b) {
+        if (!b && (minimized || isMinimizing || isRestoring) &&
+            originalWidth > 0 && originalHeight > 0) {
+            x = originalX;
+            y = originalY;
+            w = originalWidth;
+            h = originalHeight;
+            minimized = false;
+            isMinimizing = false;
+            isRestoring = false;
+            minimizeHovered = SDL_FALSE;
+            maximizeHovered = SDL_FALSE;
+            closeHovered = SDL_FALSE;
+            for (auto &c : children) {
+                c->setShow(true);
+                c->setWindowPos(x, y);
+                c->resizeWindow(w, h);
+            }
+            if (systemBar) {
+                if (auto *con = dim) {
+                    auto it = std::find(con->mini_win.begin(),
+                                        con->mini_win.end(), this);
+                    if (it != con->mini_win.end()) con->mini_win.erase(it);
+                }
+            }
+        }
         shown = b;
         stateChanged(false, false, shown);
         if(shown == false) {
@@ -444,11 +520,11 @@ namespace mx {
                     nh = kMinH;
                 }
                 // Clamp to screen so the user can't drag the window offscreen.
-                // Top edge stays below the menu bar (y >= 26); bottom stays above
+                // Top edge stays below the menu bar (y >= kTitleBarHeight+1); bottom stays above
                 // the system bar (handled via dim_h - 50, mirroring maximize()).
                 const int screenW = dim_w > 0 ? dim_w : nw;
                 const int screenH = dim_h > 0 ? dim_h : nh;
-                const int topLimit = 26;
+                const int topLimit = kTitleBarHeight + 1;
                 const int bottomLimit = screenH - 50;
                 if (resizeEdges_ & 1) {
                     if (nx < 0) { nw += nx; nx = 0; if (nw < kMinW) nw = kMinW; }
@@ -478,10 +554,8 @@ namespace mx {
                         x = e.motion.x - dragOffsetX;
                         y = e.motion.y - dragOffsetY;
                         // Clamp so the title bar never slides under the menu bar.
-                        const int topLimit = 26;
+                        const int topLimit = kTitleBarHeight + 1;
                         if (y < topLimit) y = topLimit;
-                        isMinimizing = false;
-                        isRestoring = false;
                         return true;
                     }
             }
@@ -505,7 +579,7 @@ namespace mx {
         
         if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
             SDL_Point mousePoint = {e.button.x, e.button.y};
-            SDL_Rect titleBarRect = {x, y, w, 30};
+            SDL_Rect titleBarRect = {x, y, w, kTitleBarHeight};
             const bool inTitleBar = SDL_PointInRect(&mousePoint, &titleBarRect);
             const bool inMinButton = SDL_PointInRect(&mousePoint, &minimizeButton);
             const bool inMaxButton = canResize() && SDL_PointInRect(&mousePoint, &maximizeButton);
@@ -565,8 +639,6 @@ namespace mx {
         
         if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) {
             dragging = false;
-            isMinimizing = false;
-            isRestoring = false;
             if (resizing_) {
                 resizing_ = false;
                 resizeEdges_ = 0;
@@ -579,7 +651,7 @@ namespace mx {
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
                 Uint32 currentTime = SDL_GetTicks();  
                 SDL_Point mousePoint = {e.button.x, e.button.y};
-                SDL_Rect titleBarRect = {x, y, w, 30};  
+                SDL_Rect titleBarRect = {x, y, w, kTitleBarHeight};  
                 if (SDL_PointInRect(&mousePoint, &titleBarRect)) {
                     if (currentTime - lastClickTime < 500) {  
                         if (minimized) {
@@ -647,10 +719,6 @@ namespace mx {
             minTargetY = systemBar->yPos - 50;
             minTargetW = 200;  
             minTargetH = 5; 
-            originalX = x;
-            originalY = y;  
-            originalWidth = w;
-            originalHeight = h;
             if(isVisible()) {  
                 for (auto &c : children) {
                     c->setShow(false);  
@@ -688,9 +756,9 @@ namespace mx {
             oldW = w;
             oldH = h;
             x = 0;
-            y = 26;
+            y = kTitleBarHeight + 1;
             w = (dim_w > 0) ? dim_w : w;
-            h = (dim_h > 0) ? (dim_h - 76) : h;
+            h = (dim_h > 0) ? (dim_h - (kTitleBarHeight + 1 + 50)) : h;
             dragging = false;
             changed = true;
         } else if (!m && maximized) {

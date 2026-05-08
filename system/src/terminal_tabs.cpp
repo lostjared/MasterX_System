@@ -102,12 +102,12 @@ namespace mx {
         Window::screenResize(w, h);
         SDL_Rect rc;
         Window::getRect(rc);
-        const int topLimit    = 26;
+        const int topLimit    = kTitleBarHeight + 1;
         const int bottomLimit = h - 50;
         const int maxH        = std::max(1, bottomLimit - topLimit);
         if (isMaximized()) {
             // Fill the host window (under the menu bar, above the system bar).
-            rc = { 0, topLimit, w, h - 76 };
+            rc = { 0, topLimit, w, maxH };
         } else if (rc.w <= 0 || rc.h <= 0) {
             // Initial layout: centered default size scaled to host.
             const int baseWidth  = 1280;
@@ -151,9 +151,10 @@ namespace mx {
         SDL_Rect rc;
         const_cast<TerminalTabs*>(this)->Window::getRect(rc);
         // Window's title bar (drawMenubar) is 30px high; tab bar sits
-        // flush against its bottom edge.
-        SDL_Rect bar{ rc.x, rc.y + 30, rc.w, kTabBarH };
-        if (bar.h > rc.h - 30) bar.h = std::max(0, rc.h - 30);
+        // flush against its bottom edge. Inset by 1px left/right so the
+        // window frame borders (drawn by drawMenubar) remain visible.
+        SDL_Rect bar{ rc.x + 1, rc.y + kTitleBarHeight, rc.w - 2, kTabBarH };
+        if (bar.h > rc.h - kTitleBarHeight) bar.h = std::max(0, rc.h - kTitleBarHeight);
         return bar;
     }
 
@@ -163,12 +164,14 @@ namespace mx {
         // Terminal subtracts 28 from rc.y / rc.h internally to skip its
         // own (would-be) title bar. Shift the rect up by 28 so its
         // content lands flush against the bottom of our tab bar.
-        const int desiredContentY = rc.y + 30 + kTabBarH;
+        // Inset left/right by 1px so the window frame borders remain
+        // visible. Reserve 1px at the bottom for the bottom border line.
+        const int desiredContentY = rc.y + kTitleBarHeight + kTabBarH;
         SDL_Rect inner{
-            rc.x,
+            rc.x + 1,
             desiredContentY - 28,           // Terminal will add 28 back
-            rc.w,
-            rc.h - 30 - kTabBarH + 28
+            rc.w - 2,
+            rc.h - kTitleBarHeight - kTabBarH + 28 - 1  // -1: leave bottom border
         };
         if (inner.h < 28 + 1) inner.h = 28 + 1;
         return inner;
@@ -389,9 +392,22 @@ namespace mx {
         // Draw the active terminal first — its shader/wallpaper covers
         // the entire screen behind our window. We then re-draw chrome
         // (title bar + tab strip) ON TOP so they remain visible over
-        // the fullscreen effect.
-        if (Terminal *t = activeTab())
+        // the fullscreen effect. Clip to the client rect (below the tab
+        // bar, inside the left/right/bottom border) so terminal content
+        // never overflows the window frame.
+        if (Terminal *t = activeTab()) {
+            SDL_Rect outer;
+            Window::getRect(outer);
+            SDL_Rect termClip = {
+                outer.x + 1,
+                outer.y + kTitleBarHeight + kTabBarH,
+                outer.w - 2,
+                outer.h - kTitleBarHeight - kTabBarH - 1
+            };
+            SDL_RenderSetClipRect(app.ren, &termClip);
             t->draw(app);
+            SDL_RenderSetClipRect(app.ren, nullptr);
+        }
 
         Window::drawMenubar(app);
         drawTabBar(app);

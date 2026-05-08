@@ -50,7 +50,7 @@ namespace mx {
             }
             SDL_FreeSurface(surf);
             SDL_SetRenderTarget(app.ren, app.tex);
-            SDL_Rect point = {x+wx,y+wy+25,sw,sh};
+            SDL_Rect point = {x+wx, y+wy+kTitleBarHeight, sw, sh};
             SDL_RenderCopy(app.ren, t, nullptr, &point);
             SDL_DestroyTexture(t);
 
@@ -78,7 +78,7 @@ namespace mx {
                 }
                 SDL_FreeSurface(surf);
                 SDL_SetRenderTarget(app.ren, app.tex);
-                SDL_Rect point = {x+wx,y+wy+25+off_y+height,sw,sh};
+                SDL_Rect point = {x+wx, y+wy+kTitleBarHeight+off_y+height, sw, sh};
                 SDL_RenderCopy(app.ren, t, nullptr, &point);
                 SDL_DestroyTexture(t);
                 off_y += height;
@@ -113,7 +113,7 @@ namespace mx {
         if(e.type == SDL_MOUSEMOTION) {
             int mx = e.motion.x;
             int my = e.motion.y;
-            SDL_Rect rc = {x+wx, y+wy+25, w, h };
+            SDL_Rect rc = {x+wx, y+wy+kTitleBarHeight, w, h };
             SDL_Point cp = { mx, my };
             if(SDL_PointInRect(&cp, &rc)) {
                 cursor_shown = true;
@@ -307,7 +307,7 @@ namespace mx {
                 dw = sw;
                 dh = sh;
             }
-            SDL_Rect rc = { x+wx, y+wy+25, dw, dh };
+            SDL_Rect rc = { x+wx, y+wy+kTitleBarHeight, dw, dh };
             SDL_RenderCopy(app.ren, image, (use_rect == true) ? &src : nullptr, &rc);
         }
     }
@@ -323,7 +323,7 @@ namespace mx {
         if(show == false)
             return false;
         int cx = x + wx;
-        int cy = y + wy;
+        int cy = y + wy + kTitleBarHeight;
         if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
             int mouseX = e.button.x;
             int mouseY = e.button.y;

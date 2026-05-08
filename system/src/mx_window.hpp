@@ -7,6 +7,10 @@
 #include"mx_menu.hpp"
 namespace mx {
 
+  // Height of the window title bar in pixels. Shared with controls and
+  // terminal windows so every file uses the same authoritative value.
+  inline constexpr int kTitleBarHeight = 30;
+
   class Control;
   class SystemBar;
   class DimensionContainer;

@@ -57,12 +57,12 @@ namespace mx {
         }
         SDL_Rect rc;
         Window::getRect(rc);
-        const int topLimit    = 26;
+        const int topLimit    = kTitleBarHeight + 1;
         const int bottomLimit = h - 50;
         const int maxH        = std::max(1, bottomLimit - topLimit);
         if (Window::isMaximized()) {
             // Fill the host window (under the menu bar, above the system bar).
-            rc = { 0, topLimit, w, h - 76 };
+            rc = { 0, topLimit, w, maxH };
         } else if (rc.w <= 0 || rc.h <= 0) {
             // Initial layout: centered default size scaled to host.
             const int baseWidth  = 1280;
