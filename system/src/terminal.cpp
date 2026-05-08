@@ -2210,6 +2210,12 @@ namespace mx {
                     }
                     break;
 
+                case SDLK_DELETE:
+                    if (!inputText.empty() && cursorPosition < static_cast<int>(inputText.length())) {
+                        inputText.erase(cursorPosition, 1);
+                    }
+                    break;
+
                 case SDLK_LEFT:
                     if (cursorPosition > 0) {
                         cursorPosition--;
