@@ -17,8 +17,21 @@ Create a Shared Library / module for MX2 to run in the interpreter as standalone
 
 # Issues:
 
-In the embdded termianal,  commands run single threaded in the foreground thread, I need to make them run
-in a background thread so the foreground thread doesn't lock up when in a loop or processing a script.
+Previously reported embedded-terminal threading/lockup behavior has been addressed.
+
+# Recent Bug Fix Log
+
+## 2026-03-03
+- `f88092b` Updated output behavior so text is streamed during execution instead of being buffered until program completion.
+- `3760ad4` Removed stray characters.
+- `9f8c19b` Fixed ABI bug by using a C interface.
+
+## 2026-03-02
+- `3926526` Removed duplicate print.
+- `f64772f` Removed duplicate print (follow-up cleanup).
+- `6be3021` Updated command handling for multiline input.
+- `552d066` General update.
+- `a8b1f4d` Added shutdown log messages and reload-on-load behavior for shader program.
 
 
 ## How to build from source:
@@ -261,7 +274,7 @@ print [--i|--f] ARG...
 ---
 
 ### cd
-Change the shells current working directory.
+Change the shell’s current working directory.
 
 #### Usage
 ```bash
@@ -428,7 +441,7 @@ cmd SCRIPT_FILE
 ---
 
 ### visual
-Render a scripts AST as HTML.
+Render a script’s AST as HTML.
 
 #### Usage
 ```bash
@@ -524,23 +537,23 @@ extern "math" "add_numbers" "add"
 
 ### List Management Commands
 
-- **list_new**: `list_new NAME`  Create a new list  
-- **list_add**: `list_add NAME VALUE`  Add a value to a list  
-- **list_remove**: `list_remove NAME INDEX`  INDEX  Remove an item at specified index
-- **list_get**: `list_get NAME INDEX`  Get an item at specified index
-- **list_set**: `list_set NAME INDEX VALUE`  Set an item at specified index
-- **list_clear**: `list_clear NAME`  Clear a specific list
-- **list_clearall**: `list_clearall`  Clear all lists
-- **list_exists**: `list_exists NAME`  Check if a list exists
-- **list_init**: `list_init NAME VALUE SIZE`  Initialize a list with a value repeated SIZE times
-- **list_len**: `list_len NAME`  Get the length of a list
-- **list_tokens**: `list_tokens NAME`  Display all values in a list, one per line
-- **list_sort**: `list_sort NAME`  Sort a list in ascending order
-- **list_reverse**: `list_reverse NAME`  Reverse the order of elements in a list
-- **list_shuffle**: `list_shuffle NAME`  Randomly shuffle the elements of a list
-- **list_copy**: `list_copy SOURCE DEST`  Copy a list to a new list
-- **list_pop**: `list_pop NAME`  Remove and return the last element of a list
-- **list_concat**: `list_concat LIST1 LIST2`  Concatenate the second list to the first
+- **list_new**: `list_new NAME` — Create a new list  
+- **list_add**: `list_add NAME VALUE` — Add a value to a list  
+- **list_remove**: `list_remove NAME INDEX` — INDEX — Remove an item at specified index
+- **list_get**: `list_get NAME INDEX` — Get an item at specified index
+- **list_set**: `list_set NAME INDEX VALUE` — Set an item at specified index
+- **list_clear**: `list_clear NAME` — Clear a specific list
+- **list_clearall**: `list_clearall` — Clear all lists
+- **list_exists**: `list_exists NAME` — Check if a list exists
+- **list_init**: `list_init NAME VALUE SIZE` — Initialize a list with a value repeated SIZE times
+- **list_len**: `list_len NAME` — Get the length of a list
+- **list_tokens**: `list_tokens NAME` — Display all values in a list, one per line
+- **list_sort**: `list_sort NAME` — Sort a list in ascending order
+- **list_reverse**: `list_reverse NAME` — Reverse the order of elements in a list
+- **list_shuffle**: `list_shuffle NAME` — Randomly shuffle the elements of a list
+- **list_copy**: `list_copy SOURCE DEST` — Copy a list to a new list
+- **list_pop**: `list_pop NAME` — Remove and return the last element of a list
+- **list_concat**: `list_concat LIST1 LIST2` — Concatenate the second list to the first
 
 ---
 
@@ -576,12 +589,12 @@ commands
 
 ### Debug Commands
 
-- **debug_set**: `debug_set <VAR> <VAL>`  Set a debug variable.
-- **debug_get**: `debug_get <VAR>`  Get a debug variable.
-- **debug_list**: `debug_list`  List debug variables.
-- **debug_clear**: `debug_clear <VAR>`  Clear a debug variable.
-- **debug_clearall**: `debug_clearall`  Clear all debug variables.
-- **dump**: `dump FILENAME`  Dump variable table to a file.
+- **debug_set**: `debug_set <VAR> <VAL>` — Set a debug variable.
+- **debug_get**: `debug_get <VAR>` — Get a debug variable.
+- **debug_list**: `debug_list` — List debug variables.
+- **debug_clear**: `debug_clear <VAR>` — Clear a debug variable.
+- **debug_clearall**: `debug_clearall` — Clear all debug variables.
+- **dump**: `dump FILENAME` — Dump variable table to a file.
 
 ---
 

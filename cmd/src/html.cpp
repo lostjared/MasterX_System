@@ -163,7 +163,7 @@ namespace html {
         out << "      align-items: center;\n";
         out << "    }\n";
         out << "    .node h3::before {\n";
-        out << "      content: '';\n";
+        out << "      content: '▼';\n";
         out << "      display: inline-block;\n";
         out << "      margin-right: 0.5rem;\n";
         out << "      font-size: 0.75rem;\n";

@@ -3,14 +3,30 @@
 
 namespace cmd {
 
+    namespace {
+        thread_local std::function<void(const std::string&)> g_updateCallback = nullptr;
+    }
+
     CommandRegistry AstExecutor::registry;
     AstExecutor AstExecutor::instance;
     
     AstExecutor& AstExecutor::getExecutor() {
         return instance;
     } 
+
+    void AstExecutor::setUpdateCallback(std::function<void(const std::string &)> callback) {
+        g_updateCallback = std::move(callback);
+    }
+
+    void AstExecutor::execUpdateCallback(const std::string &text) {
+        if (g_updateCallback) {
+            g_updateCallback(text);
+        }
+    }
+
     AstExecutor::AstExecutor() {
         if(registry.empty()) {
+            registry.registerTypedCommand("help", cmd::helpCommand);
             registry.registerTypedCommand("echo", cmd::echoCommand);
             registry.registerTypedCommand("test",cmd::testCommand);
             registry.registerTypedCommand("cmd", cmd::cmdCommand);
@@ -55,6 +71,7 @@ namespace cmd {
             registry.registerTypedCommand("debug_cmd", cmd::commandListCommand);
             registry.registerTypedCommand("argv", cmd::argvCommand);
             registry.registerTypedCommand("extern", cmd::externCommand);
+            registry.registerTypedCommand("extern_cleanup", cmd::externCleanupCommand);
             registry.registerTypedCommand("list_new", cmd::newListCommand);
             registry.registerTypedCommand("list_add", cmd::newListAddCommand);
             registry.registerTypedCommand("list_remove", cmd::newListRemoveCommand); 

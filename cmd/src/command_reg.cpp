@@ -1,19 +1,10 @@
 #include"command_reg.hpp"
 #include"ast.hpp"
 #include<vector>
+#include<cstdio>
+#include<unordered_set>
 
 namespace cmd {
-    static void validateArguments(const std::vector<Argument>& args, std::ostream& output) {
-        for (const auto& arg : args) {
-            if (arg.type == ARG_STRING_LITERAL || arg.type == ARG_COMMAND_SUBST) {
-                continue;
-            }
-            if (arg.value.find('(') != std::string::npos || 
-                arg.value.find(')') != std::string::npos) {
-                throw std::runtime_error("Invalid syntax: '" + arg.value + "' - parentheses not allowed in arguments. Use quotes for literals or $() for command substitution.");
-            }
-        }
-    }
 
     void CommandRegistry::registerCommand(const std::string& name,
                                         CommandFunction func)    {
@@ -35,18 +26,11 @@ namespace cmd {
         return userDefinedCommands.find(name) != userDefinedCommands.end();
     }
 
-    bool CommandRegistry::commandExists(const std::string& name) const {
-        return (commands.find(name) != commands.end()) ||
-               (typedCommands.find(name) != typedCommands.end()) ||
-               (userDefinedCommands.find(name) != userDefinedCommands.end()) ||
-               (externCommands.find(name) != externCommands.end());
-    }
-
     int CommandRegistry::executeCommand(const std::string& name,
                                         const std::vector<Argument>& args,
                                         std::istream& input,
                                         std::ostream& output) {
-        validateArguments(args, output);
+
         auto it_typed = typedCommands.find(name);
         if (it_typed != typedCommands.end()) {
             return it_typed->second(args, input, output);
@@ -85,13 +69,58 @@ namespace cmd {
         externCommands[name] = info;
     }
         
+    // C callback: plugin calls this to write text to the host's ostream.
+    // The void* ctx is a pointer to the host's std::ostream — no C++ types
+    // cross the DLL boundary because the callback is compiled into the host.
+    static void plugin_write_callback(void* ctx, const char* text) {
+        auto* out = static_cast<std::ostream*>(ctx);
+        *out << text;
+        out->flush();
+        if (out == &std::cout) {
+            std::fflush(stdout);
+        }
+    }
+
     int CommandRegistry::executeExternCommand(const std::string& name, const std::vector<Argument>& args, 
                                 std::istream& input, std::ostream& output) {
         auto it = externCommands.find(name);
         if (it != externCommands.end()) {
             const auto& info = it->second;
             if (info.func) {
-                return info.func(args, input, output);
+                // Pre-resolve every Argument to a plain C string on the host side.
+                // This keeps std::string, std::shared_ptr, and getVar() out of
+                // the plugin entirely.
+                std::vector<std::string> resolved;
+                resolved.reserve(args.size());
+                for (const auto& a : args) {
+                    resolved.push_back(getVar(a));
+                }
+                std::vector<const char*> argv;
+                argv.reserve(resolved.size());
+                for (const auto& s : resolved) {
+                    argv.push_back(s.c_str());
+                }
+
+                int result = info.func(
+                    static_cast<int>(argv.size()),
+                    argv.empty() ? nullptr : argv.data(),
+                    static_cast<void*>(&output),
+                    plugin_write_callback
+                );
+
+                if (result == 1 && info.library && info.library->hasSymbol("SDL_GetError")) {
+                    try {
+                        auto sdlGetError = info.library->getFunction<const char* (*)()>("SDL_GetError");
+                        if (sdlGetError) {
+                            const char* err = sdlGetError();
+                            if (err != nullptr && err[0] != '\0') {
+                                output << "SDL_GetError: " << err << "\n";
+                            }
+                        }
+                    } catch (...) {
+                    }
+                }
+                return result;
             } 
             else {
                 output << "Function: " << info.functionName << " not found in library: " << info.libraryPath << "\n";
@@ -99,6 +128,43 @@ namespace cmd {
             }
         }
             return 0;
+    }
+
+    bool CommandRegistry::unregisterExternCommand(const std::string& name) {
+        auto it = externCommands.find(name);
+        if (it == externCommands.end()) {
+            return false;
+        }
+        externCommands.erase(it);
+        return true;
+    }
+
+    std::size_t CommandRegistry::clearExternCommands() {
+        std::size_t count = externCommands.size();
+        externCommands.clear();
+        return count;
+    }
+
+    std::size_t CommandRegistry::pruneLibraries() {
+        std::unordered_set<Library*> referenced;
+        referenced.reserve(externCommands.size());
+        for (const auto& kv : externCommands) {
+            if (kv.second.library) {
+                referenced.insert(kv.second.library.get());
+            }
+        }
+
+        std::size_t removed = 0;
+        for (auto it = libraries.begin(); it != libraries.end();) {
+            const auto& libPtr = it->second;
+            if (!libPtr || referenced.find(libPtr.get()) == referenced.end()) {
+                it = libraries.erase(it);
+                ++removed;
+            } else {
+                ++it;
+            }
+        }
+        return removed;
     }
     
     int CommandRegistry::executeUserDefinedCommand(
@@ -172,6 +238,17 @@ namespace cmd {
             result = executor.getLastExitStatus();
             executor.setReturnSignal(previousReturnSignal);
         }
+        catch (const AstFailure& e) {
+            AstExecutor &executor = AstExecutor::getExecutor();
+            executor.setReturnSignal(false);
+            for (auto const & kv : origValues) {
+                if (kv.second.has_value())
+                    gameState->setVariable(kv.first, *kv.second);
+                else
+                    gameState->clearVariable(kv.first);
+            }
+            throw;
+        }
         catch (const std::exception& e) {
             output << name << ": execution failed: " << e.what() << "\n";
             result = 1;
@@ -197,7 +274,11 @@ namespace cmd {
         if (it != libraries.end()) {
             return it->second;
         }
-        libraries[name] = std::make_shared<cmd::Library>(name);
+        try {
+            libraries[name] = std::make_shared<cmd::Library>(name);
+        } catch (const std::exception &e) {
+            libraries[name] = nullptr;
+        }
         return libraries[name];
     }
 
