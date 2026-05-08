@@ -85,7 +85,9 @@ namespace mx {
       minTargetX(0), minTargetY(0),
       minTargetW(0), minTargetH(0),
       minAnimationStep(1),
-      restoreAnimationStep(5),
+      restoreTotalFrames(12), restoreFrame(0),
+      restoreStartX(0), restoreStartY(0),
+      restoreStartW(0), restoreStartH(0),
     lastMaxToggleTicks_(0),
       originalX(0), originalY(0),
       originalWidth(0), originalHeight(0),
@@ -166,24 +168,25 @@ namespace mx {
         }
 
         if (isRestoring) {
-            // Robust integer easing: always make at least 1 pixel of
-            // progress in the correct direction, otherwise the integer
-            // division (delta/step) rounds to 0 once delta < step and the
-            // window freezes a few pixels short of the original size.
-            auto easeAxis = [&](int curr, int target) -> int {
-                int delta = target - curr;
-                if (delta == 0) return curr;
-                int step = delta / restoreAnimationStep;
-                if (step == 0) step = (delta > 0) ? 1 : -1;
-                return curr + step;
-            };
-            x = easeAxis(x, restoreTargetX);
-            y = easeAxis(y, restoreTargetY);
-            w = easeAxis(w, restoreTargetW);
-            h = easeAxis(h, restoreTargetH);
+            // Fixed-frame lerp: all axes advance by the same normalised t
+            // each frame so they start and finish together.
+            restoreFrame++;
+            if (restoreFrame >= restoreTotalFrames) {
+                x = restoreTargetX;
+                y = restoreTargetY;
+                w = restoreTargetW;
+                h = restoreTargetH;
+            } else {
+                auto lerp = [](int start, int end, int frame, int total) -> int {
+                    return start + (end - start) * frame / total;
+                };
+                x = lerp(restoreStartX, restoreTargetX, restoreFrame, restoreTotalFrames);
+                y = lerp(restoreStartY, restoreTargetY, restoreFrame, restoreTotalFrames);
+                w = lerp(restoreStartW, restoreTargetW, restoreFrame, restoreTotalFrames);
+                h = lerp(restoreStartH, restoreTargetH, restoreFrame, restoreTotalFrames);
+            }
 
-            if (x == restoreTargetX && y == restoreTargetY &&
-                w == restoreTargetW && h == restoreTargetH) {
+            if (restoreFrame >= restoreTotalFrames) {
                 isRestoring = false;
                 minimized = false;
                 minimizeHovered = SDL_FALSE;
@@ -199,33 +202,50 @@ namespace mx {
         }
         SDL_Rect rc = {x, y, w, h};
 
-        SDL_SetRenderDrawColor(app.ren, 205, 205, 205, 255);
-        SDL_RenderFillRect(app.ren, &rc);
+        if (isRestoring || isMinimizing) {
+            SDL_SetRenderDrawColor(app.ren, 205, 205, 205, 255);
+            SDL_RenderFillRect(app.ren, &rc);
+            drawMenubar(app);
+            SDL_Rect animClip = {
+                x + 1,
+                y + kTitleBarHeight + 1,
+                w - 2,
+                h - kTitleBarHeight - 2
+            };
+            if (animClip.w > 0 && animClip.h > 0) {
+                SDL_RenderSetClipRect(app.ren, &animClip);
+                for (auto &c : children) {
+                    c->setWindowPos(x, y);
+                    c->draw(app);
+                }
+                SDL_RenderSetClipRect(app.ren, nullptr);
+            }
+        } else {
+            SDL_SetRenderDrawColor(app.ren, 205, 205, 205, 255);
+            SDL_RenderFillRect(app.ren, &rc);
 
-        int startGray = 165;
-        int endGray = 205;
-        const int frameRight = x + w - 1;
-        for (int i = 0; i < h; ++i) {
-            int grayValue = startGray + (endGray - startGray) * i / h;
-            SDL_SetRenderDrawColor(app.ren, grayValue, grayValue, grayValue, 255);
-            SDL_RenderDrawLine(app.ren, x, y + i, frameRight, y + i);
+            int startGray = 165;
+            int endGray = 205;
+            const int frameRight = x + w - 1;
+            for (int i = 0; i < h; ++i) {
+                int grayValue = startGray + (endGray - startGray) * i / h;
+                SDL_SetRenderDrawColor(app.ren, grayValue, grayValue, grayValue, 255);
+                SDL_RenderDrawLine(app.ren, x, y + i, frameRight, y + i);
+            }
+            drawMenubar(app);
+            SDL_Rect clientClip = {
+                x + 1,
+                y + kTitleBarHeight + 1,
+                w - 2,
+                h - kTitleBarHeight - 2
+            };
+            SDL_RenderSetClipRect(app.ren, &clientClip);
+            for (auto &c : children) {
+                c->setWindowPos(x, y);
+                c->draw(app);
+            }
+            SDL_RenderSetClipRect(app.ren, nullptr);
         }
-        drawMenubar(app);
-
-        // Clip children to the client area so no content overflows the
-        // window's frame border on any side.
-        SDL_Rect clientClip = {
-            x + 1,
-            y + kTitleBarHeight + 1,
-            w - 2,
-            h - kTitleBarHeight - 2
-        };
-        SDL_RenderSetClipRect(app.ren, &clientClip);
-        for (auto &c : children) {
-            c->setWindowPos(x, y);
-            c->draw(app);
-        }
-        SDL_RenderSetClipRect(app.ren, nullptr);
     }
 
     bool Window::isVisible() const {
@@ -730,6 +750,11 @@ namespace mx {
         } else if (!m && minimized) {
             minimized = false;
             isRestoring = true;
+            restoreFrame = 0;
+            restoreStartX = x;
+            restoreStartY = y;
+            restoreStartW = w;
+            restoreStartH = h;
             restoreTargetX = originalX;
             restoreTargetY = originalY;
             restoreTargetW = originalWidth;

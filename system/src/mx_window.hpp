@@ -79,7 +79,10 @@ namespace mx {
         int minTargetX = 0, minTargetY = 0;  
         int minTargetW = 0, minTargetH = 0;  
         int minAnimationStep = 1;   
-        int restoreAnimationStep = 5;
+        int restoreTotalFrames = 12;
+        int restoreFrame = 0;
+        int restoreStartX = 0, restoreStartY = 0;
+        int restoreStartW = 0, restoreStartH = 0;
         void toggleMaximize(mxApp &app);
         Uint32 lastMaxToggleTicks_ = 0;
         int originalX;    

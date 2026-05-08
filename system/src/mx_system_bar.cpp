@@ -49,7 +49,11 @@ namespace mx {
             window->restoreTargetY = window->originalY; 
             window->restoreTargetW = window->originalWidth; 
             window->restoreTargetH = window->originalHeight; 
-            window->restoreAnimationStep = 10; 
+            window->restoreFrame = 0;
+            window->restoreStartX = window->x;
+            window->restoreStartY = window->y;
+            window->restoreStartW = window->w;
+            window->restoreStartH = window->h;
             window->isRestoring = true;
             window->minimize(false);
             DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions->operator[](cur_dim).get());
