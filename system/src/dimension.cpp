@@ -308,7 +308,7 @@ namespace mx {
 
         settings_window->show(true);
         settings_window->setReload(true);
-        settings_window->setCanResize(true);
+        settings_window->setCanResize(false);
         settings_window->removeAtClose(false);
         settings_window->children.push_back(std::make_unique<Button>(app));
         toggle_fullscreen = dynamic_cast<Button *>(settings_window->getControl());
@@ -350,7 +350,7 @@ namespace mx {
         welcome_window->create(welcome, "Welcome", 45, 25, 640, 480);
         welcome_window->show(true);
         welcome_window->setReload(false);
-        welcome_window->setCanResize(true);
+        welcome_window->setCanResize(false);
         welcome_window->removeAtClose(true);
         welcome_window->children.push_back(std::make_unique<Image>(app));
         welcome_image = dynamic_cast<Image *>(welcome_window->getControl());
@@ -379,7 +379,7 @@ namespace mx {
         welcome_help->create(welcome, "Info", app.width-360, 25, 320, 240);
         welcome_help->show(true);
         welcome_help->setReload(false);
-        welcome_help->setCanResize(true);
+        welcome_help->setCanResize(false);
         welcome_help->removeAtClose(true);
 
         welcome_help->children.push_back(std::make_unique<Label>(app));
@@ -427,7 +427,7 @@ namespace mx {
         about_window_info->create_multi(about_window, info_text, { 255,255,255,255}, 25, 25 );
         about_window_info->loadFont(app.system_font, 36);
         about_window_info->linkMode(false);
-        about_window->setCanResize(true);
+        about_window->setCanResize(false);
         dimensions.push_back(std::make_unique<DimensionContainer>(app));
         term = dynamic_cast<DimensionContainer *>(getDimension());
         if(!term) {

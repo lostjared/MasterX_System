@@ -80,6 +80,7 @@ namespace mx {
       minTargetW(0), minTargetH(0),
       minAnimationStep(1),
       restoreAnimationStep(5),
+    lastMaxToggleTicks_(0),
       originalX(0), originalY(0),
       originalWidth(0), originalHeight(0),
       isRestoring(false),
@@ -228,10 +229,18 @@ namespace mx {
 
         int buttonSize = 19;
         int buttonPadding = 5;
+        const bool allowMaximizeButton = canResize();
 
-        minimizeButton = {x + w - 3 * (buttonSize + buttonPadding), y + 5, buttonSize, buttonSize};
-        maximizeButton = {x + w - 2 * (buttonSize + buttonPadding), y + 5, buttonSize, buttonSize};
-        closeButton = {x + w - (buttonSize + buttonPadding), y + 5, buttonSize, buttonSize};
+        const int closeButtonX = x + w - (buttonSize + buttonPadding);
+        const int minimizeButtonX = allowMaximizeButton
+            ? x + w - 3 * (buttonSize + buttonPadding)
+            : x + w - 2 * (buttonSize + buttonPadding);
+
+        minimizeButton = {minimizeButtonX, y + 5, buttonSize, buttonSize};
+        maximizeButton = allowMaximizeButton
+            ? SDL_Rect{x + w - 2 * (buttonSize + buttonPadding), y + 5, buttonSize, buttonSize}
+            : SDL_Rect{0, 0, 0, 0};
+        closeButton = {closeButtonX, y + 5, buttonSize, buttonSize};
 
         
         auto drawButtonWithBevel = [&](SDL_Rect button, bool hovered) {
@@ -253,14 +262,18 @@ namespace mx {
         };
 
         drawButtonWithBevel(minimizeButton, minimizeHovered);
-        drawButtonWithBevel(maximizeButton, maximizeHovered);
+        if (allowMaximizeButton) {
+            drawButtonWithBevel(maximizeButton, maximizeHovered);
+        }
         drawButtonWithBevel(closeButton, closeHovered);
-        SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);  
-        int padding = 4; 
-        SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + padding);
-        SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + padding, maximizeButton.x + padding - 1, maximizeButton.y + buttonSize - padding);
-        SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + buttonSize - padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + buttonSize - padding);
-        SDL_RenderDrawLine(app.ren, maximizeButton.x + buttonSize - padding, maximizeButton.y + padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + buttonSize - padding);
+        if (allowMaximizeButton) {
+            SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);  
+            int padding = 4; 
+            SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + padding);
+            SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + padding, maximizeButton.x + padding - 1, maximizeButton.y + buttonSize - padding);
+            SDL_RenderDrawLine(app.ren, maximizeButton.x + padding - 1, maximizeButton.y + buttonSize - padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + buttonSize - padding);
+            SDL_RenderDrawLine(app.ren, maximizeButton.x + buttonSize - padding, maximizeButton.y + padding, maximizeButton.x + buttonSize - padding, maximizeButton.y + buttonSize - padding);
+        }
 
         SDL_Surface* minimizeSurface = TTF_RenderText_Blended(app.font, "_", {255, 255, 255});
         SDL_Texture* minimizeTexture = SDL_CreateTextureFromSurface(app.ren, minimizeSurface);
@@ -383,14 +396,36 @@ namespace mx {
         remove_on = value;
     }
 
+    void Window::toggleMaximize(mxApp &app) {
+        if (!canResize() || minimized || isMinimizing || isRestoring) {
+            return;
+        }
+        constexpr Uint32 kMaxToggleDebounceMs = 180;
+        const Uint32 now = SDL_GetTicks();
+        if (lastMaxToggleTicks_ != 0 && (now - lastMaxToggleTicks_) < kMaxToggleDebounceMs) {
+            return;
+        }
+        lastMaxToggleTicks_ = now;
+        // Refresh available workspace size so maximize always uses current bounds.
+        dim_w = app.width;
+        dim_h = app.height;
+        maximize(!maximized);
+        shown = true;
+    }
+
    bool Window::event(mxApp &app, SDL_Event &e) {
+        if (!can_resize && resizing_) {
+            resizing_ = false;
+            resizeEdges_ = 0;
+            SDL_SetCursor(SDL_GetDefaultCursor());
+        }
         
         static Uint32 lastClickTime = 0;   
         if (e.type == SDL_MOUSEMOTION) {
             SDL_Point mousePoint = {e.motion.x, e.motion.y};
             minimizeHovered = SDL_PointInRect(&mousePoint, &minimizeButton);
             closeHovered = SDL_PointInRect(&mousePoint, &closeButton);
-            maximizeHovered = SDL_PointInRect(&mousePoint, &maximizeButton);
+            maximizeHovered = (canResize() && SDL_PointInRect(&mousePoint, &maximizeButton)) ? SDL_TRUE : SDL_FALSE;
             if (resizing_) {
                 int dx = e.motion.x - resizeMouseX_;
                 int dy = e.motion.y - resizeMouseY_;
@@ -471,6 +506,11 @@ namespace mx {
         if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
             SDL_Point mousePoint = {e.button.x, e.button.y};
             SDL_Rect titleBarRect = {x, y, w, 30};
+            const bool inTitleBar = SDL_PointInRect(&mousePoint, &titleBarRect);
+            const bool inMinButton = SDL_PointInRect(&mousePoint, &minimizeButton);
+            const bool inMaxButton = canResize() && SDL_PointInRect(&mousePoint, &maximizeButton);
+            const bool inCloseButton = SDL_PointInRect(&mousePoint, &closeButton);
+            const bool inWindowButtons = inMinButton || inMaxButton || inCloseButton;
 
             // Edge-drag resize: takes priority over title-bar drag so corners that
             // overlap the title bar still resize instead of moving.
@@ -484,15 +524,19 @@ namespace mx {
                 return true;
             }
 
-            if (SDL_PointInRect(&mousePoint, &titleBarRect) &&
-                !SDL_PointInRect(&mousePoint, &minimizeButton) &&
-                !SDL_PointInRect(&mousePoint, &closeButton)) {
+            if (inTitleBar && !inWindowButtons && e.button.clicks >= 2) {
+                toggleMaximize(app);
+                dragging = false;
+                return true;
+            }
+
+            if (inTitleBar && !inWindowButtons) {
                 dragging = true;
                 dragOffsetX = e.button.x - x;
                 dragOffsetY = e.button.y - y;
             }
 
-            if (SDL_PointInRect(&mousePoint, &closeButton)) {
+            if (inCloseButton) {
                 show(false);
                 if(remove_on) { 
                     destroyWindow();
@@ -500,7 +544,7 @@ namespace mx {
                 }
             }
 
-            if (SDL_PointInRect(&mousePoint, &minimizeButton)) {
+            if (inMinButton) {
                 if (!minimized) {
                     minimize(true);
                     if (systemBar) systemBar->addMinimizedWindow(this);
@@ -512,18 +556,9 @@ namespace mx {
                 }
             }
                 
-            if (canResize() == true && minimized == false && SDL_PointInRect(&mousePoint, &maximizeButton)) {
-
-                maximize(!maximized);
-                shown = true;
-                if (can_resize) {
-                    for (auto &c : children) {
-                        if(c->show) {
-                            c->setWindowPos(x,y);
-                            c->resizeWindow(w, h);
-                        }
-                    }
-                }
+            if (inMaxButton) {
+                toggleMaximize(app);
+                return true;
             }
         } 
         
@@ -643,6 +678,9 @@ namespace mx {
     }
 
     void Window::maximize(bool m) {
+        if (m && !canResize()) {
+            return;
+        }
         bool changed = false;
         if (m && !maximized) {
             oldX = x;
@@ -651,8 +689,8 @@ namespace mx {
             oldH = h;
             x = 0;
             y = 26;
-            w = dim_w;
-            h = dim_h-76;
+            w = (dim_w > 0) ? dim_w : w;
+            h = (dim_h > 0) ? (dim_h - 76) : h;
             dragging = false;
             changed = true;
         } else if (!m && maximized) {
@@ -685,6 +723,11 @@ namespace mx {
 
    void Window::setCanResize(bool r) {
         can_resize = r;
+       if (!can_resize) {
+          resizing_ = false;
+          resizeEdges_ = 0;
+          maximizeHovered = SDL_FALSE;
+       }
    }
     
     bool Window::canResize() const {
