@@ -1461,8 +1461,13 @@ namespace mx {
         if (!embedded_)
             Window::draw(app);
 
-        if (isDraw() == false)
+        // Even when minimized, keep the shader effect running on the
+        // full wallpaper so the dimension background stays animated.
+        if (isDraw() == false) {
+            if (activeEffect_ != TermEffect::None && dim && !dim->getMatrix())
+                drawEffectBackground(app);
             return;
+        }
 
         // If the editor is active, render it inside the window content
         // area (below the title bar) and skip the regular terminal UI.
@@ -3351,6 +3356,17 @@ namespace mx {
         lastEffectMs_ = SDL_GetTicks();
     }
 
+    void Terminal::drawBackgroundOnly(mxApp &app) {
+        if (!dim) return;
+        if (activeEffect_ != TermEffect::None && !dim->getMatrix()) {
+            drawEffectBackground(app);
+        } else if (dim->getMatrix() && dim->matrix_tex) {
+            SDL_RenderCopy(app.ren, dim->matrix_tex, nullptr, nullptr);
+        } else if (dim->wallpaper) {
+            SDL_RenderCopy(app.ren, dim->wallpaper, nullptr, nullptr);
+        }
+    }
+
     void Terminal::drawEffectBackground(mxApp &app) {
         const int idx = static_cast<int>(activeEffect_);
         if (idx <= 0 || idx >= kEffectCount) return;
@@ -3361,6 +3377,12 @@ namespace mx {
         if (lastEffectMs_ == 0) lastEffectMs_ = now;
         shaderTime_ += static_cast<float>(now - lastEffectMs_) * 0.001f;
         lastEffectMs_ = now;
+
+        // The shader must cover the entire wallpaper, not just the terminal
+        // window bounds. A parent container (e.g. TerminalTabs) may have set
+        // a clip rect before calling draw(); disable it so the full-screen
+        // quad issued by applyEffect() is not scissored to the window rect.
+        SDL_RenderSetClipRect(app.ren, nullptr);
 
         // Use the wallpaper as the input texture (may be null for procedural effects)
         app.ren->applyEffect(wallpaper, effectProgs_[idx], shaderTime_);

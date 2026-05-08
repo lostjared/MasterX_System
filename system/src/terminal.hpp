@@ -82,6 +82,10 @@ namespace mx {
                     kCount
                 };
                 void setEffect(TermEffect e, mxApp &app);
+                // Draw only the shader/wallpaper background without any
+                // terminal chrome or content — used when the owning
+                // TerminalTabs window is minimized.
+                void drawBackgroundOnly(mxApp &app);
 
                 // Embedded mode: when true, the Terminal does not draw its
                 // own window chrome (title bar / menu bar) and does not

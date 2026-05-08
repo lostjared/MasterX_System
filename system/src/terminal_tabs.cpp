@@ -374,7 +374,16 @@ namespace mx {
         // Window chrome (title bar + frame). Window::draw also runs
         // minimize/restore animations.
         Window::draw(app);
-        if (!isDraw()) return;
+        if (!isDraw()) {
+            // Still pump the shader effect on the wallpaper even when minimized
+            // so the dimension background remains animated.
+            if (Terminal *t = activeTab()) {
+                if (!t->dim) t->dim = this->dim;
+                SDL_RenderSetClipRect(app.ren, nullptr);
+                t->drawBackgroundOnly(app);
+            }
+            return;
+        }
 
         // Always re-sync the active tab's rect; the parent window may
         // have moved or been resized this frame.
