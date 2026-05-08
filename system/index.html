@@ -136,12 +136,19 @@
       <button id="clear">Clear stdout</button>
     </div>
 
-    <textarea id="output" read.jonly></textarea>
+    <textarea id="output" readonly spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
   </div>
 
   <script>
     var outputElement = document.getElementById('output');
     var canvasElement = document.getElementById('canvas');
+    var ignoredErrMessages = [
+      'emscripten_set_main_loop_timing: Cannot set timing mode for main loop since a main loop does not exist! Call emscripten_set_main_loop first to set one up.'
+    ];
+
+    function shouldIgnoreErr(text) {
+      return ignoredErrMessages.indexOf(text) !== -1;
+    }
 
     function syncOutputSize() {
       if (!canvasElement || !outputElement) return;
@@ -184,9 +191,10 @@
       },
       printErr: function() {
         var e = Array.prototype.slice.call(arguments);
+        var t = e.join(" ");
+        if (shouldIgnoreErr(t)) return;
         console.error.apply(console, e);
         if (outputElement) {
-          var t = e.join(" ");
           outputElement.value += '[ERR] ' + t + '\n';
           outputElement.scrollTop = outputElement.scrollHeight;
         }
