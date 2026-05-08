@@ -1,10 +1,10 @@
 # MasterX System
 
-![mxosx](https://github.com/user-attachments/assets/e63a4c4b-b6d6-4a90-b99b-fd45049798bd)
+<img width="2560" height="1440" alt="Screenshot From 2026-05-07 21-06-08" src="https://github.com/user-attachments/assets/cd6622f1-1bae-46d4-b758-4f102882591a" />
 
-![image](https://github.com/user-attachments/assets/c0f745cc-cd90-40d4-b467-0531131ed902)
+<img width="2560" height="1440" alt="Screenshot From 2026-05-07 21-06-44" src="https://github.com/user-attachments/assets/8e62d7f4-8930-403d-8ca5-40d9574ef1eb" />
 
-![image](https://github.com/user-attachments/assets/5f40ce93-134e-4c53-9fc3-f4e86c43c263)
+
 
 MasterX System is an application prototype featuring a custom-built compiler designed for Linux/macOS for ETL (deprecated) , accompanied by a virtual playground for testing and exploration. This project is a personal endeavor in its early stages, aimed at enhancing my learning through practical application. 
 For a demonstration of the WebAssembly version, which runs MXCMD as the shell and serves as a demo, please visit https://lostsidedead.biz/MasterX
@@ -25,15 +25,12 @@ zlib
 
 To install, you must compile the compiler from the source code by first compiling the library cxx_scan for the lexical analyzer then  ETL, and installing both in /usr/local on your WSL2 or Linux System.
 
+<img width="2560" height="1440" alt="vlcsnap-2026-05-07-21h03m56s040" src="https://github.com/user-attachments/assets/2f8f901c-f597-4b32-8c3c-46fc3ce5732e" />
 
-![image](https://github.com/user-attachments/assets/cfa8d16c-dd92-4f91-b946-93dff225ae13)
+<img width="2560" height="1440" alt="Screenshot From 2026-05-07 21-06-55" src="https://github.com/user-attachments/assets/367b67b1-e0fc-4cc2-a195-521f135a695f" />
 
-![image](https://github.com/user-attachments/assets/1266f28c-d4fc-4ddd-9a7f-7f48c57603f5)
+<img width="2560" height="1440" alt="Screenshot From 2026-05-07 21-07-09" src="https://github.com/user-attachments/assets/a77b2961-1752-4979-a5f9-24254d86d081" />
 
-![breakout_new02](https://github.com/user-attachments/assets/8aabbc4b-0931-441f-a204-c7cf1615b91a)
+<img width="2560" height="1440" alt="Screenshot From 2026-05-07 21-07-23" src="https://github.com/user-attachments/assets/cebbe990-8e67-4b68-a220-95699b290116" />
 
-![image](https://github.com/user-attachments/assets/75feb52b-231a-4435-8f58-f4b68763a550)
-
-![image](https://github.com/user-attachments/assets/23975713-a5a7-4d96-bc16-a1769cd3db6a)
-
-
+<img width="2560" height="1440" alt="vlcsnap-2026-05-07-17h29m20s916" src="https://github.com/user-attachments/assets/2efbc2ba-aa9e-4434-ae1c-8d7f0d36528b" />
