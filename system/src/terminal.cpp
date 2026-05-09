@@ -592,6 +592,10 @@ namespace mx {
     }
 
     void Terminal::copyToClipboard() {
+        if (hasSelection) {
+            copySelectionToClipboard();
+            return;
+        }
 #ifdef FOR_WASM
         std::string allText = orig_text;
         EM_ASM({
@@ -2318,7 +2322,7 @@ namespace mx {
                 bool overstrikeBold = run.bold && !lineHasUtf8;
                 int ttfStyle = TTF_STYLE_NORMAL;
                 if (run.bold && !overstrikeBold) ttfStyle |= TTF_STYLE_BOLD;
-                if (run.underline)               ttfStyle |= TTF_STYLE_UNDERLINE;
+                if (run.underline && !altScreen) ttfStyle |= TTF_STYLE_UNDERLINE;
 
                 SDL_Texture *texture = getCachedRunTexture(app, text, run.fg, ttfStyle);
                 int gw = 0, gh = lineH;
@@ -2645,7 +2649,7 @@ namespace mx {
             const bool ctrlShift = (mod & KMOD_CTRL) && (mod & KMOD_SHIFT);
             const bool ctrlOnly = (mod & KMOD_CTRL) && !(mod & KMOD_ALT) && !(mod & KMOD_GUI);
             if (ctrlShift && sym == SDLK_c) {
-                if (hasSelection) copySelectionToClipboard();
+                copyToClipboard();
                 return true;
             }
             if (ctrlShift && sym == SDLK_v) {
