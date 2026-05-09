@@ -2019,9 +2019,17 @@ namespace mx {
 
             std::string text = line.substr(i, j - i);
             if (!text.empty()) {
+                // On ASCII-only lines we keep a strict cell grid so
+                // columns from `ls`, tables, etc. line up. SDL_ttf's
+                // built-in TTF_STYLE_BOLD makes glyphs wider than one
+                // cell which breaks that alignment, so for ASCII lines
+                // we render bold as an overstrike (draw the non-bold
+                // texture twice with a 1px x-offset). UTF-8 lines keep
+                // the natural-advance path with real bold styling.
+                bool overstrikeBold = run.bold && !lineHasUtf8;
                 int ttfStyle = TTF_STYLE_NORMAL;
-                if (run.bold)      ttfStyle |= TTF_STYLE_BOLD;
-                if (run.underline) ttfStyle |= TTF_STYLE_UNDERLINE;
+                if (run.bold && !overstrikeBold) ttfStyle |= TTF_STYLE_BOLD;
+                if (run.underline)               ttfStyle |= TTF_STYLE_UNDERLINE;
 
                 SDL_Texture *texture = getCachedRunTexture(app, text, run.fg, ttfStyle);
                 int gw = 0, gh = lineH;
@@ -2048,6 +2056,10 @@ namespace mx {
                 if (texture) {
                     SDL_Rect dstRect = {drawX, y, gw, gh};
                     SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
+                    if (overstrikeBold) {
+                        SDL_Rect dstRect2 = {drawX + 1, y, gw, gh};
+                        SDL_RenderCopy(app.ren, texture, nullptr, &dstRect2);
+                    }
                 }
                 drawX += runW;
             }
