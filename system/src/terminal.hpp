@@ -206,6 +206,12 @@ namespace mx {
                 // Per-line "pure ASCII" flag. Lets utf8 helpers take an
                 // O(1) fast path for the common ASCII output case.
                 std::vector<unsigned char> ansiLineIsAscii;
+                // Per-line soft-wrap flag: 1 means this line is a visual
+                // continuation of the previous line (created by DECAWM
+                // auto-wrap), not a hard newline. xterm/konsole track
+                // this so that resizing can re-join+re-split logical
+                // lines without cumulative fragmentation.
+                std::vector<unsigned char> ansiLineSoftWrap;
                 int ansiCursorRow = 0;
                 int ansiCursorCol = 0;
                 int ansiSavedRow = 0;
@@ -218,10 +224,12 @@ namespace mx {
                 void initAnsiState();
                 void syncAnsiToOutput();
                 void applyAnsiData(const std::string &input);
+                void reflowPrimaryBufferToCols(int cols);
 
                 // TUI / full-screen application support (vim, nano, less, top, ...).
                 bool altScreen = false;     // alternate screen buffer active
                 bool decckm = false;        // DECCKM cursor-key application mode
+                bool decawm = true;         // DECAWM auto-wrap mode
                 bool keypadApp = false;     // keypad application mode (\e= / \e>)
                 int  scrollTop = 0;         // 0-based inclusive top of scroll region
                 int  scrollBot = -1;        // 0-based inclusive bottom; -1 = whole screen
@@ -258,6 +266,7 @@ namespace mx {
                 int  selAnchorCol = 0;
                 int  selFocusRow  = 0;
                 int  selFocusCol  = 0;
+                SDL_Rect textViewportRect() const;
                 bool pointToCell(int px, int py, int &row, int &col) const;
                 void normalizedSelection(int &r0, int &c0, int &r1, int &c1) const;
                 std::string getSelectedText() const;

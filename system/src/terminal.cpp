@@ -163,17 +163,26 @@ namespace mx {
     void Terminal::updatePtySize() {
 #if !defined(_WIN32) && !defined(FOR_WASM)
         if (master_fd < 0 || !font) return;
-        SDL_Rect rc;
-        Window::getRect(rc);
+        SDL_Rect viewport = textViewportRect();
         int cellH = TTF_FontHeight(font);
         int cellW = 0;
         TTF_SizeText(font, "M", &cellW, nullptr);
         if (cellW <= 0) cellW = 8;
         if (cellH <= 0) cellH = 16;
-        int contentW = std::max(cellW, rc.w - 10);
-        int contentH = std::max(cellH, rc.h - 38);
-        termCols = std::max(20, contentW / cellW);
-        termRows = std::max(5, contentH / cellH);
+        int contentW = std::max(cellW, viewport.w);
+        int contentH = std::max(cellH, viewport.h);
+        termCols = std::max(1, contentW / cellW);
+        termRows = std::max(1, contentH / cellH);
+
+        // Soft-wrap aware reflow: every continuation row is joined back
+        // into its logical line and re-split at the new width, so this
+        // is idempotent and safe to run on every geometry change (xterm
+        // and konsole behave the same way).
+        if (lastReportedCols > 0 && termCols != lastReportedCols) {
+            reflowPrimaryBufferToCols(termCols);
+            syncAnsiToOutput();
+        }
+
         if (termRows == lastReportedRows && termCols == lastReportedCols)
             return;
         lastReportedRows = termRows;
@@ -181,9 +190,16 @@ namespace mx {
         struct winsize ws{};
         ws.ws_row    = static_cast<unsigned short>(termRows);
         ws.ws_col    = static_cast<unsigned short>(termCols);
-        ws.ws_xpixel = static_cast<unsigned short>(rc.w);
-        ws.ws_ypixel = static_cast<unsigned short>(rc.h);
+        ws.ws_xpixel = static_cast<unsigned short>(viewport.w);
+        ws.ws_ypixel = static_cast<unsigned short>(viewport.h);
         ioctl(master_fd, TIOCSWINSZ, &ws);
+
+        // Mirror real terminal behavior: notify the foreground job-control
+        // group that the terminal geometry changed so shells/apps refresh
+        // COLUMNS/LINES and redraw immediately.
+        pid_t fg_pgid = tcgetpgrp(master_fd);
+        if (fg_pgid > 0)
+            killpg(fg_pgid, SIGWINCH);
         if (altScreen) {
             // Resize alternate-screen grid to match new dimensions.
             if (static_cast<int>(ansiLines.size()) < termRows) {
@@ -212,6 +228,7 @@ namespace mx {
         ansiLines.assign(std::max(5, termRows), std::string{});
         ansiLineColors.assign(ansiLines.size(), std::vector<CharStyle>{});
         ansiLineIsAscii.assign(ansiLines.size(), 1);
+        ansiLineSoftWrap.assign(ansiLines.size(), 0);
         ansiCursorRow = 0;
         ansiCursorCol = 0;
         scrollTop = 0;
@@ -230,6 +247,7 @@ namespace mx {
         ansiLines       = savedLines;
         ansiLineColors  = savedLineColors;
         ansiLineIsAscii.assign(ansiLines.size(), 0);
+        ansiLineSoftWrap.assign(ansiLines.size(), 0);
         for (size_t i = 0; i < ansiLines.size(); ++i) {
             bool ascii = true;
             for (unsigned char c : ansiLines[i]) {
@@ -627,30 +645,39 @@ namespace mx {
         return setFontSize(font_size_ + delta);
     }
 
-    bool Terminal::pointToCell(int px, int py, int &row, int &col) const {
-        if (!font) return false;
+    SDL_Rect Terminal::textViewportRect() const {
         SDL_Rect rc;
         const_cast<Terminal*>(this)->Window::getRect(rc);
-        // Content rect: matches draw() (skip 28px title bar + 5px pad).
-        int contentX = rc.x + 5;
-        int contentY = rc.y + 28 + 5;
-        int contentW = rc.w - 10;
-        int contentH = rc.h - 28 - 10;
-        if (px < rc.x || px >= rc.x + rc.w) return false;
-        if (py < rc.y + 28 || py >= rc.y + rc.h) return false;
+
+        // Terminal content excludes the title strip and keeps a 5px text pad.
+        rc.y += 28;
+        rc.h -= 28;
+        if (rc.h < 0) rc.h = 0;
+
+        SDL_Rect vp{rc.x + 5, rc.y + 5, rc.w - 10 - scrollBarWidth, rc.h - 10};
+        if (vp.w < 1) vp.w = 1;
+        if (vp.h < 1) vp.h = 1;
+        return vp;
+    }
+
+    bool Terminal::pointToCell(int px, int py, int &row, int &col) const {
+        if (!font) return false;
+        SDL_Rect viewport = textViewportRect();
+        if (px < viewport.x || px >= viewport.x + viewport.w) return false;
+        if (py < viewport.y || py >= viewport.y + viewport.h) return false;
         int lineH = TTF_FontHeight(const_cast<TTF_Font*>(font));
         if (lineH <= 0) lineH = 16;
         int cellW = 0;
         TTF_SizeText(const_cast<TTF_Font*>(font), "M", &cellW, nullptr);
         if (cellW <= 0) cellW = 8;
-        int relY = py - contentY;
-        int relX = px - contentX;
+        int relY = py - viewport.y;
+        int relX = px - viewport.x;
         if (relY < 0) relY = 0;
         if (relX < 0) relX = 0;
         int visibleRow = relY / lineH;
         int absCol = relX / cellW;
         if (absCol < 0) absCol = 0;
-        int maxWidth = rc.w - 10;
+        int maxWidth = viewport.w;
 
 #ifdef FOR_WASM
         if (!hasInlineSelectableInput()) {
@@ -664,7 +691,6 @@ namespace mx {
                         inputRow = static_cast<int>(inputLines.size()) - 1;
                     row = static_cast<int>(outputLines.size()) + inputRow;
                     col = absCol;
-                    (void)contentW; (void)contentH;
                     return true;
                 }
             }
@@ -678,7 +704,6 @@ namespace mx {
         if (absRow >= total) absRow = total - 1;
         row = absRow;
         col = absCol;
-        (void)contentW; (void)contentH;
         return true;
     }
 
@@ -791,22 +816,14 @@ namespace mx {
     int Terminal::visibleOutputRowCapacity(int lineHeight, int maxWidth) const {
         if (lineHeight <= 0) return 0;
 
-        SDL_Rect rc;
-        const_cast<Terminal*>(this)->Window::getRect(rc);
-        // Mirror draw(): after the title bar adjustment, y starts at
-        // (rc.y + 28) + 5 and the loop breaks when
-        //   y + lineHeight * (inputRows + 1) > rc.y + rc.h
-        // so the maximum drawable output rows is
-        //   floor((contentH - 5) / lineHeight) - (inputRows + 1) + 1
-        // = floor((contentH - 5) / lineHeight) - inputRows.
-        int contentH = rc.h - 28;
-        if (contentH < lineHeight) return 0;
+        SDL_Rect viewport = textViewportRect();
+        if (viewport.h < lineHeight) return 0;
 
 #ifdef FOR_WASM
         if (!hasInlineSelectableInput()) {
             int inputRows = static_cast<int>(buildSelectableInputLines(maxWidth).size());
             if (inputRows < 1) inputRows = 1;
-            int capacity = (contentH - 5) / lineHeight - inputRows;
+            int capacity = viewport.h / lineHeight - inputRows;
             if (capacity < 0) capacity = 0;
             // Number of output rows that draw() will actually render.
             int available = static_cast<int>(outputLines.size()) - scrollOffset;
@@ -817,7 +834,7 @@ namespace mx {
         }
 #endif
         (void)maxWidth;
-        int visibleRows = contentH / lineHeight;
+        int visibleRows = viewport.h / lineHeight;
         if (visibleRows < 1) visibleRows = 1;
         return visibleRows;
     }
@@ -836,9 +853,8 @@ namespace mx {
         int r0, c0, r1, c1;
         normalizedSelection(r0, c0, r1, c1);
         std::string out;
-        SDL_Rect rc;
-        const_cast<Terminal*>(this)->Window::getRect(rc);
-        int maxWidth = rc.w - 10;
+        SDL_Rect viewport = textViewportRect();
+        int maxWidth = viewport.w;
         int total = selectableLineCount(maxWidth);
         for (int r = r0; r <= r1 && r < total; ++r) {
             std::string line = selectableLineText(r, maxWidth);
@@ -874,11 +890,11 @@ namespace mx {
         selFocusRow  = selFocusCol  = 0;
     }
 
-    void Terminal::drawSelection(mxApp &app, const SDL_Rect &contentRect, int lineHeight, int cellW) {
+    void Terminal::drawSelection(mxApp &app, const SDL_Rect &viewport, int lineHeight, int cellW) {
         if (!hasSelection) return;
         int r0, c0, r1, c1;
         normalizedSelection(r0, c0, r1, c1);
-        int maxWidth = contentRect.w;
+        int maxWidth = viewport.w;
         int total = selectableLineCount(maxWidth);
         int outputCount = static_cast<int>(outputLines.size());
         int baseRow = altScreen ? 0 : scrollOffset;
@@ -890,13 +906,13 @@ namespace mx {
             if (r < outputCount) {
                 int screenRow = r - baseRow;
                 if (screenRow < 0) continue;
-                y = contentRect.y + 5 + screenRow * lineHeight;
+                y = viewport.y + screenRow * lineHeight;
             } else {
                 int inputRow = r - outputCount;
-                y = contentRect.y + 5 + (inputBaseRow + inputRow) * lineHeight;
+                y = viewport.y + (inputBaseRow + inputRow) * lineHeight;
             }
-            if (y + lineHeight <= contentRect.y) continue;
-            if (y >= contentRect.y + contentRect.h) break;
+            if (y + lineHeight <= viewport.y) continue;
+            if (y >= viewport.y + viewport.h) break;
             std::string line = selectableLineText(r, maxWidth);
             int lineLen = static_cast<int>(line.size());
             int startC = (r == r0) ? c0 : 0;
@@ -904,7 +920,7 @@ namespace mx {
             if (startC < 0) startC = 0;
             if (endC < startC) endC = startC;
             if (r != r1 && endC == startC) endC = startC + 1; // visual hint for empty lines mid-selection
-            int x = contentRect.x + 5 + startC * cellW;
+            int x = viewport.x + startC * cellW;
             int w = (endC - startC) * cellW;
             if (w < 1) w = 1;
             SDL_Rect sr{ x, y, w, lineHeight };
@@ -1011,6 +1027,7 @@ namespace mx {
         ansiLineColors.clear();
         ansiLineColors.reserve(ansiLines.size());
         ansiLineIsAscii.assign(ansiLines.size(), 0);
+        ansiLineSoftWrap.assign(ansiLines.size(), 0);
         CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
         for (size_t i = 0; i < ansiLines.size(); ++i) {
             ansiLineColors.emplace_back(ansiLines[i].size(), defStyle);
@@ -1024,6 +1041,7 @@ namespace mx {
             ansiLines.emplace_back("");
             ansiLineColors.emplace_back();
             ansiLineIsAscii.push_back(1);
+            ansiLineSoftWrap.push_back(0);
         }
         ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
         ansiCursorCol = static_cast<int>(ansiLines.back().size());
@@ -1034,6 +1052,187 @@ namespace mx {
         ansiBold = false;
         ansiUnderline = false;
         ansiInitialized = true;
+    }
+
+    void Terminal::reflowPrimaryBufferToCols(int cols) {
+        if (!ansiInitialized || altScreen) return;
+        if (cols < 1) cols = 1;
+
+        // Make sure parallel arrays are sized.
+        if (ansiLineColors.size() < ansiLines.size())
+            ansiLineColors.resize(ansiLines.size());
+        if (ansiLineIsAscii.size() < ansiLines.size())
+            ansiLineIsAscii.resize(ansiLines.size(), 1);
+        if (ansiLineSoftWrap.size() < ansiLines.size())
+            ansiLineSoftWrap.resize(ansiLines.size(), 0);
+
+        const int oldCursorRow = ansiCursorRow;
+        const int oldCursorCol = ansiCursorCol;
+
+        // ---------------------------------------------------------------
+        // Step 1: collapse the visible buffer into LOGICAL lines by
+        // joining every run of soft-wrapped continuations back into the
+        // line that originated them. This is the same trick xterm and
+        // konsole use: a "logical" line is the longest sequence of rows
+        // where every row after the first has the soft-wrap flag set.
+        //
+        // For each logical line we also remember which column (in the
+        // joined cell stream) the cursor was sitting at, so we can place
+        // it correctly after the re-split below.
+        // ---------------------------------------------------------------
+        struct LogicalLine {
+            std::string text;
+            std::vector<CharStyle> styles;
+            // -1 if the cursor is not on this logical line, otherwise the
+            // cursor column within the joined cell stream.
+            int cursorCell = -1;
+        };
+
+        std::vector<LogicalLine> logical;
+        logical.reserve(ansiLines.size());
+
+        for (int i = 0; i < static_cast<int>(ansiLines.size()); ++i) {
+            const std::string &line = ansiLines[i];
+            const std::vector<CharStyle> &styles =
+                (i < static_cast<int>(ansiLineColors.size()))
+                    ? ansiLineColors[i]
+                    : std::vector<CharStyle>{};
+
+            bool isContinuation =
+                (i > 0 && i < static_cast<int>(ansiLineSoftWrap.size()) &&
+                 ansiLineSoftWrap[i] != 0);
+
+            if (!isContinuation || logical.empty()) {
+                logical.emplace_back();
+            }
+
+            LogicalLine &ll = logical.back();
+            int prevCells = utf8_cell_count(ll.text);
+            ll.text.append(line);
+            // Append styles, padding with default style if shorter than
+            // text (defensive — they should normally match byte for byte).
+            CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
+            if (!line.empty()) {
+                size_t add = line.size();
+                size_t haveStyles = std::min(add, styles.size());
+                ll.styles.insert(ll.styles.end(),
+                                 styles.begin(),
+                                 styles.begin() + haveStyles);
+                if (haveStyles < add) {
+                    ll.styles.insert(ll.styles.end(),
+                                     add - haveStyles,
+                                     defStyle);
+                }
+            }
+
+            if (i == oldCursorRow) {
+                ll.cursorCell = prevCells + oldCursorCol;
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Step 2: re-split each logical line at the new column width,
+        // marking every segment past the first as a soft-wrap
+        // continuation. Empty logical lines become a single empty row
+        // with softWrap=0 (they were a hard break).
+        // ---------------------------------------------------------------
+        std::vector<std::string> newLines;
+        std::vector<std::vector<CharStyle>> newColors;
+        std::vector<unsigned char> newAscii;
+        std::vector<unsigned char> newSoftWrap;
+        newLines.reserve(logical.size());
+        newColors.reserve(logical.size());
+        newAscii.reserve(logical.size());
+        newSoftWrap.reserve(logical.size());
+
+        int newCursorRow = 0;
+        int newCursorCol = 0;
+        bool placedCursor = false;
+
+        for (const LogicalLine &ll : logical) {
+            const int cells = utf8_cell_count(ll.text);
+            int segmentCount = (cells <= 0) ? 1 : (cells + cols - 1) / cols;
+
+            int segmentBaseRow = static_cast<int>(newLines.size());
+
+            if (cells == 0) {
+                newLines.emplace_back("");
+                newColors.emplace_back();
+                newAscii.push_back(1);
+                newSoftWrap.push_back(0);
+            } else {
+                for (int seg = 0; seg < segmentCount; ++seg) {
+                    int startCell = seg * cols;
+                    int endCell = std::min(cells, startCell + cols);
+                    size_t startByte = utf8_cell_to_byte(ll.text, startCell);
+                    size_t endByte = utf8_cell_to_byte(ll.text, endCell);
+                    if (startByte > ll.text.size()) startByte = ll.text.size();
+                    if (endByte > ll.text.size()) endByte = ll.text.size();
+                    if (endByte < startByte) endByte = startByte;
+
+                    newLines.push_back(ll.text.substr(startByte, endByte - startByte));
+
+                    std::vector<CharStyle> segStyles;
+                    if (startByte < ll.styles.size()) {
+                        size_t clippedEnd = std::min(endByte, ll.styles.size());
+                        if (clippedEnd > startByte) {
+                            segStyles.insert(segStyles.end(),
+                                             ll.styles.begin() + startByte,
+                                             ll.styles.begin() + clippedEnd);
+                        }
+                    }
+                    newColors.push_back(std::move(segStyles));
+
+                    bool ascii = true;
+                    for (unsigned char c : newLines.back()) {
+                        if (c >= 0x80) { ascii = false; break; }
+                    }
+                    newAscii.push_back(ascii ? 1 : 0);
+                    // First segment is a hard break (or BOF); the rest
+                    // are soft-wrap continuations.
+                    newSoftWrap.push_back(seg == 0 ? 0 : 1);
+                }
+            }
+
+            if (!placedCursor && ll.cursorCell >= 0) {
+                int seg = ll.cursorCell / cols;
+                int colInSeg = ll.cursorCell % cols;
+                if (seg >= segmentCount) {
+                    seg = std::max(0, segmentCount - 1);
+                    colInSeg = std::min(cols - 1, cells - seg * cols);
+                    if (colInSeg < 0) colInSeg = 0;
+                }
+                newCursorRow = segmentBaseRow + seg;
+                newCursorCol = colInSeg;
+                placedCursor = true;
+            }
+        }
+
+        if (newLines.empty()) {
+            newLines.emplace_back("");
+            newColors.emplace_back();
+            newAscii.push_back(1);
+            newSoftWrap.push_back(0);
+            newCursorRow = 0;
+            newCursorCol = 0;
+        }
+
+        ansiLines = std::move(newLines);
+        ansiLineColors = std::move(newColors);
+        ansiLineIsAscii = std::move(newAscii);
+        ansiLineSoftWrap = std::move(newSoftWrap);
+
+        if (newCursorRow < 0) newCursorRow = 0;
+        if (newCursorRow >= static_cast<int>(ansiLines.size()))
+            newCursorRow = static_cast<int>(ansiLines.size()) - 1;
+        if (newCursorCol < 0) newCursorCol = 0;
+        if (newCursorCol > cols) newCursorCol = cols;
+        ansiCursorRow = newCursorRow;
+        ansiCursorCol = newCursorCol;
+
+        if (scrollBot >= static_cast<int>(ansiLines.size())) {
+            scrollBot = static_cast<int>(ansiLines.size()) - 1;
+        }
     }
 
     void Terminal::syncAnsiToOutput() {
@@ -1061,9 +1260,12 @@ namespace mx {
                 ansiLines.emplace_back("");
                 ansiLineColors.emplace_back();
                 ansiLineIsAscii.push_back(1);
+                ansiLineSoftWrap.push_back(0);
             }
             if (ansiLineIsAscii.size() < ansiLines.size())
                 ansiLineIsAscii.resize(ansiLines.size(), 1);
+            if (ansiLineSoftWrap.size() < ansiLines.size())
+                ansiLineSoftWrap.resize(ansiLines.size(), 0);
             if (row < 0)
                 ansiCursorRow = 0;
         };
@@ -1123,16 +1325,20 @@ namespace mx {
                     ansiLineColors.erase(ansiLineColors.begin() + top);
                     if (top < static_cast<int>(ansiLineIsAscii.size()))
                         ansiLineIsAscii.erase(ansiLineIsAscii.begin() + top);
+                    if (top < static_cast<int>(ansiLineSoftWrap.size()))
+                        ansiLineSoftWrap.erase(ansiLineSoftWrap.begin() + top);
                 }
                 if (bot < static_cast<int>(ansiLines.size())) {
                     ansiLines.insert(ansiLines.begin() + bot, std::string{});
                     ansiLineColors.insert(ansiLineColors.begin() + bot,
                                           std::vector<CharStyle>{});
                     ansiLineIsAscii.insert(ansiLineIsAscii.begin() + bot, 1);
+                    ansiLineSoftWrap.insert(ansiLineSoftWrap.begin() + bot, 0);
                 } else {
                     ansiLines.emplace_back();
                     ansiLineColors.emplace_back();
                     ansiLineIsAscii.push_back(1);
+                    ansiLineSoftWrap.push_back(0);
                 }
             }
         };
@@ -1148,11 +1354,14 @@ namespace mx {
                     ansiLineColors.erase(ansiLineColors.begin() + bot);
                     if (bot < static_cast<int>(ansiLineIsAscii.size()))
                         ansiLineIsAscii.erase(ansiLineIsAscii.begin() + bot);
+                    if (bot < static_cast<int>(ansiLineSoftWrap.size()))
+                        ansiLineSoftWrap.erase(ansiLineSoftWrap.begin() + bot);
                 }
                 ansiLines.insert(ansiLines.begin() + top, std::string{});
                 ansiLineColors.insert(ansiLineColors.begin() + top,
                                       std::vector<CharStyle>{});
                 ansiLineIsAscii.insert(ansiLineIsAscii.begin() + top, 1);
+                ansiLineSoftWrap.insert(ansiLineSoftWrap.begin() + top, 0);
             }
         };
 
@@ -1169,6 +1378,23 @@ namespace mx {
 
         auto putChar = [&](const std::string &seq) {
             if (seq.empty()) return;
+            // DECAWM-style autowrap. xterm default is on, and most
+            // programs (fastfetch, bash readline, ls without -w, ...)
+            // assume the terminal will fold long output at the right
+            // margin instead of letting glyphs run off-screen. We honor
+            // termCols (which is what we report via TIOCSWINSZ) so the
+            // visible wrap matches the size we hand to the PTY.
+            if (decawm && termCols > 0 && ansiCursorCol >= termCols) {
+                ansiCursorCol = 0;
+                doNewline();
+                // Mark the freshly-introduced row as a soft-wrap
+                // continuation. Reflow uses this to re-join logical
+                // lines when the terminal is resized.
+                if (ansiCursorRow >= 0 &&
+                    ansiCursorRow < static_cast<int>(ansiLineSoftWrap.size())) {
+                    ansiLineSoftWrap[ansiCursorRow] = 1;
+                }
+            }
             ensureRow(ansiCursorRow);
             auto &line = ansiLines[ansiCursorRow];
             auto &colors = ansiLineColors[ansiCursorRow];
@@ -1342,6 +1568,7 @@ namespace mx {
 #endif
                                     break;
                                 case 1:    decckm = set;     break;
+                                case 7:    decawm = set;     break;
                                 case 47:
                                 case 1047:
                                 case 1049:
@@ -1778,8 +2005,8 @@ namespace mx {
     #elif defined(_WIN32)
         prompt = "$ ";
     #endif
-        SDL_Rect rc;
-        Window::getRect(rc);
+        SDL_Rect outer;
+        Window::getRect(outer);
         // Make sure the PTY always reflects the current window size; the
         // initial constructor call ran before the window was sized.
         updatePtySize();
@@ -1795,18 +2022,18 @@ namespace mx {
             int wpW = dim->wallpaper->w;
             int wpH = dim->wallpaper->h;
             SDL_Rect src = {
-                rc.x * wpW / app.width,
-                rc.y * wpH / app.height,
-                rc.w * wpW / app.width,
-                rc.h * wpH / app.height
+                outer.x * wpW / app.width,
+                outer.y * wpH / app.height,
+                outer.w * wpW / app.width,
+                outer.h * wpH / app.height
             };
-            SDL_RenderCopy(app.ren, dim->wallpaper, &src, &rc);
+            SDL_RenderCopy(app.ren, dim->wallpaper, &src, &outer);
         }
         // Translucent dark overlay for the terminal content area. When
         // embedded, the parent draws title bar / tab strip on top of us
         // afterwards, so restrict the overlay to our content rect to
         // keep the shader/wallpaper showing through above the chrome.
-        SDL_Rect fillRect = rc;
+        SDL_Rect fillRect = outer;
         if (embedded_) {
             fillRect.y += 28;
             fillRect.h -= 28;
@@ -1814,19 +2041,22 @@ namespace mx {
         }
         SDL_RenderFillRect(app.ren, &fillRect);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
-        rc.y += 28;
-        rc.h -= 28;
-        if (rc.h < 0) rc.h = 0;
+
+        SDL_Rect contentRect = outer;
+        contentRect.y += 28;
+        contentRect.h -= 28;
+        if (contentRect.h < 0) contentRect.h = 0;
+        SDL_Rect viewport = textViewportRect();
+
         if (!embedded_)
             Window::drawMenubar(app);
-        // Clip terminal contents to the window's content rect so text
-        // never spills outside when the user shrinks the window.
-        SDL_RenderSetClipRect(app.ren, &rc);
+        // Clip text rendering to the exact viewport used for PTY sizing.
+        SDL_RenderSetClipRect(app.ren, &viewport);
  
 
         int lineHeight = TTF_FontHeight(font);
-        int maxWidth = rc.w - 10;
-        int y = rc.y + 5;
+        int maxWidth = viewport.w;
+        int y = viewport.y;
 
         int promptWidth = 0;
         TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
@@ -1842,16 +2072,16 @@ namespace mx {
             int startRow = 0;
             int rows = static_cast<int>(outputLines.size());
             for (int i = startRow; i < rows; ++i) {
-                if (y + lineHeight > rc.y + rc.h) break;
-                renderOutputLine(app, i, rc.x + 5, y);
+                if (y + lineHeight > viewport.y + viewport.h) break;
+                renderOutputLine(app, i, viewport.x, y);
                 y += lineHeight;
             }
             // Cursor: place at ansiCursorRow/Col using a fixed cell width.
             int cellW = 0;
             TTF_SizeText(font, "M", &cellW, nullptr);
             if (cellW <= 0) cellW = 8;
-            int cur_y = rc.y + 5 + ansiCursorRow * lineHeight;
-            int cur_x = rc.x + 5 + ansiCursorCol * cellW;
+            int cur_y = viewport.y + ansiCursorRow * lineHeight;
+            int cur_x = viewport.x + ansiCursorCol * cellW;
             Uint32 t = SDL_GetTicks();
             if (t - cursorTimer >= cursorBlinkInterval) {
                 showCursor = !showCursor;
@@ -1867,10 +2097,10 @@ namespace mx {
         }
 
         for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
-            if (y + lineHeight * (requiredInputLines + 1) > rc.y + rc.h) {
+            if (y + lineHeight * (requiredInputLines + 1) > viewport.y + viewport.h) {
                 break;
             }
-            renderOutputLine(app, i, rc.x + 5, y);
+            renderOutputLine(app, i, viewport.x, y);
             y += lineHeight;
         }
 
@@ -1879,10 +2109,10 @@ namespace mx {
             int cellW = 0;
             TTF_SizeText(font, "M", &cellW, nullptr);
             if (cellW <= 0) cellW = 8;
-            drawSelection(app, rc, lineHeight, cellW);
+            drawSelection(app, viewport, lineHeight, cellW);
         }
 
-        int cx = rc.x + 5;
+        int cx = viewport.x;
         int cy = y;
 
 #if defined(__linux__) || defined(__APPLE__)
@@ -1899,8 +2129,8 @@ namespace mx {
             // to a screen Y by subtracting the current scrollOffset.
             int curRow = ansiCursorRow - scrollOffset;
             int curCol = ansiCursorCol;
-            int cur_y = rc.y + 5 + curRow * lineHeight;
-            int cur_x = rc.x + 5 + curCol * cellW;
+            int cur_y = viewport.y + curRow * lineHeight;
+            int cur_x = viewport.x + curCol * cellW;
             Uint32 t = SDL_GetTicks();
             if (t - cursorTimer >= cursorBlinkInterval) {
                 showCursor = !showCursor;
@@ -1910,7 +2140,7 @@ namespace mx {
             // rendered output range (cy is the y just past the last line
             // we drew). Otherwise scrolling away from the prompt would
             // draw a stray cursor in the reserved input area.
-            if (cur_y >= rc.y && cur_y + lineHeight <= cy)
+                if (cur_y >= viewport.y && cur_y + lineHeight <= cy)
                 drawCursor(app, cur_x, cur_y, showCursor);
         }
 #endif
@@ -1922,7 +2152,7 @@ namespace mx {
             if (!outputLines.empty()) {
                 TTF_SizeText(font, outputLines.back().c_str(), &lastLineWidth, nullptr);
             }
-            int inputStartX = rc.x + 5 + lastLineWidth;
+            int inputStartX = viewport.x + lastLineWidth;
             
             if (!inputText.empty()) {
                 renderText(app, inputText, inputStartX, lastLineY);
@@ -1964,7 +2194,7 @@ namespace mx {
         // so a window resize (especially a horizontal-only one that doesn't
         // call scroll()) immediately corrects the scrollbar geometry.
         if (lineHeight > 0) {
-            maxVisibleLines = rc.h / lineHeight;
+            maxVisibleLines = viewport.h / lineHeight;
             if (maxVisibleLines < 1) maxVisibleLines = 1;
         }
         // scrollOffset indexes outputLines directly. The drawing loop above
@@ -1983,11 +2213,10 @@ namespace mx {
         if (scrollOffset < 0) scrollOffset = 0;
 
         if (totalLines > maxVisibleLines) {
-            int offx = rc.x + rc.w;
-            int offy = rc.y;
-            // rc has already been adjusted (rc.y += 28; rc.h -= 28) earlier
-            // so it is the content rect; the available height is just rc.h.
-            int availableHeight = rc.h;
+            SDL_RenderSetClipRect(app.ren, &contentRect);
+            int offx = contentRect.x + contentRect.w;
+            int offy = contentRect.y;
+            int availableHeight = contentRect.h;
 
             scrollBarHeight = (maxVisibleLines * availableHeight) / totalLines;
 
@@ -2000,8 +2229,8 @@ namespace mx {
             int denom = maxScroll > 0 ? maxScroll : 1;
             scrollBarPosY = offy + (scrollOffset * (availableHeight - scrollBarHeight)) / denom;
 
-            if (scrollBarPosY + scrollBarHeight > rc.y + rc.h) {
-                scrollBarPosY = rc.y + rc.h - scrollBarHeight;
+            if (scrollBarPosY + scrollBarHeight > contentRect.y + contentRect.h) {
+                scrollBarPosY = contentRect.y + contentRect.h - scrollBarHeight;
             }
 
             SDL_Rect scrollBarRect = {offx - scrollBarWidth, scrollBarPosY, scrollBarWidth, scrollBarHeight};
