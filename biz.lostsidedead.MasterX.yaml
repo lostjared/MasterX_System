@@ -1,0 +1,148 @@
+app-id: biz.lostsidedead.MasterX
+# Use the SDK as the runtime so in-app terminal sessions can access
+# compiler toolchain binaries (cc/as/ld), pkg-config, and SDL dev files.
+runtime: org.freedesktop.Sdk
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: masterx-launcher
+
+finish-args:
+  # GUI
+  - --socket=x11
+  - --socket=wayland
+  - --share=ipc
+  - --device=dri
+  # Audio (harmless if unused)
+  - --socket=pulseaudio
+  # Clipboard via SDL works via x11/wayland; no extra perms
+  # Terminal subprocess (bash) runs inside the sandbox -- /bin/bash is
+  # provided by the freedesktop runtime, so no host-shell access needed.
+  # Allow the user to open files from $HOME (editor / shell utilities).
+  - --filesystem=home
+  # OpenGL ES2
+  - --device=all
+
+modules:
+  - name: masterx
+    buildsystem: cmake-ninja
+    builddir: true
+    subdir: system
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/app
+    sources:
+      # Build from the local checkout. Replace with a git source for
+      # reproducible builds, e.g.:
+      #   - type: git
+      #     url: https://github.com/lostjared/MasterX_System.git
+      #     branch: main
+      - type: dir
+        path: .
+    post-install:
+      # Rewrite hard-coded /usr/local paths in the installed desktop file
+      # so it works inside the Flatpak sandbox.
+      - sed -i 's|/usr/local/share|/app/share|g' /app/share/applications/MasterX_System.desktop
+      # Install a launcher that injects the packaged assets path.
+      - |
+          cat > /app/bin/masterx-launcher <<'EOF'
+          #!/usr/bin/env sh
+          # Expose packaged tools and headers/libs to terminal workflows.
+          export PATH="/app/bin:${PATH:-/usr/bin:/bin}"
+          export CPATH="/app/include${CPATH:+:$CPATH}"
+          export LIBRARY_PATH="/app/lib:/app/lib/modules/io:/app/lib/modules/std:/app/lib/modules/string:/app/lib/modules/sdl${LIBRARY_PATH:+:$LIBRARY_PATH}"
+          export LD_LIBRARY_PATH="/app/lib:/app/lib/modules/io:/app/lib/modules/std:/app/lib/modules/string:/app/lib/modules/sdl${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PKG_CONFIG_PATH="/app/lib/pkgconfig:/app/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+          ASSET_DIR="/app/share/applications/MasterX/assets"
+          if /app/bin/MasterX --path "$ASSET_DIR" "$@"; then
+            exit 0
+          fi
+          exec /app/bin/MasterX -p "$ASSET_DIR" "$@"
+          EOF
+      - chmod +x /app/bin/masterx-launcher
+      # Rename the desktop file to match the app id (Flathub requirement).
+      - install -Dm644 /app/share/applications/MasterX_System.desktop /app/share/applications/biz.lostsidedead.MasterX.desktop
+      - rm -f /app/share/applications/MasterX_System.desktop
+      # Ensure desktop launches via the wrapper entry point.
+      - sed -i 's|^Exec=.*$|Exec=masterx-launcher|' /app/share/applications/biz.lostsidedead.MasterX.desktop
+      # Point the desktop entry's Icon= at the app id (resolved from
+      # hicolor) instead of an absolute PNG path.
+      - sed -i 's|^Icon=.*$|Icon=biz.lostsidedead.MasterX|' /app/share/applications/biz.lostsidedead.MasterX.desktop
+      # Install the icon under hicolor with the app id name.
+      - install -Dm644 /app/share/applications/MasterX/assets/images/xicon.png /app/share/icons/hicolor/256x256/apps/biz.lostsidedead.MasterX.png
+
+  - name: mxvm
+    buildsystem: cmake-ninja
+    builddir: true
+    subdir: compiler/MXVM
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/app
+      - -DWITH_SDL=ON
+    sources:
+      - type: dir
+        path: .
+    post-install:
+      # Use the Flatpak-installed MXVM module and include trees by default.
+      - mv /app/bin/mxvmc /app/bin/mxvmc.real
+      - |
+          cat > /app/bin/mxvmc <<'EOF'
+          #!/usr/bin/env sh
+          set -- "$@"
+          have_path=0
+          have_include=0
+          for arg in "$@"; do
+            case "$arg" in
+              -p|--path)
+                have_path=1
+                ;;
+              -I|--include)
+                have_include=1
+                ;;
+            esac
+          done
+
+          if [ "$have_path" -eq 0 ]; then
+            set -- --path /app/lib "$@"
+          fi
+          if [ "$have_include" -eq 0 ]; then
+            set -- --include /app/include/mxvm/modules "$@"
+          fi
+
+          exec /app/bin/mxvmc.real "$@"
+          EOF
+      - chmod +x /app/bin/mxvmc
+
+  - name: nano
+    buildsystem: autotools
+    config-opts:
+      - --prefix=/app
+      - --disable-nls
+      - --enable-utf8
+    sources:
+      - type: archive
+        url: https://www.nano-editor.org/dist/v8/nano-8.6.tar.xz
+        sha256: f7abfbf0eed5f573ab51bd77a458f32d82f9859c55e9689f819d96fe1437a619
+
+  - name: vim
+    buildsystem: autotools
+    build-options:
+      env:
+        LIBS: -ltinfow
+    config-opts:
+      - --prefix=/app
+      - --with-features=normal
+      - --disable-gui
+      - --without-x
+      - --disable-nls
+      - --enable-multibyte
+      - --with-tlib=ncursesw
+    post-install:
+      - test -x /app/bin/vim
+      - |
+          if [ ! -e /app/bin/vi ]; then
+            ln -s vim /app/bin/vi
+          fi
+    sources:
+      - type: archive
+        url: https://github.com/vim/vim/archive/refs/tags/v9.1.1230.tar.gz
+        sha256: 14ab9506c3dccdcbeab8483534ab1be26133cb6d511e2e13a97aeb437a856fe0
