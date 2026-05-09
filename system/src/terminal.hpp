@@ -27,6 +27,8 @@
 #include<mutex>
 #include<atomic>
 #include<regex>
+#include<unordered_map>
+#include<functional>
 #include<condition_variable>
 
 namespace mx {
@@ -124,6 +126,30 @@ namespace mx {
                 std::vector<std::vector<CharStyle>> outputLineColors;
                 void renderText(mxApp &app, const std::string &text, int x, int y);
                 void renderOutputLine(mxApp &app, int lineIndex, int x, int y);
+                // Per-Terminal cache of rasterised style runs (text +
+                // color + style bits) so repeated draws don't re-render
+                // the same SDL_ttf surfaces every frame. Cleared on font
+                // change and at destruction.
+                struct RunCacheKey {
+                    std::string text;
+                    Uint32 fg;
+                    int    style;
+                    bool operator==(const RunCacheKey &o) const noexcept {
+                        return style == o.style && fg == o.fg && text == o.text;
+                    }
+                };
+                struct RunCacheKeyHash {
+                    size_t operator()(const RunCacheKey &k) const noexcept {
+                        size_t h = std::hash<std::string>{}(k.text);
+                        h ^= std::hash<Uint32>{}(k.fg) + 0x9e3779b9 + (h << 6) + (h >> 2);
+                        h ^= std::hash<int>{}(k.style) + 0x9e3779b9 + (h << 6) + (h >> 2);
+                        return h;
+                    }
+                };
+                std::unordered_map<RunCacheKey, SDL_Texture *, RunCacheKeyHash> runCache_;
+                void clearRunCache();
+                SDL_Texture *getCachedRunTexture(mxApp &app, const std::string &text,
+                                                 SDL_Color fg, int ttfStyle);
                 void renderTextWrapped(mxApp &app, const std::string &prompt, const std::string &text, int &x, int &y, int maxWidth);
                 void processCommand(mxApp &app, std::string cmd);
                 void handleScrolling(int);
@@ -173,6 +199,9 @@ namespace mx {
                 // ANSI/VT100 stream state for shell output rendering.
                 std::vector<std::string> ansiLines;
                 std::vector<std::vector<CharStyle>> ansiLineColors;
+                // Per-line "pure ASCII" flag. Lets utf8 helpers take an
+                // O(1) fast path for the common ASCII output case.
+                std::vector<unsigned char> ansiLineIsAscii;
                 int ansiCursorRow = 0;
                 int ansiCursorCol = 0;
                 int ansiSavedRow = 0;

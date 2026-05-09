@@ -37,6 +37,61 @@ T my_min(const T& a, const T& b) {
     return a < b ? a : b;
 }
 
+// UTF-8 lead-byte length: returns 1..4 bytes for the codepoint that
+// starts at byte b, or 1 for invalid/continuation bytes (treat as 1
+// byte of garbage so we never get stuck).
+static inline int utf8_lead_len(unsigned char b) {
+    if ((b & 0x80) == 0x00) return 1;
+    if ((b & 0xE0) == 0xC0) return 2;
+    if ((b & 0xF0) == 0xE0) return 3;
+    if ((b & 0xF8) == 0xF0) return 4;
+    return 1;
+}
+
+// Number of UTF-8 codepoints in a byte string.
+// Fast path: pure-ASCII strings (no high bit) have one cell per byte.
+static int utf8_cell_count(const std::string &s) {
+    bool pureAscii = true;
+    for (size_t k = 0; k < s.size(); ++k) {
+        if (static_cast<unsigned char>(s[k]) >= 0x80) { pureAscii = false; break; }
+    }
+    if (pureAscii) return static_cast<int>(s.size());
+    int n = 0;
+    for (size_t k = 0; k < s.size(); ) {
+        int step = utf8_lead_len(static_cast<unsigned char>(s[k]));
+        if (k + step > s.size()) step = static_cast<int>(s.size() - k);
+        if (step <= 0) step = 1;
+        k += step;
+        ++n;
+    }
+    return n;
+}
+
+// Convert a logical cell column to a byte offset in a UTF-8 string.
+// If col is past the end of s, returns s.size().
+// Fast path: pure-ASCII strings use 1:1 byte=cell mapping.
+static size_t utf8_cell_to_byte(const std::string &s, int col) {
+    if (col <= 0) return 0;
+    bool pureAscii = true;
+    for (size_t k = 0; k < s.size(); ++k) {
+        if (static_cast<unsigned char>(s[k]) >= 0x80) { pureAscii = false; break; }
+    }
+    if (pureAscii) {
+        size_t c = static_cast<size_t>(col);
+        return c > s.size() ? s.size() : c;
+    }
+    size_t k = 0;
+    int c = 0;
+    while (k < s.size() && c < col) {
+        int step = utf8_lead_len(static_cast<unsigned char>(s[k]));
+        if (k + step > s.size()) step = static_cast<int>(s.size() - k);
+        if (step <= 0) step = 1;
+        k += step;
+        ++c;
+    }
+    return k;
+}
+
 namespace mx {
 
 #if defined(__linux__) || defined(__APPLE__)
@@ -155,6 +210,7 @@ namespace mx {
         altScreen = true;
         ansiLines.assign(std::max(5, termRows), std::string{});
         ansiLineColors.assign(ansiLines.size(), std::vector<CharStyle>{});
+        ansiLineIsAscii.assign(ansiLines.size(), 1);
         ansiCursorRow = 0;
         ansiCursorCol = 0;
         scrollTop = 0;
@@ -172,6 +228,14 @@ namespace mx {
         altScreen = false;
         ansiLines       = savedLines;
         ansiLineColors  = savedLineColors;
+        ansiLineIsAscii.assign(ansiLines.size(), 0);
+        for (size_t i = 0; i < ansiLines.size(); ++i) {
+            bool ascii = true;
+            for (unsigned char c : ansiLines[i]) {
+                if (c >= 0x80) { ascii = false; break; }
+            }
+            ansiLineIsAscii[i] = ascii ? 1 : 0;
+        }
         ansiCursorRow   = savedAltRow;
         ansiCursorCol   = savedAltCol;
         ansiCurrentColor= savedAltFg;
@@ -492,6 +556,7 @@ namespace mx {
         }
         font = newFont;
         font_size_ = size;
+        clearRunCache();
         scroll();
         updatePtySize();
         return true;
@@ -885,13 +950,20 @@ namespace mx {
         ansiLines = outputLines;
         ansiLineColors.clear();
         ansiLineColors.reserve(ansiLines.size());
+        ansiLineIsAscii.assign(ansiLines.size(), 0);
         CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
-        for (const auto &line : ansiLines) {
-            ansiLineColors.emplace_back(line.size(), defStyle);
+        for (size_t i = 0; i < ansiLines.size(); ++i) {
+            ansiLineColors.emplace_back(ansiLines[i].size(), defStyle);
+            bool ascii = true;
+            for (unsigned char c : ansiLines[i]) {
+                if (c >= 0x80) { ascii = false; break; }
+            }
+            ansiLineIsAscii[i] = ascii ? 1 : 0;
         }
         if (ansiLines.empty()) {
             ansiLines.emplace_back("");
             ansiLineColors.emplace_back();
+            ansiLineIsAscii.push_back(1);
         }
         ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
         ansiCursorCol = static_cast<int>(ansiLines.back().size());
@@ -928,7 +1000,10 @@ namespace mx {
             while (row >= static_cast<int>(ansiLines.size())) {
                 ansiLines.emplace_back("");
                 ansiLineColors.emplace_back();
+                ansiLineIsAscii.push_back(1);
             }
+            if (ansiLineIsAscii.size() < ansiLines.size())
+                ansiLineIsAscii.resize(ansiLines.size(), 1);
             if (row < 0)
                 ansiCursorRow = 0;
         };
@@ -937,14 +1012,17 @@ namespace mx {
             if (row < 0)
                 return;
             ensureRow(row);
-            if (col > static_cast<int>(ansiLines[row].size())) {
-                int pad = col - static_cast<int>(ansiLines[row].size());
+            int existingCells = ansiLineIsAscii[row]
+                ? static_cast<int>(ansiLines[row].size())
+                : utf8_cell_count(ansiLines[row]);
+            if (col > existingCells) {
+                int pad = col - existingCells;
                 ansiLines[row].append(static_cast<size_t>(pad), ' ');
                 CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
                 auto &colors = ansiLineColors[row];
                 colors.insert(colors.end(), static_cast<size_t>(pad), padStyle);
             }
-            if (static_cast<int>(ansiLineColors[row].size()) < static_cast<int>(ansiLines[row].size())) {
+            if (ansiLineColors[row].size() < ansiLines[row].size()) {
                 CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
                 ansiLineColors[row].resize(ansiLines[row].size(), padStyle);
             }
@@ -953,10 +1031,12 @@ namespace mx {
         auto clearToLineEnd = [&]() {
             ensureRow(ansiCursorRow);
             ensureCol(ansiCursorRow, ansiCursorCol);
-            if (ansiCursorCol < static_cast<int>(ansiLines[ansiCursorRow].size())) {
-                ansiLines[ansiCursorRow].erase(static_cast<size_t>(ansiCursorCol));
+            auto &line = ansiLines[ansiCursorRow];
+            size_t byteOff = utf8_cell_to_byte(line, ansiCursorCol);
+            if (byteOff < line.size()) {
+                line.erase(byteOff);
                 ansiLineColors[ansiCursorRow].erase(
-                    ansiLineColors[ansiCursorRow].begin() + ansiCursorCol,
+                    ansiLineColors[ansiCursorRow].begin() + byteOff,
                     ansiLineColors[ansiCursorRow].end());
             }
         };
@@ -981,14 +1061,18 @@ namespace mx {
                 if (top < static_cast<int>(ansiLines.size())) {
                     ansiLines.erase(ansiLines.begin() + top);
                     ansiLineColors.erase(ansiLineColors.begin() + top);
+                    if (top < static_cast<int>(ansiLineIsAscii.size()))
+                        ansiLineIsAscii.erase(ansiLineIsAscii.begin() + top);
                 }
                 if (bot < static_cast<int>(ansiLines.size())) {
                     ansiLines.insert(ansiLines.begin() + bot, std::string{});
                     ansiLineColors.insert(ansiLineColors.begin() + bot,
                                           std::vector<CharStyle>{});
+                    ansiLineIsAscii.insert(ansiLineIsAscii.begin() + bot, 1);
                 } else {
                     ansiLines.emplace_back();
                     ansiLineColors.emplace_back();
+                    ansiLineIsAscii.push_back(1);
                 }
             }
         };
@@ -1002,10 +1086,13 @@ namespace mx {
                 if (bot < static_cast<int>(ansiLines.size())) {
                     ansiLines.erase(ansiLines.begin() + bot);
                     ansiLineColors.erase(ansiLineColors.begin() + bot);
+                    if (bot < static_cast<int>(ansiLineIsAscii.size()))
+                        ansiLineIsAscii.erase(ansiLineIsAscii.begin() + bot);
                 }
                 ansiLines.insert(ansiLines.begin() + top, std::string{});
                 ansiLineColors.insert(ansiLineColors.begin() + top,
                                       std::vector<CharStyle>{});
+                ansiLineIsAscii.insert(ansiLineIsAscii.begin() + top, 1);
             }
         };
 
@@ -1020,17 +1107,44 @@ namespace mx {
             }
         };
 
-        auto putChar = [&](char ch) {
-            ensureCol(ansiCursorRow, ansiCursorCol);
+        auto putChar = [&](const std::string &seq) {
+            if (seq.empty()) return;
+            ensureRow(ansiCursorRow);
             auto &line = ansiLines[ansiCursorRow];
             auto &colors = ansiLineColors[ansiCursorRow];
             CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
-            if (ansiCursorCol < static_cast<int>(line.size())) {
-                line[ansiCursorCol] = ch;
-                colors[ansiCursorCol] = cs;
-            } else {
-                line.push_back(ch);
+
+            // O(1) fast path: appending an ASCII byte to a pure-ASCII
+            // line, with the cursor at end-of-line. This is by far the
+            // most common case (typed text, shell output, etc.).
+            bool seqIsAscii = (seq.size() == 1 && static_cast<unsigned char>(seq[0]) < 0x80);
+            if (seqIsAscii && ansiLineIsAscii[ansiCursorRow] &&
+                ansiCursorCol == static_cast<int>(line.size())) {
+                line.push_back(seq[0]);
                 colors.push_back(cs);
+                ++ansiCursorCol;
+                return;
+            }
+
+            ensureCol(ansiCursorRow, ansiCursorCol);
+            if (!seqIsAscii) ansiLineIsAscii[ansiCursorRow] = 0;
+
+            size_t byteOff = ansiLineIsAscii[ansiCursorRow]
+                ? static_cast<size_t>(ansiCursorCol)
+                : utf8_cell_to_byte(line, ansiCursorCol);
+            if (byteOff > line.size()) byteOff = line.size();
+            if (byteOff < line.size()) {
+                int oldLen = utf8_lead_len(static_cast<unsigned char>(line[byteOff]));
+                if (byteOff + oldLen > line.size())
+                    oldLen = static_cast<int>(line.size() - byteOff);
+                line.replace(byteOff, oldLen, seq);
+                colors.erase(colors.begin() + byteOff,
+                             colors.begin() + byteOff + oldLen);
+                colors.insert(colors.begin() + byteOff, seq.size(), cs);
+            } else {
+                line.append(seq);
+                for (size_t b = 0; b < seq.size(); ++b)
+                    colors.push_back(cs);
             }
             ansiCursorCol++;
         };
@@ -1310,6 +1424,7 @@ namespace mx {
                         if (mode == 2) {
                             ansiLines.assign(1, std::string{});
                             ansiLineColors.assign(1, std::vector<CharStyle>{});
+                            ansiLineIsAscii.assign(1, 1);
                             ansiCursorRow = 0;
                             ansiCursorCol = 0;
                         } else if (mode == 0) {
@@ -1317,19 +1432,24 @@ namespace mx {
                             for (size_t r = static_cast<size_t>(ansiCursorRow + 1); r < ansiLines.size(); ++r) {
                                 ansiLines[r].clear();
                                 ansiLineColors[r].clear();
+                                if (r < ansiLineIsAscii.size())
+                                    ansiLineIsAscii[r] = 1;
                             }
                         } else if (mode == 1) {
                             for (int r = 0; r < ansiCursorRow; ++r) {
                                 ansiLines[r].clear();
                                 ansiLineColors[r].clear();
+                                if (static_cast<size_t>(r) < ansiLineIsAscii.size())
+                                    ansiLineIsAscii[r] = 1;
                             }
                             auto &line = ansiLines[ansiCursorRow];
                             auto &colors = ansiLineColors[ansiCursorRow];
                             CharStyle padStyle{text_color, {0,0,0,0}, false, false};
-                            int end = std::min(ansiCursorCol, static_cast<int>(line.size()));
-                            for (int c = 0; c < end; ++c) {
-                                line[c] = ' ';
-                                colors[c] = padStyle;
+                            size_t endByte = utf8_cell_to_byte(line, ansiCursorCol);
+                            if (endByte > line.size()) endByte = line.size();
+                            for (size_t b = 0; b < endByte; ++b) {
+                                line[b] = ' ';
+                                if (b < colors.size()) colors[b] = padStyle;
                             }
                         }
                     } else if (cmd == 's') {
@@ -1367,10 +1487,12 @@ namespace mx {
                         ensureRow(ansiCursorRow);
                         auto &line   = ansiLines[ansiCursorRow];
                         auto &colors = ansiLineColors[ansiCursorRow];
-                        if (ansiCursorCol < static_cast<int>(line.size())) {
-                            int end = std::min(ansiCursorCol + n, (int)line.size());
-                            line.erase(line.begin() + ansiCursorCol, line.begin() + end);
-                            colors.erase(colors.begin() + ansiCursorCol, colors.begin() + end);
+                        size_t startByte = utf8_cell_to_byte(line, ansiCursorCol);
+                        size_t endByte   = utf8_cell_to_byte(line, ansiCursorCol + n);
+                        if (endByte > line.size()) endByte = line.size();
+                        if (startByte < line.size() && endByte > startByte) {
+                            line.erase(line.begin() + startByte, line.begin() + endByte);
+                            colors.erase(colors.begin() + startByte, colors.begin() + endByte);
                         }
                     } else if (cmd == '@') {
                         // ICH: insert N blank characters at cursor.
@@ -1380,8 +1502,9 @@ namespace mx {
                         auto &line   = ansiLines[ansiCursorRow];
                         auto &colors = ansiLineColors[ansiCursorRow];
                         CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
-                        line.insert(line.begin() + ansiCursorCol, n, ' ');
-                        colors.insert(colors.begin() + ansiCursorCol, n, cs);
+                        size_t byteOff = utf8_cell_to_byte(line, ansiCursorCol);
+                        line.insert(byteOff, n, ' ');
+                        colors.insert(colors.begin() + byteOff, n, cs);
                     } else if (cmd == 'X') {
                         // ECH: erase N characters in place using current bg.
                         int n = n0();
@@ -1390,10 +1513,22 @@ namespace mx {
                         auto &line   = ansiLines[ansiCursorRow];
                         auto &colors = ansiLineColors[ansiCursorRow];
                         CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
-                        for (int k = 0; k < n &&
-                             (ansiCursorCol + k) < (int)line.size(); ++k) {
-                            line[ansiCursorCol + k]   = ' ';
-                            colors[ansiCursorCol + k] = cs;
+                        size_t startByte = utf8_cell_to_byte(line, ansiCursorCol);
+                        size_t endByte   = utf8_cell_to_byte(line, ansiCursorCol + n);
+                        if (endByte > line.size()) endByte = line.size();
+                        for (size_t b = startByte; b < endByte; ++b) {
+                            line[b]   = ' ';
+                            if (b < colors.size()) colors[b] = cs;
+                        }
+                        // Collapse multi-byte sequences in [startByte,endByte)
+                        // into single-byte spaces so cells == bytes there.
+                        if (endByte > startByte) {
+                            int cellsErased = n;
+                            line.replace(startByte, endByte - startByte,
+                                         std::string(static_cast<size_t>(cellsErased), ' '));
+                            colors.erase(colors.begin() + startByte, colors.begin() + endByte);
+                            colors.insert(colors.begin() + startByte,
+                                          static_cast<size_t>(cellsErased), cs);
                         }
                     } else if (cmd == 'S') {
                         scrollRegionUp(n0());
@@ -1422,9 +1557,17 @@ namespace mx {
             } else if (ch == '\t') {
                 int spaces = 4 - (ansiCursorCol % 4);
                 for (int s = 0; s < spaces; ++s)
-                    putChar(' ');
+                    putChar(std::string(1, ' '));
+            } else if (ch >= 0x80) {
+                // UTF-8 multi-byte codepoint: emit as one cell.
+                int len = utf8_lead_len(ch);
+                if (i + len > data.size()) len = static_cast<int>(data.size() - i);
+                if (len <= 0) len = 1;
+                putChar(data.substr(i, len));
+                i += len;
+                continue;
             } else if (ch >= 32) {
-                putChar(static_cast<char>(ch));
+                putChar(std::string(1, static_cast<char>(ch)));
             }
             ++i;
         }
@@ -1477,6 +1620,44 @@ namespace mx {
 #endif
         if(font != nullptr)
             TTF_CloseFont(font);
+        clearRunCache();
+    }
+
+    void Terminal::clearRunCache() {
+        for (auto &kv : runCache_) {
+            if (kv.second) SDL_DestroyTexture(kv.second);
+        }
+        runCache_.clear();
+    }
+
+    SDL_Texture *Terminal::getCachedRunTexture(mxApp &app, const std::string &text,
+                                               SDL_Color fg, int ttfStyle) {
+        if (text.empty()) return nullptr;
+        Uint32 packed = (static_cast<Uint32>(fg.r) << 24) |
+                        (static_cast<Uint32>(fg.g) << 16) |
+                        (static_cast<Uint32>(fg.b) << 8)  |
+                         static_cast<Uint32>(fg.a);
+        RunCacheKey key{text, packed, ttfStyle};
+        auto it = runCache_.find(key);
+        if (it != runCache_.end()) return it->second;
+        TTF_SetFontStyle(font, ttfStyle);
+        SDL_Surface *surface = TTF_RenderUTF8_Blended(font, text.c_str(), fg);
+        TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
+        if (!surface) return nullptr;
+        SDL_Texture *tex = SDL_CreateTextureFromSurface(app.ren, surface);
+        SDL_FreeSurface(surface);
+        if (!tex) return nullptr;
+        // Bound the cache so a long session of unique strings can't
+        // grow it without limit. ~4096 entries is plenty for typical
+        // terminal output and keeps memory in check.
+        if (runCache_.size() >= 4096) {
+            for (auto &kv : runCache_) {
+                if (kv.second) SDL_DestroyTexture(kv.second);
+            }
+            runCache_.clear();
+        }
+        runCache_.emplace(std::move(key), tex);
+        return tex;
     }
 
     void Terminal::draw(mxApp &app) {
@@ -1773,7 +1954,7 @@ namespace mx {
 
     void Terminal::renderText(mxApp &app, const std::string &text, int x, int y) {
         if(!text.empty()) {
-            SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), text_color);
+            SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), text_color);
             if(surface == nullptr) {
                 mx::system_err << "MasterX System Error: Render Text failed.\n";
                 mx::system_err.flush();
@@ -1815,6 +1996,13 @@ namespace mx {
         int cellW = 0;
         TTF_SizeText(font, "M", &cellW, nullptr);
         if (cellW <= 0) cellW = 8;
+        bool lineHasUtf8 = false;
+        for (unsigned char c : line) {
+            if (c >= 0x80) {
+                lineHasUtf8 = true;
+                break;
+            }
+        }
         int drawX = x;
         size_t i = 0;
         while (i < line.size()) {
@@ -1834,9 +2022,21 @@ namespace mx {
                 int ttfStyle = TTF_STYLE_NORMAL;
                 if (run.bold)      ttfStyle |= TTF_STYLE_BOLD;
                 if (run.underline) ttfStyle |= TTF_STYLE_UNDERLINE;
-                TTF_SetFontStyle(font, ttfStyle);
 
-                int runW = static_cast<int>(text.size()) * cellW;
+                SDL_Texture *texture = getCachedRunTexture(app, text, run.fg, ttfStyle);
+                int gw = 0, gh = lineH;
+                if (texture) {
+                    SDL_QueryTexture(texture, nullptr, nullptr, &gw, &gh);
+                }
+                // ASCII-only lines (ls columns) need strict cell-grid
+                // advance, but UTF-8 lines (fastfetch logo/tables) look
+                // better with natural glyph advance from SDL_ttf.
+                int runW = 0;
+                if (lineHasUtf8) {
+                    runW = gw > 0 ? gw : (utf8_cell_count(text) * cellW);
+                } else {
+                    runW = utf8_cell_count(text) * cellW;
+                }
 
                 if (run.bg.a != 0) {
                     SDL_Rect bgRect = {drawX, y, runW, lineH};
@@ -1845,18 +2045,11 @@ namespace mx {
                     SDL_RenderFillRect(app.ren, &bgRect);
                 }
 
-                SDL_Surface *surface = TTF_RenderText_Blended(font, text.c_str(), run.fg);
-                if (surface) {
-                    SDL_Texture *texture = SDL_CreateTextureFromSurface(app.ren, surface);
-                    if (texture) {
-                        SDL_Rect dstRect = {drawX, y, surface->w, surface->h};
-                        SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
-                        SDL_DestroyTexture(texture);
-                    }
-                    SDL_FreeSurface(surface);
+                if (texture) {
+                    SDL_Rect dstRect = {drawX, y, gw, gh};
+                    SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
                 }
                 drawX += runW;
-                TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
             }
             i = j;
         }
