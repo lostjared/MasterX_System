@@ -5,6 +5,34 @@
 
 namespace mx {
 
+    namespace {
+        void drawBevelFrame(SDL_Renderer *ren, const SDL_Rect &rect) {
+            if (rect.w <= 1 || rect.h <= 1) {
+                return;
+            }
+
+            // Opaque two-pass bevel keeps borders visible after host/window scaling.
+            SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+            SDL_RenderDrawLine(ren, rect.x, rect.y, rect.x + rect.w - 1, rect.y);
+            SDL_RenderDrawLine(ren, rect.x, rect.y, rect.x, rect.y + rect.h - 1);
+
+            SDL_SetRenderDrawColor(ren, 120, 120, 120, 255);
+            SDL_RenderDrawLine(ren, rect.x, rect.y + rect.h - 1, rect.x + rect.w - 1, rect.y + rect.h - 1);
+            SDL_RenderDrawLine(ren, rect.x + rect.w - 1, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1);
+
+            if (rect.w > 3 && rect.h > 3) {
+                SDL_Rect inner = {rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2};
+                SDL_SetRenderDrawColor(ren, 228, 228, 228, 255);
+                SDL_RenderDrawLine(ren, inner.x, inner.y, inner.x + inner.w - 1, inner.y);
+                SDL_RenderDrawLine(ren, inner.x, inner.y, inner.x, inner.y + inner.h - 1);
+
+                SDL_SetRenderDrawColor(ren, 92, 92, 92, 255);
+                SDL_RenderDrawLine(ren, inner.x, inner.y + inner.h - 1, inner.x + inner.w - 1, inner.y + inner.h - 1);
+                SDL_RenderDrawLine(ren, inner.x + inner.w - 1, inner.y, inner.x + inner.w - 1, inner.y + inner.h - 1);
+            }
+        }
+    }
+
     SystemBar::SystemBar(mxApp &app) {
         dimensions = nullptr;
         font = TTF_OpenFont(getPath(app.system_font).c_str(), 14);
@@ -75,8 +103,6 @@ namespace mx {
         if (!con) return;
 
         SDL_Color white = {0xBD, 0, 0, 255};
-        SDL_Color darkGray = {160, 160, 160, 255};
-        SDL_Color lightGray = {240, 240, 240, 255};
         SDL_Color gradStart = {255, 255, 255, 255};
         SDL_Color gradEnd = {180, 180, 180, 255};   
 
@@ -95,16 +121,11 @@ namespace mx {
             color.a = 255;
 
             SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
-            SDL_RenderDrawLine(app.ren, menu_x, menu_y + y, menu_x + menu_width, menu_y + y);
+            SDL_RenderDrawLine(app.ren, menu_x, menu_y + y, menu_x + menu_width - 1, menu_y + y);
         }
 
-        SDL_SetRenderDrawColor(app.ren, lightGray.r, lightGray.g, lightGray.b, 255);
-        SDL_RenderDrawLine(app.ren, menu_x, menu_y, menu_x + menu_width, menu_y); // Top border
-        SDL_RenderDrawLine(app.ren, menu_x, menu_y, menu_x, menu_y + menu_height); // Left border
-
-        SDL_SetRenderDrawColor(app.ren, darkGray.r, darkGray.g, darkGray.b, 255);
-        SDL_RenderDrawLine(app.ren, menu_x, menu_y + menu_height, menu_x + menu_width, menu_y + menu_height); // Bottom border
-        SDL_RenderDrawLine(app.ren, menu_x + menu_width, menu_y, menu_x + menu_width, menu_y + menu_height); // Right border
+        SDL_Rect menuRect = {menu_x, menu_y, menu_width, menu_height};
+        drawBevelFrame(app.ren, menuRect);
 
       
         int yOffset = 20;
@@ -216,10 +237,9 @@ namespace mx {
                             color.a = 220;
 
                             SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
-                            SDL_RenderDrawLine(app.ren, buttonRect.x, y, buttonRect.x + buttonRect.w, y);
+                            SDL_RenderDrawLine(app.ren, buttonRect.x, y, buttonRect.x + buttonRect.w - 1, y);
                         }
-                        SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 235);
-                        SDL_RenderDrawRect(app.ren, &buttonRect);
+                        drawBevelFrame(app.ren, buttonRect);
                         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
 
                         SDL_Rect textRect = {button_x + 30, button_y + (button_height - text_height) / 2, text_width, text_height};
@@ -248,8 +268,7 @@ namespace mx {
                             } 
                             SDL_RenderFillRect(app.ren, &closeButtonRect);
 
-                            SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 235);
-                            SDL_RenderDrawRect(app.ren, &closeButtonRect);
+                            drawBevelFrame(app.ren, closeButtonRect);
                             SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
 
                             SDL_Color black = {0, 0, 0, 255};
@@ -298,14 +317,13 @@ namespace mx {
             SDL_SetRenderDrawColor(ren, color.r, color.g, color.b, color.a);
 
             if (direction == "left") {
-                SDL_RenderDrawLine(ren, x + width, py, x + (py - y) / 2, py);
+                SDL_RenderDrawLine(ren, x + width - 1, py, x + (py - y) / 2, py);
             } else if (direction == "right") {
-                SDL_RenderDrawLine(ren, x, py, x + width - (py - y) / 2, py);
+                SDL_RenderDrawLine(ren, x, py, x + width - 1 - (py - y) / 2, py);
             }
         }
-        SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
         SDL_Rect arrowRect = {x, y, width, height};
-        SDL_RenderDrawRect(ren, &arrowRect);
+        drawBevelFrame(ren, arrowRect);
         SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
         if(direction == "left")
             arrowRectLeft = arrowRect;
@@ -386,7 +404,7 @@ namespace mx {
             color.a = 225;
 
             SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
-            SDL_RenderDrawLine(app.ren, barRect.x, barRect.y + y, barRect.x + barRect.w, barRect.y + y);
+            SDL_RenderDrawLine(app.ren, barRect.x, barRect.y + y, barRect.x + barRect.w - 1, barRect.y + y);
         }
 
         SDL_Color lightBevel = {255, 255, 255, 235};
@@ -394,7 +412,7 @@ namespace mx {
 
         
         SDL_SetRenderDrawColor(app.ren, lightBevel.r, lightBevel.g, lightBevel.b, lightBevel.a);
-        SDL_RenderDrawLine(app.ren, barRect.x, barRect.y, barRect.x + barRect.w, barRect.y); 
+        SDL_RenderDrawLine(app.ren, barRect.x, barRect.y, barRect.x + barRect.w - 1, barRect.y); 
         SDL_RenderDrawLine(app.ren, barRect.x, barRect.y, barRect.x, barRect.y + barRect.h); 
 
         
@@ -428,7 +446,7 @@ namespace mx {
                 color.a = 220;
 
                 SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
-                SDL_RenderDrawLine(app.ren, startButton.x, startButton.y + y, startButton.x + startButton.w, startButton.y + y);
+                SDL_RenderDrawLine(app.ren, startButton.x, startButton.y + y, startButton.x + startButton.w - 1, startButton.y + y);
             }
             SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         } else {
@@ -445,20 +463,13 @@ namespace mx {
                 color.a = 220;
 
                 SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
-                SDL_RenderDrawLine(app.ren, startButton.x, startButton.y + y, startButton.x + startButton.w, startButton.y + y);
+                SDL_RenderDrawLine(app.ren, startButton.x, startButton.y + y, startButton.x + startButton.w - 1, startButton.y + y);
             }
             SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         }
 
-        
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 235);
-        SDL_RenderDrawLine(app.ren, startButton.x, startButton.y, startButton.x + startButton.w - 1, startButton.y);  
-        SDL_RenderDrawLine(app.ren, startButton.x, startButton.y, startButton.x, startButton.y + startButton.h - 1);  
-
-        SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 235);
-        SDL_RenderDrawLine(app.ren, startButton.x, startButton.y + startButton.h - 1, startButton.x + startButton.w - 1, startButton.y + startButton.h - 1);  
-        SDL_RenderDrawLine(app.ren, startButton.x + startButton.w - 1, startButton.y, startButton.x + startButton.w - 1, startButton.y + startButton.h - 1);  
+        drawBevelFrame(app.ren, startButton);
         SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
 
         
@@ -534,10 +545,6 @@ namespace mx {
             if(i == cur_dim) break;
             dpos ++;
         }
-
-        
-       
-
 
         int button_width = 150;  
         int button_y = app.height - 50;  
@@ -990,12 +997,11 @@ namespace mx {
         for (int i = 0; i < gradientHeight; i++) {
             int grayValue = 192 - (64 * i / gradientHeight);
             SDL_SetRenderDrawColor(app.ren, grayValue, grayValue, grayValue, 225);
-            SDL_RenderDrawLine(app.ren, menuX, currentY + i, menuX + menuWidth, currentY + i);
+            SDL_RenderDrawLine(app.ren, menuX, currentY + i, menuX + menuWidth - 1, currentY + i);
         }
 
-        SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 235);
         SDL_Rect menuRect = {menuX, currentY, menuWidth, menuHeight};
-        SDL_RenderDrawRect(app.ren, &menuRect);
+        drawBevelFrame(app.ren, menuRect);
 
         SDL_Color black = {0, 0, 0, 255};
         SDL_Color red = {0xBD, 0, 0, 255};
@@ -1024,8 +1030,7 @@ namespace mx {
                 SDL_RenderFillRect(app.ren, &itemRect);
             }
 
-            SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 235);
-            SDL_RenderDrawRect(app.ren, &itemRect);
+            drawBevelFrame(app.ren, itemRect);
 
             SDL_Color textColor = isHovering ? red : black;
             SDL_Surface* textSurface = TTF_RenderText_Blended(font, items[i], textColor);
