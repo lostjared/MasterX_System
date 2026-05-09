@@ -62,6 +62,9 @@ namespace mx {
                 void insertText(const std::string &text);
                 std::string getInput();
                 bool isWaitingForInput() const { return waitingForInput; }
+                bool adjustFontSize(int delta);
+                bool setFontSize(int size);
+                int getFontSize() const { return font_size_; }
 
                 // Background shader effects
                 enum class TermEffect : int {
@@ -136,6 +139,10 @@ namespace mx {
                 SDL_Color text_color;
                 bool isMaximized = false;
                 TTF_Font *font;
+                std::string font_name_;
+                int font_size_ = 18;
+                static constexpr int kMinFontSize = 8;
+                static constexpr int kMaxFontSize = 48;
                 SDL_Texture *wallpaper;
 
                 // --- Background shader effect state (private) ---

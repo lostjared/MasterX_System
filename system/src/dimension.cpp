@@ -495,6 +495,18 @@ namespace mx {
             return true;
         }));
 
+        Menu_ID term_dim = termtabs->menu.addHeader(create_header("Font"));
+        termtabs->menu.addItem(term_dim, termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("Increase Size", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
+                tt->adjustFontSize(1);
+            return true;
+        }));
+        termtabs->menu.addItem(term_dim, termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("Decrease Size", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
+                tt->adjustFontSize(-1);
+            return true;
+        }));
+
         // Effects menu — shader backgrounds for the terminal
         Menu_ID eff_menu = termtabs->menu.addHeader(create_header("Effects"));
         auto makeEffectCallback = [](Terminal::TermEffect fx) {

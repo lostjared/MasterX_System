@@ -289,7 +289,9 @@ namespace mx {
         text_color.b = static_cast<unsigned char>(atoi(col[2].c_str()));
         text_color.a = 255;
 
-        font = TTF_OpenFont(getPath(app.term_font).c_str(), 18);
+        font_name_ = app.term_font;
+        font_size_ = 18;
+        font = TTF_OpenFont(getPath(font_name_).c_str(), font_size_);
         if(!font) {
             mx::system_err << "MasterX System Error: could not load system font.\n";
             mx::system_err.flush();
@@ -471,6 +473,33 @@ namespace mx {
             }
         }
         scroll();
+    }
+
+    bool Terminal::setFontSize(int size) {
+        if (size < kMinFontSize) size = kMinFontSize;
+        if (size > kMaxFontSize) size = kMaxFontSize;
+        if (size == font_size_) return false;
+
+        TTF_Font *newFont = TTF_OpenFont(getPath(font_name_).c_str(), size);
+        if (!newFont) {
+            mx::system_err << "MasterX System Error: could not resize terminal font to " << size << "\n";
+            mx::system_err.flush();
+            return false;
+        }
+
+        if (font) {
+            TTF_CloseFont(font);
+        }
+        font = newFont;
+        font_size_ = size;
+        scroll();
+        updatePtySize();
+        return true;
+    }
+
+    bool Terminal::adjustFontSize(int delta) {
+        if (delta == 0) return false;
+        return setFontSize(font_size_ + delta);
     }
 
     bool Terminal::pointToCell(int px, int py, int &row, int &col) const {
@@ -2116,12 +2145,21 @@ namespace mx {
             const Uint16 mod = e.key.keysym.mod;
             const SDL_Keycode sym = e.key.keysym.sym;
             const bool ctrlShift = (mod & KMOD_CTRL) && (mod & KMOD_SHIFT);
+            const bool ctrlOnly = (mod & KMOD_CTRL) && !(mod & KMOD_ALT) && !(mod & KMOD_GUI);
             if (ctrlShift && sym == SDLK_c) {
                 if (hasSelection) copySelectionToClipboard();
                 return true;
             }
             if (ctrlShift && sym == SDLK_v) {
                 pasteFromClipboard();
+                return true;
+            }
+            if (ctrlOnly && (sym == SDLK_EQUALS || sym == SDLK_PLUS || sym == SDLK_KP_PLUS)) {
+                adjustFontSize(1);
+                return true;
+            }
+            if (ctrlOnly && (sym == SDLK_MINUS || sym == SDLK_KP_MINUS)) {
+                adjustFontSize(-1);
                 return true;
             }
         }

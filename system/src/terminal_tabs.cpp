@@ -34,6 +34,7 @@ namespace mx {
 
     void TerminalTabs::newTab(mxApp &app) {
         auto t = std::make_unique<Terminal>(app);
+        t->setFontSize(fontSize_);
         t->setEmbedded(true);
         t->dim = this->dim;
         t->systemBar = this->systemBar;
@@ -96,6 +97,24 @@ namespace mx {
     }
     void TerminalTabs::pasteFromClipboard() {
         if (Terminal *t = activeTab()) t->pasteFromClipboard();
+    }
+
+    bool TerminalTabs::setFontSize(int size) {
+        bool changed = false;
+        for (auto &t : tabs_) {
+            if (t && t->setFontSize(size)) {
+                changed = true;
+            }
+        }
+        if (Terminal *t = activeTab()) {
+            fontSize_ = t->getFontSize();
+        }
+        return changed;
+    }
+
+    bool TerminalTabs::adjustFontSize(int delta) {
+        if (delta == 0) return false;
+        return setFontSize(fontSize_ + delta);
     }
 
     void TerminalTabs::screenResize(int w, int h) {

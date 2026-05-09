@@ -46,6 +46,9 @@ namespace mx {
         void copyToClipboard();
         void copySelectionToClipboard();
         void pasteFromClipboard();
+        bool adjustFontSize(int delta);
+        bool setFontSize(int size);
+        int getFontSize() const { return fontSize_; }
 
     private:
         static constexpr int kTabBarH      = 26;
@@ -58,6 +61,7 @@ namespace mx {
 
         std::vector<std::unique_ptr<Terminal>> tabs_;
         int active_ = 0;
+        int fontSize_ = 18;
         int tabScroll_ = 0;            // index of leftmost visible tab
         SDL_Texture *wallpaper_ = nullptr;
         Terminal::TermEffect effect_ = Terminal::TermEffect::None;
