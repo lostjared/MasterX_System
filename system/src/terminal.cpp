@@ -3390,14 +3390,27 @@ namespace mx {
     }
 
     void Terminal::scroll() {
-        int totalLines = total_Lines();  
-        SDL_Rect rc;
-        Window::getRect(rc);
+        int totalLines = total_Lines();
+        SDL_Rect viewport = textViewportRect();
         int lineHeight = TTF_FontHeight(font);
-        maxVisibleLines = (rc.h - 28) / lineHeight;
+        if (lineHeight <= 0) lineHeight = 16;
+        maxVisibleLines = viewport.h / lineHeight;
+        if (maxVisibleLines < 1) maxVisibleLines = 1;
+        // Auto-scroll so the cursor row stays visible. Real terminals
+        // pin the cursor to the bottom-most visible row when output
+        // arrives, so we keep scrollOffset at totalLines-maxVisibleLines
+        // unless the user has scrolled up past it. We also clamp when
+        // a reflow shrinks the total line count below the current
+        // offset (otherwise the cursor would be hidden below the view).
+        int targetBottom = my_max(0, totalLines - maxVisibleLines);
         if (totalLines > maxVisibleLines) {
-            if (scrollOffset < totalLines - maxVisibleLines) {
-                scrollOffset = my_max(0, totalLines - maxVisibleLines);
+            if (scrollOffset < targetBottom) {
+                scrollOffset = targetBottom;
+            } else if (scrollOffset > targetBottom &&
+                       ansiCursorRow >= scrollOffset + maxVisibleLines) {
+                // Cursor moved below the visible range (e.g. after a
+                // narrower reflow). Snap back to bottom.
+                scrollOffset = targetBottom;
             }
         } else {
             scrollOffset = 0;
