@@ -206,20 +206,21 @@ namespace mx {
 
                         SDL_Rect buttonRect = {button_x, button_y, button_width, button_height};
 
+                        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
                         for (int y = buttonRect.y; y < buttonRect.y + buttonRect.h; ++y) {
                             float factor = static_cast<float>(y - buttonRect.y) / buttonRect.h;
                             SDL_Color color;
                             color.r = gradStart.r + static_cast<Uint8>(factor * (gradEnd.r - gradStart.r));
                             color.g = gradStart.g + static_cast<Uint8>(factor * (gradEnd.g - gradStart.g));
                             color.b = gradStart.b + static_cast<Uint8>(factor * (gradEnd.b - gradStart.b));
-                            color.a = 255;
+                            color.a = 220;
 
                             SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
                             SDL_RenderDrawLine(app.ren, buttonRect.x, y, buttonRect.x + buttonRect.w, y);
                         }
-
-                        SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
+                        SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 235);
                         SDL_RenderDrawRect(app.ren, &buttonRect);
+                        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
 
                         SDL_Rect textRect = {button_x + 30, button_y + (button_height - text_height) / 2, text_width, text_height};
                         SDL_RenderCopy(app.ren, textTexture, nullptr, &textRect);
@@ -238,16 +239,18 @@ namespace mx {
                             int square_x = button_x + button_width - square_size - 5;
                             int square_y = button_y + (button_height - square_size) / 2;
 
-                            SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 255);
+                            SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+                            SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 220);
                             SDL_Rect closeButtonRect = {square_x, square_y, square_size, square_size};
                             if (dim->hoveringX) {
-                                SDL_SetRenderDrawColor(app.ren, 0xBD, 0, 0, 255);  
+                                SDL_SetRenderDrawColor(app.ren, 0xBD, 0, 0, 230);
                                 tcursor = true;
                             } 
                             SDL_RenderFillRect(app.ren, &closeButtonRect);
 
-                            SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);
+                            SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 235);
                             SDL_RenderDrawRect(app.ren, &closeButtonRect);
+                            SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
 
                             SDL_Color black = {0, 0, 0, 255};
                             SDL_Surface* xSurface = TTF_RenderText_Blended(font, "X", black);
@@ -283,13 +286,14 @@ namespace mx {
     void SystemBar::drawArrow(SDL_Renderer* ren, int x, int y, int width, int height, const std::string& direction) {
         SDL_Color gradStart = {192, 192, 192, 255};  
         SDL_Color gradEnd = {128, 128, 128, 255};   
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
         for (int py = y; py < y + height; ++py) {
             float factor = static_cast<float>(py - y) / height;
             SDL_Color color = {
                 static_cast<Uint8>(gradStart.r+(factor * (gradEnd.r - gradStart.r))),
                 static_cast<Uint8>(gradStart.g+(factor * (gradEnd.g - gradStart.g))),
                 static_cast<Uint8>(gradStart.b+(factor * (gradEnd.b - gradStart.b))),
-                255
+                220
             };
             SDL_SetRenderDrawColor(ren, color.r, color.g, color.b, color.a);
 
@@ -302,6 +306,7 @@ namespace mx {
         SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
         SDL_Rect arrowRect = {x, y, width, height};
         SDL_RenderDrawRect(ren, &arrowRect);
+        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
         if(direction == "left")
             arrowRectLeft = arrowRect;
         else
@@ -371,20 +376,21 @@ namespace mx {
         SDL_Color gradBarStart = {210, 210, 210, 255};
         SDL_Color gradBarEnd = {140, 140, 140, 255};   
         SDL_Rect barRect = {0, animationComplete == true ? app.height- barHeight : yPos, windowWidth, barHeight};
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
         for (int y = 0; y < barHeight; ++y) {
             float factor = static_cast<float>(y) / barHeight;
             SDL_Color color;
             color.r = gradBarStart.r + static_cast<Uint8>(factor * (gradBarEnd.r - gradBarStart.r));
             color.g = gradBarStart.g + static_cast<Uint8>(factor * (gradBarEnd.g - gradBarStart.g));
             color.b = gradBarStart.b + static_cast<Uint8>(factor * (gradBarEnd.b - gradBarStart.b));
-            color.a = 255;
+            color.a = 225;
 
             SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
             SDL_RenderDrawLine(app.ren, barRect.x, barRect.y + y, barRect.x + barRect.w, barRect.y + y);
         }
 
-        SDL_Color lightBevel = {255, 255, 255, 255}; 
-        SDL_Color darkBevel = {128, 128, 128, 255};  
+        SDL_Color lightBevel = {255, 255, 255, 235};
+        SDL_Color darkBevel = {128, 128, 128, 235};
 
         
         SDL_SetRenderDrawColor(app.ren, lightBevel.r, lightBevel.g, lightBevel.b, lightBevel.a);
@@ -395,6 +401,7 @@ namespace mx {
         SDL_SetRenderDrawColor(app.ren, darkBevel.r, darkBevel.g, darkBevel.b, darkBevel.a);
         SDL_RenderDrawLine(app.ren, barRect.x, barRect.y + barRect.h - 1, barRect.x + barRect.w - 1, barRect.y + barRect.h - 1); 
         SDL_RenderDrawLine(app.ren, barRect.x + barRect.w - 1, barRect.y, barRect.x + barRect.w - 1, barRect.y + barRect.h - 1); 
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
                         
         SDL_Color buttonColor = {169, 169, 169, 255};
         SDL_Color textColor = {0, 0, 0, 255};       
@@ -410,6 +417,7 @@ namespace mx {
             SDL_Color gradStart = {0, 0, 255, 255}; 
             SDL_Color gradEnd = {0, 0, 139, 255};   
 
+            SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
             for (int y = 0; y < startButton.h; ++y) {
 
                 float factor = static_cast<float>(y) / startButton.h;
@@ -417,36 +425,41 @@ namespace mx {
                 color.r = gradStart.r + static_cast<Uint8>(factor * (gradEnd.r - gradStart.r));
                 color.g = gradStart.g + static_cast<Uint8>(factor * (gradEnd.g - gradStart.g));
                 color.b = gradStart.b + static_cast<Uint8>(factor * (gradEnd.b - gradStart.b));
-                color.a = 255;
+                color.a = 220;
 
                 SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
                 SDL_RenderDrawLine(app.ren, startButton.x, startButton.y + y, startButton.x + startButton.w, startButton.y + y);
             }
+            SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         } else {
             SDL_Color gradStart = {192, 192, 192, 255}; 
             SDL_Color gradEnd = {128, 128, 128, 255};   
 
+            SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
             for (int y = 0; y < startButton.h; ++y) {
                 float factor = static_cast<float>(y) / startButton.h;
                 SDL_Color color;
                 color.r = gradStart.r + static_cast<Uint8>(factor * (gradEnd.r - gradStart.r));
                 color.g = gradStart.g + static_cast<Uint8>(factor * (gradEnd.g - gradStart.g));
                 color.b = gradStart.b + static_cast<Uint8>(factor * (gradEnd.b - gradStart.b));
-                color.a = 255;
+                color.a = 220;
 
                 SDL_SetRenderDrawColor(app.ren, color.r, color.g, color.b, color.a);
                 SDL_RenderDrawLine(app.ren, startButton.x, startButton.y + y, startButton.x + startButton.w, startButton.y + y);
             }
+            SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         }
 
         
-        SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 255);  
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(app.ren, 255, 255, 255, 235);
         SDL_RenderDrawLine(app.ren, startButton.x, startButton.y, startButton.x + startButton.w - 1, startButton.y);  
         SDL_RenderDrawLine(app.ren, startButton.x, startButton.y, startButton.x, startButton.y + startButton.h - 1);  
 
-        SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 255);  
+        SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 235);
         SDL_RenderDrawLine(app.ren, startButton.x, startButton.y + startButton.h - 1, startButton.x + startButton.w - 1, startButton.y + startButton.h - 1);  
         SDL_RenderDrawLine(app.ren, startButton.x + startButton.w - 1, startButton.y, startButton.x + startButton.w - 1, startButton.y + startButton.h - 1);  
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
 
         
         SDL_Surface* textSurface = TTF_RenderText_Blended(font, "Launch", textColor);
@@ -966,25 +979,26 @@ namespace mx {
         int menuX = app.width - menuWidth - 20;
 
         SDL_SetRenderTarget(app.ren, app.tex);
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
 
-        SDL_Color hoverColor = {0, 0, 128, 255};
+        SDL_Color hoverColor = {0, 0, 128, 230};
         SDL_SetRenderDrawColor(app.ren, hoverColor.r, hoverColor.g, hoverColor.b, hoverColor.a);
         SDL_Rect rightSideRect = {menuX + menuWidth, currentY, 20, menuHeight};
         SDL_RenderFillRect(app.ren, &rightSideRect);
 
         int gradientHeight = menuHeight;
         for (int i = 0; i < gradientHeight; i++) {
-            int grayValue = 192 - (64 * i / gradientHeight);  
-            SDL_SetRenderDrawColor(app.ren, grayValue, grayValue, grayValue, 255);
+            int grayValue = 192 - (64 * i / gradientHeight);
+            SDL_SetRenderDrawColor(app.ren, grayValue, grayValue, grayValue, 225);
             SDL_RenderDrawLine(app.ren, menuX, currentY + i, menuX + menuWidth, currentY + i);
         }
 
-        SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 255);
+        SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 235);
         SDL_Rect menuRect = {menuX, currentY, menuWidth, menuHeight};
         SDL_RenderDrawRect(app.ren, &menuRect);
 
         SDL_Color black = {0, 0, 0, 255};
-        SDL_Color white = {255, 255, 255, 255};
+        SDL_Color red = {0xBD, 0, 0, 255};
 
         const char* items[] = {"Welcome", "Terminal", "Settings", "MasterPiece", "Asteroids", "Tetris", "About", "Shutdown"};
         int numItems = sizeof(items) / sizeof(items[0]);
@@ -1006,14 +1020,14 @@ namespace mx {
                 SDL_RenderFillRect(app.ren, &itemRect);
                 tcursor = true;
             } else {
-                SDL_SetRenderDrawColor(app.ren, 192, 192, 192, 255);
+                SDL_SetRenderDrawColor(app.ren, 192, 192, 192, 220);
                 SDL_RenderFillRect(app.ren, &itemRect);
             }
 
-            SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 255);
+            SDL_SetRenderDrawColor(app.ren, 128, 128, 128, 235);
             SDL_RenderDrawRect(app.ren, &itemRect);
 
-            SDL_Color textColor = isHovering ? white : black;
+            SDL_Color textColor = isHovering ? red : black;
             SDL_Surface* textSurface = TTF_RenderText_Blended(font, items[i], textColor);
             SDL_Texture* textTexture = SDL_CreateTextureFromSurface(app.ren, textSurface);
             int textWidth = textSurface->w;
@@ -1029,6 +1043,7 @@ namespace mx {
             cursor_shown = true;
         }
 
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         SDL_SetRenderTarget(app.ren, nullptr);
     }
     int MenuBar::itemClicked(mxApp &app, int x, int y) {

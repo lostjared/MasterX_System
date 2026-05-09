@@ -55,6 +55,7 @@ namespace mx {
                 void setWallpaper(SDL_Texture *tex);
                 void drawCursor(mxApp &, int, int, bool);
                 bool atBottom();
+                bool cycleWallpaper(mxApp &app);
                 std::string parseTerminalData(const std::string &);
                 void sendCommand(const std::string &cmd);
                 void pasteFromClipboard();
@@ -185,6 +186,9 @@ namespace mx {
                 int scrollBarDragOffset = 0;
                 std::string savedInputText;
                 bool cyclingThroughHistory = false;
+                std::vector<SDL_Texture *> wallpaperCycle_;
+                size_t wallpaperCycleIndex_ = 0;
+                bool wallpaperCycleInit_ = false;
                 int calculateTotalWrappedLines();
                 int calculateWrappedLinesForText(const std::string &text, int, int);
                 std::atomic<bool> active;

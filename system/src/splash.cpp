@@ -69,9 +69,11 @@ namespace mx {
         int bar_height = 50;
         int bar_x = padding;
         int bar_y = (app.height - bar_height) / 2;
-        SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 255);
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(app.ren, 200, 200, 200, 120);
         SDL_Rect background = { bar_x, bar_y, available_width, bar_height };
         SDL_RenderFillRect(app.ren, &background);
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
         SDL_Color startColor = {0, 0, 255, 255}; 
         SDL_Color endColor = {0, 0, 100, 255};   
         for (int i = 0; i < bar_width; ++i) {

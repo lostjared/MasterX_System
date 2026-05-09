@@ -9,6 +9,7 @@
 #include"mx_window.hpp"
 #include"dimension.hpp"
 #include"mx_system_bar.hpp"
+#include"terminal_tabs.hpp"
 #ifdef FOR_WASM
 #include "apps/cmd/cmd_shell.h"
 #include "ast.hpp"
@@ -438,6 +439,65 @@ namespace mx {
      void Terminal::setWallpaper(SDL_Texture *tex) {
         wallpaper = tex;
      }
+
+    bool Terminal::cycleWallpaper(mxApp &app) {
+        if (!wallpaperCycleInit_) {
+            wallpaperCycleInit_ = true;
+            const std::string bgCsv = app.config.itemAtKey("desktop", "backgrounds").value;
+            std::vector<std::string> paths = app.config.splitByComma(bgCsv);
+            for (std::string path : paths) {
+                while (!path.empty() && std::isspace(static_cast<unsigned char>(path.front()))) {
+                    path.erase(path.begin());
+                }
+                while (!path.empty() && std::isspace(static_cast<unsigned char>(path.back()))) {
+                    path.pop_back();
+                }
+                if (path.empty()) {
+                    continue;
+                }
+                SDL_Texture *tex = loadTexture(app, path);
+                if (tex) {
+                    wallpaperCycle_.push_back(tex);
+                }
+            }
+
+            SDL_Texture *current = nullptr;
+            if (dim && dim->wallpaper) {
+                current = dim->wallpaper;
+            } else if (wallpaper) {
+                current = wallpaper;
+            }
+            if (current) {
+                for (size_t i = 0; i < wallpaperCycle_.size(); ++i) {
+                    if (wallpaperCycle_[i] == current) {
+                        wallpaperCycleIndex_ = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (wallpaperCycle_.empty()) {
+            return false;
+        }
+
+        wallpaperCycleIndex_ = (wallpaperCycleIndex_ + 1) % wallpaperCycle_.size();
+        SDL_Texture *next = wallpaperCycle_[wallpaperCycleIndex_];
+        if (!next) {
+            return false;
+        }
+
+        if (dim) {
+            dim->wallpaper = next;
+            for (auto &obj : dim->objects) {
+                if (auto *tabs = dynamic_cast<TerminalTabs *>(obj.get())) {
+                    tabs->setWallpaper(next);
+                }
+            }
+        }
+        setWallpaper(next);
+        return true;
+    }
 
     void Terminal::pasteFromClipboard() {
 #ifdef FOR_WASM
@@ -2349,6 +2409,10 @@ namespace mx {
         if (e.type == SDL_KEYDOWN) {
             const Uint16 mod = e.key.keysym.mod;
             const SDL_Keycode sym = e.key.keysym.sym;
+            const bool noModifiers = (mod & (KMOD_CTRL | KMOD_ALT | KMOD_GUI | KMOD_SHIFT)) == 0;
+            if (sym == SDLK_F8 && noModifiers) {
+                return cycleWallpaper(app);
+            }
             const bool ctrlShift = (mod & KMOD_CTRL) && (mod & KMOD_SHIFT);
             const bool ctrlOnly = (mod & KMOD_CTRL) && !(mod & KMOD_ALT) && !(mod & KMOD_GUI);
             if (ctrlShift && sym == SDLK_c) {

@@ -13,6 +13,7 @@
 #include"window.hpp"
 #include"splash.hpp"
 #include"dimension.hpp"
+#include"mx_system_bar.hpp"
 #include<vector>
 #include<memory>
 #include"argz.hpp"
@@ -217,6 +218,7 @@ int main(int argc, char **argv) {
     Argz<std::string> argz(argc, argv);
     argz.addOptionSingleValue('p', "path to assets")
     .addOptionDoubleValue('P', "path", "path to assets")
+    .addOptionDouble('t', "terminal", "skip intro and start in terminal")
     .addOptionSingleValue('v', "info")
     .addOptionSingle('h', "info")
     .addOptionSingle('f', "set fullscreen")
@@ -225,6 +227,7 @@ int main(int argc, char **argv) {
     .addOptionDoubleValue('R', "resolution", "resolution ex: 1280x720");
     std::string path;
     bool full = false;
+    bool start_terminal = false;
     int value = 0;
     int window_width = 1280, window_height = 720;
     Argument<std::string> arg;
@@ -243,6 +246,9 @@ int main(int argc, char **argv) {
                 case 'f':
                 case 'F':
                     full = true;
+                    break;
+                case 't':
+                    start_terminal = true;
                     break;
                 case 'R':
                 case 'r': {
@@ -308,6 +314,28 @@ int main(int argc, char **argv) {
     }
     draw_loading(app);
     init(app);
+    if (start_terminal) {
+        setScreen(ID_DIM);
+        if (screens != nullptr && static_cast<int>(screens->size()) > ID_DIM) {
+            if (auto *dim = dynamic_cast<mx::Dimension *>((*screens)[ID_DIM].get())) {
+                int terminalIndex = -1;
+                for (size_t i = 0; i < dim->dimensions.size(); ++i) {
+                    if (auto *dc = dynamic_cast<mx::DimensionContainer *>(dim->dimensions[i].get())) {
+                        if (dc->name == "Terminal") {
+                            terminalIndex = static_cast<int>(i);
+                            break;
+                        }
+                    }
+                }
+                if (terminalIndex >= 0) {
+                    dim->setCurrentDimension(terminalIndex);
+                    if (dim->system_bar) {
+                        dim->system_bar->activateDimension(terminalIndex);
+                    }
+                }
+            }
+        }
+    }
     app.active = true;
     mx::system_out << "MasterX System: Up and running @ " << curTime() << "\n";
 
