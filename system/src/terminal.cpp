@@ -1,3974 +1,4243 @@
-#include"terminal.hpp"
-#include<sstream>
-#include<algorithm>
-#include<iostream>
-#include<thread>
-#include<mutex>
-#include<cctype>
-#include<cstdlib>
-#include"mx_window.hpp"
-#include"dimension.hpp"
-#include"mx_system_bar.hpp"
-#include"terminal_tabs.hpp"
+#include "terminal.hpp"
+#include "dimension.hpp"
+#include "mx_system_bar.hpp"
+#include "mx_window.hpp"
+#include "terminal_tabs.hpp"
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <iostream>
+#include <mutex>
+#include <sstream>
+#include <thread>
 #ifdef FOR_WASM
 #include "apps/cmd/cmd_shell.h"
 #include "ast.hpp"
 #include <emscripten.h>
 extern "C" void forceFrameRender();
 
-static mx::Terminal* g_activeTerminal = nullptr;
+static mx::Terminal *g_activeTerminal = nullptr;
 
 extern "C" {
-    EMSCRIPTEN_KEEPALIVE
-    void terminalPasteText(const char* text) {
-        if (g_activeTerminal && text) {
-            std::string pasteText(text);
-            g_activeTerminal->insertText(pasteText);
-        }
-    }
+EMSCRIPTEN_KEEPALIVE
+void terminalPasteText(const char *text) {
+  if (g_activeTerminal && text) {
+    std::string pasteText(text);
+    g_activeTerminal->insertText(pasteText);
+  }
+}
 }
 #endif
-template<typename T>
-T my_max(const T& a, const T& b) {
-    return a > b ? a : b;
-}
+template <typename T> T my_max(const T &a, const T &b) { return a > b ? a : b; }
 
-template<typename T>
-T my_min(const T& a, const T& b) {
-    return a < b ? a : b;
-}
+template <typename T> T my_min(const T &a, const T &b) { return a < b ? a : b; }
 
 // UTF-8 lead-byte length: returns 1..4 bytes for the codepoint that
 // starts at byte b, or 1 for invalid/continuation bytes (treat as 1
 // byte of garbage so we never get stuck).
 static inline int utf8_lead_len(unsigned char b) {
-    if ((b & 0x80) == 0x00) return 1;
-    if ((b & 0xE0) == 0xC0) return 2;
-    if ((b & 0xF0) == 0xE0) return 3;
-    if ((b & 0xF8) == 0xF0) return 4;
+  if ((b & 0x80) == 0x00)
     return 1;
+  if ((b & 0xE0) == 0xC0)
+    return 2;
+  if ((b & 0xF0) == 0xE0)
+    return 3;
+  if ((b & 0xF8) == 0xF0)
+    return 4;
+  return 1;
 }
 
 // Number of UTF-8 codepoints in a byte string.
 // Fast path: pure-ASCII strings (no high bit) have one cell per byte.
 static int utf8_cell_count(const std::string &s) {
-    bool pureAscii = true;
-    for (size_t k = 0; k < s.size(); ++k) {
-        if (static_cast<unsigned char>(s[k]) >= 0x80) { pureAscii = false; break; }
+  bool pureAscii = true;
+  for (size_t k = 0; k < s.size(); ++k) {
+    if (static_cast<unsigned char>(s[k]) >= 0x80) {
+      pureAscii = false;
+      break;
     }
-    if (pureAscii) return static_cast<int>(s.size());
-    int n = 0;
-    for (size_t k = 0; k < s.size(); ) {
-        int step = utf8_lead_len(static_cast<unsigned char>(s[k]));
-        if (k + step > s.size()) step = static_cast<int>(s.size() - k);
-        if (step <= 0) step = 1;
-        k += step;
-        ++n;
-    }
-    return n;
+  }
+  if (pureAscii)
+    return static_cast<int>(s.size());
+  int n = 0;
+  for (size_t k = 0; k < s.size();) {
+    int step = utf8_lead_len(static_cast<unsigned char>(s[k]));
+    if (k + step > s.size())
+      step = static_cast<int>(s.size() - k);
+    if (step <= 0)
+      step = 1;
+    k += step;
+    ++n;
+  }
+  return n;
 }
 
 // Convert a logical cell column to a byte offset in a UTF-8 string.
 // If col is past the end of s, returns s.size().
 // Fast path: pure-ASCII strings use 1:1 byte=cell mapping.
 static size_t utf8_cell_to_byte(const std::string &s, int col) {
-    if (col <= 0) return 0;
-    bool pureAscii = true;
-    for (size_t k = 0; k < s.size(); ++k) {
-        if (static_cast<unsigned char>(s[k]) >= 0x80) { pureAscii = false; break; }
+  if (col <= 0)
+    return 0;
+  bool pureAscii = true;
+  for (size_t k = 0; k < s.size(); ++k) {
+    if (static_cast<unsigned char>(s[k]) >= 0x80) {
+      pureAscii = false;
+      break;
     }
-    if (pureAscii) {
-        size_t c = static_cast<size_t>(col);
-        return c > s.size() ? s.size() : c;
-    }
-    size_t k = 0;
-    int c = 0;
-    while (k < s.size() && c < col) {
-        int step = utf8_lead_len(static_cast<unsigned char>(s[k]));
-        if (k + step > s.size()) step = static_cast<int>(s.size() - k);
-        if (step <= 0) step = 1;
-        k += step;
-        ++c;
-    }
-    return k;
+  }
+  if (pureAscii) {
+    size_t c = static_cast<size_t>(col);
+    return c > s.size() ? s.size() : c;
+  }
+  size_t k = 0;
+  int c = 0;
+  while (k < s.size() && c < col) {
+    int step = utf8_lead_len(static_cast<unsigned char>(s[k]));
+    if (k + step > s.size())
+      step = static_cast<int>(s.size() - k);
+    if (step <= 0)
+      step = 1;
+    k += step;
+    ++c;
+  }
+  return k;
 }
 
 namespace mx {
 
 #if defined(__linux__) || defined(__APPLE__)
-    int Terminal::is_echo_enabled() {
-        struct termios tty;
-        tcgetattr(slave_fd, &tty); 
-        return (tty.c_lflag & ECHO) != 0; 
-    }
+int Terminal::is_echo_enabled() {
+  struct termios tty;
+  tcgetattr(slave_fd, &tty);
+  return (tty.c_lflag & ECHO) != 0;
+}
 #endif
 
-    void Terminal::screenResize(int w, int h) {
-        Window::screenResize(w, h);
-        if (embedded_) {
-            // The owning TerminalTabs controls the rect; only update the
-            // PTY size so the running shell sees the new cell grid.
-            updatePtySize();
-            return;
-        }
-        SDL_Rect rc;
-        Window::getRect(rc);
-        const int topLimit    = kTitleBarHeight + 1;
-        const int bottomLimit = h - 50;
-        const int maxH        = std::max(1, bottomLimit - topLimit);
-        if (Window::isMaximized()) {
-            // Fill the host window (under the menu bar, above the system bar).
-            rc = { 0, topLimit, w, maxH };
-        } else if (rc.w <= 0 || rc.h <= 0) {
-            // Initial layout: centered default size scaled to host.
-            const int baseWidth  = 1280;
-            const int baseHeight = 720;
-            float scaleX = static_cast<float>(w) / baseWidth;
-            float scaleY = static_cast<float>(h) / baseHeight;
-            rc.w = static_cast<int>(800 * scaleX);
-            rc.h = static_cast<int>(505 * scaleY);
-            rc.x = (w - rc.w) / 2;
-            rc.y = (h - rc.h) / 2;
-            if (rc.y < topLimit) rc.y = topLimit;
-        } else {
-            // Preserve the user's chosen size; clamp to fit the new host.
-            if (rc.w > w)    rc.w = w;
-            if (rc.h > maxH) rc.h = maxH;
-            if (rc.x < 0)             rc.x = 0;
-            if (rc.y < topLimit)      rc.y = topLimit;
-            if (rc.x + rc.w > w)      rc.x = std::max(0, w - rc.w);
-            if (rc.y + rc.h > bottomLimit)
-                rc.y = std::max(topLimit, bottomLimit - rc.h);
-        }
-        this->setRect(rc);
-        updatePtySize();
-    }
+void Terminal::screenResize(int w, int h) {
+  Window::screenResize(w, h);
+  if (embedded_) {
+    // The owning TerminalTabs controls the rect; only update the
+    // PTY size so the running shell sees the new cell grid.
+    updatePtySize();
+    return;
+  }
+  SDL_Rect rc;
+  Window::getRect(rc);
+  const int topLimit = kTitleBarHeight + 1;
+  const int bottomLimit = h - 50;
+  const int maxH = std::max(1, bottomLimit - topLimit);
+  if (Window::isMaximized()) {
+    // Fill the host window (under the menu bar, above the system bar).
+    rc = {0, topLimit, w, maxH};
+  } else if (rc.w <= 0 || rc.h <= 0) {
+    // Initial layout: centered default size scaled to host.
+    const int baseWidth = 1280;
+    const int baseHeight = 720;
+    float scaleX = static_cast<float>(w) / baseWidth;
+    float scaleY = static_cast<float>(h) / baseHeight;
+    rc.w = static_cast<int>(800 * scaleX);
+    rc.h = static_cast<int>(505 * scaleY);
+    rc.x = (w - rc.w) / 2;
+    rc.y = (h - rc.h) / 2;
+    if (rc.y < topLimit)
+      rc.y = topLimit;
+  } else {
+    // Preserve the user's chosen size; clamp to fit the new host.
+    if (rc.w > w)
+      rc.w = w;
+    if (rc.h > maxH)
+      rc.h = maxH;
+    if (rc.x < 0)
+      rc.x = 0;
+    if (rc.y < topLimit)
+      rc.y = topLimit;
+    if (rc.x + rc.w > w)
+      rc.x = std::max(0, w - rc.w);
+    if (rc.y + rc.h > bottomLimit)
+      rc.y = std::max(topLimit, bottomLimit - rc.h);
+  }
+  this->setRect(rc);
+  updatePtySize();
+}
 
-    void Terminal::writeToPty(const std::string &data) {
-        if (data.empty()) return;
+void Terminal::writeToPty(const std::string &data) {
+  if (data.empty())
+    return;
 #ifdef _WIN32
-        if (hChildStdinWr != INVALID_HANDLE_VALUE) {
-            DWORD written = 0;
-            WriteFile(hChildStdinWr, data.c_str(),
-                      static_cast<DWORD>(data.size()), &written, NULL);
-        }
+  if (hChildStdinWr != INVALID_HANDLE_VALUE) {
+    DWORD written = 0;
+    WriteFile(hChildStdinWr, data.c_str(), static_cast<DWORD>(data.size()),
+              &written, NULL);
+  }
 #elif !defined(FOR_WASM)
-        if (master_fd >= 0) {
-            ssize_t r = ::write(master_fd, data.c_str(), data.size());
-            (void)r;
-        }
+  if (master_fd >= 0) {
+    ssize_t r = ::write(master_fd, data.c_str(), data.size());
+    (void)r;
+  }
 #endif
-    }
+}
 
-    void Terminal::updatePtySize() {
+void Terminal::updatePtySize() {
 #if !defined(_WIN32) && !defined(FOR_WASM)
-        if (master_fd < 0 || !font) return;
-        SDL_Rect viewport = textViewportRect();
-        int cellH = TTF_FontHeight(font);
-        int cellW = 0;
-        TTF_SizeText(font, "M", &cellW, nullptr);
-        if (cellW <= 0) cellW = 8;
-        if (cellH <= 0) cellH = 16;
-        int contentW = std::max(cellW, viewport.w);
-        int contentH = std::max(cellH, viewport.h);
-        termCols = std::max(1, contentW / cellW);
-        termRows = std::max(1, contentH / cellH);
+  if (master_fd < 0 || !font)
+    return;
+  SDL_Rect viewport = textViewportRect();
+  int cellH = TTF_FontHeight(font);
+  int cellW = 0;
+  TTF_SizeText(font, "M", &cellW, nullptr);
+  if (cellW <= 0)
+    cellW = 8;
+  if (cellH <= 0)
+    cellH = 16;
+  int contentW = std::max(cellW, viewport.w);
+  int contentH = std::max(cellH, viewport.h);
+  termCols = std::max(1, contentW / cellW);
+  termRows = std::max(1, contentH / cellH);
 
-        // Soft-wrap aware reflow: every continuation row is joined back
-        // into its logical line and re-split at the new width, so this
-        // is idempotent and safe to run on every geometry change (xterm
-        // and konsole behave the same way).
-        if (lastReportedCols > 0 && termCols != lastReportedCols) {
-            reflowPrimaryBufferToCols(termCols);
-            syncAnsiToOutput();
-        }
+  // Soft-wrap aware reflow: every continuation row is joined back
+  // into its logical line and re-split at the new width, so this
+  // is idempotent and safe to run on every geometry change (xterm
+  // and konsole behave the same way).
+  if (lastReportedCols > 0 && termCols != lastReportedCols) {
+    reflowPrimaryBufferToCols(termCols);
+    syncAnsiToOutput();
+  }
 
-        if (termRows == lastReportedRows && termCols == lastReportedCols)
-            return;
-        lastReportedRows = termRows;
-        lastReportedCols = termCols;
-        struct winsize ws{};
-        ws.ws_row    = static_cast<unsigned short>(termRows);
-        ws.ws_col    = static_cast<unsigned short>(termCols);
-        ws.ws_xpixel = static_cast<unsigned short>(viewport.w);
-        ws.ws_ypixel = static_cast<unsigned short>(viewport.h);
-        ioctl(master_fd, TIOCSWINSZ, &ws);
+  if (termRows == lastReportedRows && termCols == lastReportedCols)
+    return;
+  lastReportedRows = termRows;
+  lastReportedCols = termCols;
+  struct winsize ws{};
+  ws.ws_row = static_cast<unsigned short>(termRows);
+  ws.ws_col = static_cast<unsigned short>(termCols);
+  ws.ws_xpixel = static_cast<unsigned short>(viewport.w);
+  ws.ws_ypixel = static_cast<unsigned short>(viewport.h);
+  ioctl(master_fd, TIOCSWINSZ, &ws);
 
-        // Mirror real terminal behavior: notify the foreground job-control
-        // group that the terminal geometry changed so shells/apps refresh
-        // COLUMNS/LINES and redraw immediately.
-        pid_t fg_pgid = tcgetpgrp(master_fd);
-        if (fg_pgid > 0)
-            killpg(fg_pgid, SIGWINCH);
-        if (altScreen) {
-            // Resize alternate-screen grid to match new dimensions.
-            if (static_cast<int>(ansiLines.size()) < termRows) {
-                ansiLines.resize(termRows);
-                ansiLineColors.resize(termRows);
-            }
-            if (scrollBot >= 0 && scrollBot >= termRows)
-                scrollBot = termRows - 1;
-        }
+  // Mirror real terminal behavior: notify the foreground job-control
+  // group that the terminal geometry changed so shells/apps refresh
+  // COLUMNS/LINES and redraw immediately.
+  pid_t fg_pgid = tcgetpgrp(master_fd);
+  if (fg_pgid > 0)
+    killpg(fg_pgid, SIGWINCH);
+  if (altScreen) {
+    // Resize alternate-screen grid to match new dimensions.
+    if (static_cast<int>(ansiLines.size()) < termRows) {
+      ansiLines.resize(termRows);
+      ansiLineColors.resize(termRows);
+    }
+    if (scrollBot >= 0 && scrollBot >= termRows)
+      scrollBot = termRows - 1;
+  }
 #endif
+}
+
+void Terminal::enterAltScreen() {
+  if (altScreen)
+    return;
+  if (!ansiInitialized)
+    initAnsiState();
+  savedLines = ansiLines;
+  savedLineColors = ansiLineColors;
+  savedAltRow = ansiCursorRow;
+  savedAltCol = ansiCursorCol;
+  savedAltFg = ansiCurrentColor;
+  savedAltBg = ansiCurrentBg;
+  savedAltBold = ansiBold;
+  savedAltUnderline = ansiUnderline;
+
+  altScreen = true;
+  ansiLines.assign(std::max(5, termRows), std::string{});
+  ansiLineColors.assign(ansiLines.size(), std::vector<CharStyle>{});
+  ansiLineIsAscii.assign(ansiLines.size(), 1);
+  ansiLineSoftWrap.assign(ansiLines.size(), 0);
+  ansiCursorRow = 0;
+  ansiCursorCol = 0;
+  scrollTop = 0;
+  scrollBot = static_cast<int>(ansiLines.size()) - 1;
+  ansiCurrentColor = text_color;
+  ansiCurrentBg = {0, 0, 0, 0};
+  ansiBold = false;
+  ansiUnderline = false;
+  scrollOffset = 0;
+  syncAnsiToOutput();
+}
+
+void Terminal::leaveAltScreen() {
+  if (!altScreen)
+    return;
+  altScreen = false;
+  ansiLines = savedLines;
+  ansiLineColors = savedLineColors;
+  ansiLineIsAscii.assign(ansiLines.size(), 0);
+  ansiLineSoftWrap.assign(ansiLines.size(), 0);
+  for (size_t i = 0; i < ansiLines.size(); ++i) {
+    bool ascii = true;
+    for (unsigned char c : ansiLines[i]) {
+      if (c >= 0x80) {
+        ascii = false;
+        break;
+      }
     }
+    ansiLineIsAscii[i] = ascii ? 1 : 0;
+  }
+  ansiCursorRow = savedAltRow;
+  ansiCursorCol = savedAltCol;
+  ansiCurrentColor = savedAltFg;
+  ansiCurrentBg = savedAltBg;
+  ansiBold = savedAltBold;
+  ansiUnderline = savedAltUnderline;
+  savedLines.clear();
+  savedLineColors.clear();
+  scrollTop = 0;
+  scrollBot = -1;
+  decckm = false;
+  keypadApp = false;
+  syncAnsiToOutput();
+  scroll();
+}
 
-    void Terminal::enterAltScreen() {
-        if (altScreen) return;
-        if (!ansiInitialized) initAnsiState();
-        savedLines       = ansiLines;
-        savedLineColors  = ansiLineColors;
-        savedAltRow      = ansiCursorRow;
-        savedAltCol      = ansiCursorCol;
-        savedAltFg       = ansiCurrentColor;
-        savedAltBg       = ansiCurrentBg;
-        savedAltBold     = ansiBold;
-        savedAltUnderline= ansiUnderline;
-
-        altScreen = true;
-        ansiLines.assign(std::max(5, termRows), std::string{});
-        ansiLineColors.assign(ansiLines.size(), std::vector<CharStyle>{});
-        ansiLineIsAscii.assign(ansiLines.size(), 1);
-        ansiLineSoftWrap.assign(ansiLines.size(), 0);
-        ansiCursorRow = 0;
-        ansiCursorCol = 0;
-        scrollTop = 0;
-        scrollBot = static_cast<int>(ansiLines.size()) - 1;
-        ansiCurrentColor = text_color;
-        ansiCurrentBg = {0,0,0,0};
-        ansiBold = false;
-        ansiUnderline = false;
-        scrollOffset = 0;
-        syncAnsiToOutput();
+std::string Terminal::keyToPtyBytes(SDL_Keycode sym, Uint16 mod) {
+  const bool ctrl = (mod & KMOD_CTRL) != 0;
+  const bool alt = (mod & KMOD_ALT) != 0;
+  // Build optional ALT prefix (ESC) per xterm convention.
+  auto withAlt = [&](const std::string &s) -> std::string {
+    return alt ? std::string("\x1b") + s : s;
+  };
+  auto cursorSeq = [&](char letter) -> std::string {
+    return withAlt(decckm ? std::string("\x1bO") + letter
+                          : std::string("\x1b[") + letter);
+  };
+  switch (sym) {
+  case SDLK_RETURN:
+    return withAlt("\r");
+  case SDLK_KP_ENTER:
+    return withAlt("\r");
+  case SDLK_TAB:
+    return withAlt("\t");
+  case SDLK_BACKSPACE:
+    return withAlt("\x7f");
+  case SDLK_ESCAPE:
+    return std::string("\x1b");
+  case SDLK_UP:
+    return cursorSeq('A');
+  case SDLK_DOWN:
+    return cursorSeq('B');
+  case SDLK_RIGHT:
+    return cursorSeq('C');
+  case SDLK_LEFT:
+    return cursorSeq('D');
+  case SDLK_HOME:
+    return withAlt(decckm ? "\x1bOH" : "\x1b[H");
+  case SDLK_END:
+    return withAlt(decckm ? "\x1bOF" : "\x1b[F");
+  case SDLK_PAGEUP:
+    return withAlt("\x1b[5~");
+  case SDLK_PAGEDOWN:
+    return withAlt("\x1b[6~");
+  case SDLK_INSERT:
+    return withAlt("\x1b[2~");
+  case SDLK_DELETE:
+    return withAlt("\x1b[3~");
+  case SDLK_F1:
+    return withAlt("\x1bOP");
+  case SDLK_F2:
+    return withAlt("\x1bOQ");
+  case SDLK_F3:
+    return withAlt("\x1bOR");
+  case SDLK_F4:
+    return withAlt("\x1bOS");
+  case SDLK_F5:
+    return withAlt("\x1b[15~");
+  case SDLK_F6:
+    return withAlt("\x1b[17~");
+  case SDLK_F7:
+    return withAlt("\x1b[18~");
+  case SDLK_F8:
+    return withAlt("\x1b[19~");
+  case SDLK_F9:
+    return withAlt("\x1b[20~");
+  case SDLK_F10:
+    return withAlt("\x1b[21~");
+  case SDLK_F11:
+    return withAlt("\x1b[23~");
+  case SDLK_F12:
+    return withAlt("\x1b[24~");
+  default:
+    break;
+  }
+  if (ctrl && sym >= SDLK_a && sym <= SDLK_z) {
+    char c = static_cast<char>((sym - SDLK_a + 1) & 0x1f);
+    return withAlt(std::string(1, c));
+  }
+  if (ctrl) {
+    switch (sym) {
+    case SDLK_SPACE:
+      return withAlt(std::string(1, '\0'));
+    case SDLK_LEFTBRACKET:
+      return withAlt("\x1b");
+    case SDLK_BACKSLASH:
+      return withAlt("\x1c");
+    case SDLK_RIGHTBRACKET:
+      return withAlt("\x1d");
+    case SDLK_6:
+      return withAlt("\x1e");
+    // Don't send Ctrl+/- to terminal - these are reserved for font zoom
+    case SDLK_MINUS:
+    case SDLK_KP_MINUS:
+    case SDLK_EQUALS:
+    case SDLK_PLUS:
+    case SDLK_KP_PLUS:
+      return std::string{}; // Don't send to terminal
+    default:
+      break;
     }
+  }
+  return std::string{};
+}
 
-    void Terminal::leaveAltScreen() {
-        if (!altScreen) return;
-        altScreen = false;
-        ansiLines       = savedLines;
-        ansiLineColors  = savedLineColors;
-        ansiLineIsAscii.assign(ansiLines.size(), 0);
-        ansiLineSoftWrap.assign(ansiLines.size(), 0);
-        for (size_t i = 0; i < ansiLines.size(); ++i) {
-            bool ascii = true;
-            for (unsigned char c : ansiLines[i]) {
-                if (c >= 0x80) { ascii = false; break; }
-            }
-            ansiLineIsAscii[i] = ascii ? 1 : 0;
-        }
-        ansiCursorRow   = savedAltRow;
-        ansiCursorCol   = savedAltCol;
-        ansiCurrentColor= savedAltFg;
-        ansiCurrentBg   = savedAltBg;
-        ansiBold        = savedAltBold;
-        ansiUnderline   = savedAltUnderline;
-        savedLines.clear();
-        savedLineColors.clear();
-        scrollTop = 0;
-        scrollBot = -1;
-        decckm = false;
-        keypadApp = false;
-        syncAnsiToOutput();
-        scroll();
+bool Terminal::handleRawKeyEvent(mxApp &app, SDL_Event &e) {
+  (void)app;
+  if (e.type == SDL_TEXTINPUT) {
+    // Send plain typed text directly to the PTY.
+    writeToPty(e.text.text);
+    return true;
+  }
+  if (e.type == SDL_KEYDOWN) {
+    const Uint16 mod = e.key.keysym.mod;
+    const SDL_Keycode sym = e.key.keysym.sym;
+    // Let SDL_TEXTINPUT deliver printable characters for non-Ctrl/Alt
+    // keypresses so we don't double-send them here.
+    const bool printableKey = (sym >= SDLK_SPACE && sym <= SDLK_z) ||
+                              sym == SDLK_RETURN || sym == SDLK_TAB ||
+                              sym == SDLK_BACKSPACE || sym == SDLK_ESCAPE;
+    const bool needsTranslation =
+        (mod & (KMOD_CTRL | KMOD_ALT)) != 0 || sym == SDLK_UP ||
+        sym == SDLK_DOWN || sym == SDLK_LEFT || sym == SDLK_RIGHT ||
+        sym == SDLK_HOME || sym == SDLK_END || sym == SDLK_PAGEUP ||
+        sym == SDLK_PAGEDOWN || sym == SDLK_INSERT || sym == SDLK_DELETE ||
+        sym == SDLK_RETURN || sym == SDLK_KP_ENTER || sym == SDLK_TAB ||
+        sym == SDLK_BACKSPACE || sym == SDLK_ESCAPE ||
+        (sym >= SDLK_F1 && sym <= SDLK_F12);
+    if (printableKey && !needsTranslation)
+      return false; // wait for SDL_TEXTINPUT
+    std::string seq = keyToPtyBytes(sym, mod);
+    if (!seq.empty()) {
+      writeToPty(seq);
+      return true;
     }
+  }
+  return false;
+}
 
-    std::string Terminal::keyToPtyBytes(SDL_Keycode sym, Uint16 mod) {
-        const bool ctrl  = (mod & KMOD_CTRL)  != 0;
-        const bool alt   = (mod & KMOD_ALT)   != 0;
-        // Build optional ALT prefix (ESC) per xterm convention.
-        auto withAlt = [&](const std::string &s) -> std::string {
-            return alt ? std::string("\x1b") + s : s;
-        };
-        auto cursorSeq = [&](char letter) -> std::string {
-            return withAlt(decckm ? std::string("\x1bO") + letter
-                                  : std::string("\x1b[") + letter);
-        };
-        switch (sym) {
-            case SDLK_RETURN:    return withAlt("\r");
-            case SDLK_KP_ENTER:  return withAlt("\r");
-            case SDLK_TAB:       return withAlt("\t");
-            case SDLK_BACKSPACE: return withAlt("\x7f");
-            case SDLK_ESCAPE:    return std::string("\x1b");
-            case SDLK_UP:        return cursorSeq('A');
-            case SDLK_DOWN:      return cursorSeq('B');
-            case SDLK_RIGHT:     return cursorSeq('C');
-            case SDLK_LEFT:      return cursorSeq('D');
-            case SDLK_HOME:      return withAlt(decckm ? "\x1bOH" : "\x1b[H");
-            case SDLK_END:       return withAlt(decckm ? "\x1bOF" : "\x1b[F");
-            case SDLK_PAGEUP:    return withAlt("\x1b[5~");
-            case SDLK_PAGEDOWN:  return withAlt("\x1b[6~");
-            case SDLK_INSERT:    return withAlt("\x1b[2~");
-            case SDLK_DELETE:    return withAlt("\x1b[3~");
-            case SDLK_F1:        return withAlt("\x1bOP");
-            case SDLK_F2:        return withAlt("\x1bOQ");
-            case SDLK_F3:        return withAlt("\x1bOR");
-            case SDLK_F4:        return withAlt("\x1bOS");
-            case SDLK_F5:        return withAlt("\x1b[15~");
-            case SDLK_F6:        return withAlt("\x1b[17~");
-            case SDLK_F7:        return withAlt("\x1b[18~");
-            case SDLK_F8:        return withAlt("\x1b[19~");
-            case SDLK_F9:        return withAlt("\x1b[20~");
-            case SDLK_F10:       return withAlt("\x1b[21~");
-            case SDLK_F11:       return withAlt("\x1b[23~");
-            case SDLK_F12:       return withAlt("\x1b[24~");
-            default: break;
-        }
-        if (ctrl && sym >= SDLK_a && sym <= SDLK_z) {
-            char c = static_cast<char>((sym - SDLK_a + 1) & 0x1f);
-            return withAlt(std::string(1, c));
-        }
-        if (ctrl) {
-            switch (sym) {
-                case SDLK_SPACE:     return withAlt(std::string(1, '\0'));
-                case SDLK_LEFTBRACKET:  return withAlt("\x1b");
-                case SDLK_BACKSLASH:    return withAlt("\x1c");
-                case SDLK_RIGHTBRACKET: return withAlt("\x1d");
-                case SDLK_6:            return withAlt("\x1e");
-                case SDLK_MINUS:        return withAlt("\x1f");
-                default: break;
-            }
-        }
-        return std::string{};
-    }
+Terminal::Terminal(mxApp &app) : Window(app) {
+  active = true;
+  std::vector<std::string> col =
+      app.config.splitByComma(app.config.itemAtKey("terminal", "color").value);
+  text_color.r = static_cast<unsigned char>(atoi(col[0].c_str()));
+  text_color.g = static_cast<unsigned char>(atoi(col[1].c_str()));
+  text_color.b = static_cast<unsigned char>(atoi(col[2].c_str()));
+  text_color.a = 255;
 
-    bool Terminal::handleRawKeyEvent(mxApp &app, SDL_Event &e) {
-        (void)app;
-        if (e.type == SDL_TEXTINPUT) {
-            // Send plain typed text directly to the PTY.
-            writeToPty(e.text.text);
-            return true;
-        }
-        if (e.type == SDL_KEYDOWN) {
-            const Uint16 mod = e.key.keysym.mod;
-            const SDL_Keycode sym = e.key.keysym.sym;
-            // Let SDL_TEXTINPUT deliver printable characters for non-Ctrl/Alt
-            // keypresses so we don't double-send them here.
-            const bool printableKey =
-                (sym >= SDLK_SPACE && sym <= SDLK_z) || sym == SDLK_RETURN ||
-                sym == SDLK_TAB || sym == SDLK_BACKSPACE || sym == SDLK_ESCAPE;
-            const bool needsTranslation =
-                (mod & (KMOD_CTRL | KMOD_ALT)) != 0 ||
-                sym == SDLK_UP || sym == SDLK_DOWN || sym == SDLK_LEFT || sym == SDLK_RIGHT ||
-                sym == SDLK_HOME || sym == SDLK_END || sym == SDLK_PAGEUP || sym == SDLK_PAGEDOWN ||
-                sym == SDLK_INSERT || sym == SDLK_DELETE ||
-                sym == SDLK_RETURN || sym == SDLK_KP_ENTER ||
-                sym == SDLK_TAB || sym == SDLK_BACKSPACE || sym == SDLK_ESCAPE ||
-                (sym >= SDLK_F1 && sym <= SDLK_F12);
-            if (printableKey && !needsTranslation)
-                return false;  // wait for SDL_TEXTINPUT
-            std::string seq = keyToPtyBytes(sym, mod);
-            if (!seq.empty()) {
-                writeToPty(seq);
-                return true;
-            }
-        }
-        return false;
-    }
+  font_name_ = app.term_font;
+  font_size_ = 18;
+  font = TTF_OpenFont(getPath(font_name_).c_str(), font_size_);
+  if (!font) {
+    mx::system_err << "MasterX System Error: could not load system font.\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
 
-    Terminal::Terminal(mxApp  &app) : Window(app) {
-        active = true;
-        std::vector<std::string> col = app.config.splitByComma(app.config.itemAtKey("terminal", "color").value);
-        text_color.r = static_cast<unsigned char>(atoi(col[0].c_str()));
-        text_color.g = static_cast<unsigned char>(atoi(col[1].c_str()));
-        text_color.b = static_cast<unsigned char>(atoi(col[2].c_str()));
-        text_color.a = 255;
+  Window::setCanResize(true);
 
-        font_name_ = app.term_font;
-        font_size_ = 18;
-        font = TTF_OpenFont(getPath(font_name_).c_str(), font_size_);
-        if(!font) {
-            mx::system_err << "MasterX System Error: could not load system font.\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-
-        Window::setCanResize(true);
-        
-        SDL_Rect rc;
-        Window::getRect(rc);
-        scroll();  
+  SDL_Rect rc;
+  Window::getRect(rc);
+  scroll();
 #ifdef _WIN32
-        SECURITY_ATTRIBUTES saAttr = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
-        if (!CreatePipe(&hChildStdoutRd, &hChildStdoutWr, &saAttr, 0)) {
-            print("Stdout pipe creation failed");
-            return;
-        }
-        if (!CreatePipe(&hChildStdinRd, &hChildStdinWr, &saAttr, 0)) {
-            print("Stdin pipe creation failed");
-            return;
-        }
-        STARTUPINFOA siStartInfo = {sizeof(STARTUPINFO)};
-        siStartInfo.hStdError = hChildStdoutWr;
-        siStartInfo.hStdOutput = hChildStdoutWr;
-        siStartInfo.hStdInput = hChildStdinRd;
-        siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
+  SECURITY_ATTRIBUTES saAttr = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+  if (!CreatePipe(&hChildStdoutRd, &hChildStdoutWr, &saAttr, 0)) {
+    print("Stdout pipe creation failed");
+    return;
+  }
+  if (!CreatePipe(&hChildStdinRd, &hChildStdinWr, &saAttr, 0)) {
+    print("Stdin pipe creation failed");
+    return;
+  }
+  STARTUPINFOA siStartInfo = {sizeof(STARTUPINFO)};
+  siStartInfo.hStdError = hChildStdoutWr;
+  siStartInfo.hStdOutput = hChildStdoutWr;
+  siStartInfo.hStdInput = hChildStdinRd;
+  siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-        std::string command  = "wsl.exe bash";
-        
-        if (!CreateProcessA(NULL, (LPSTR)command.data(), NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &procInfo)) {
-            print("Process creation failed");
-            return;
-        }
+  std::string command = "wsl.exe bash";
 
-        CloseHandle(hChildStdinRd);
-        CloseHandle(hChildStdoutWr);
-        bashThread = CreateThread(NULL, 0, bashReaderThread, this, 0, NULL);
+  if (!CreateProcessA(NULL, (LPSTR)command.data(), NULL, NULL, TRUE, 0, NULL,
+                      NULL, &siStartInfo, &procInfo)) {
+    print("Process creation failed");
+    return;
+  }
 
- #elif !defined(FOR_WASM)
-    if (openpty(&master_fd, &slave_fd, NULL, NULL, NULL) == -1) {
-        perror("Failed to create PTY");
-        exit(1);
+  CloseHandle(hChildStdinRd);
+  CloseHandle(hChildStdoutWr);
+  bashThread = CreateThread(NULL, 0, bashReaderThread, this, 0, NULL);
+
+#elif !defined(FOR_WASM)
+  if (openpty(&master_fd, &slave_fd, NULL, NULL, NULL) == -1) {
+    perror("Failed to create PTY");
+    exit(1);
+  }
+  bashPID = fork();
+  if (bashPID == -1) {
+    perror("Failed to fork bash");
+    exit(1);
+  } else if (bashPID == 0) {
+    close(master_fd);
+    setsid();
+    ioctl(slave_fd, TIOCSCTTY, 0);
+    dup2(slave_fd, STDIN_FILENO);
+    dup2(slave_fd, STDOUT_FILENO);
+    dup2(slave_fd, STDERR_FILENO);
+    close(slave_fd);
+    // Identify ourselves as a real ANSI/xterm-compatible terminal so
+    // full-screen programs (vim, nano, less, top, ...) emit proper
+    // escape sequences instead of falling back to a dumb terminal.
+    setenv("TERM", "xterm-256color", 1);
+    setenv("COLORTERM", "truecolor", 1);
+    unsetenv("LINES");
+    unsetenv("COLUMNS");
+    const char *currentPath = std::getenv("PATH");
+    if (!currentPath ||
+        std::string(currentPath).find("/app/bin") == std::string::npos) {
+      std::string shellPath = "/app/bin";
+      if (currentPath && currentPath[0] != '\0') {
+        shellPath += ':';
+        shellPath += currentPath;
+      } else {
+        shellPath += ":/usr/bin:/bin";
+      }
+      setenv("PATH", shellPath.c_str(), 1);
     }
-    bashPID = fork();
-    if (bashPID == -1) {
-        perror("Failed to fork bash");
-        exit(1);
-    } else if (bashPID == 0) {
-        close(master_fd);  
-        setsid();  
-        ioctl(slave_fd, TIOCSCTTY, 0);  
-        dup2(slave_fd, STDIN_FILENO);
-        dup2(slave_fd, STDOUT_FILENO);
-        dup2(slave_fd, STDERR_FILENO);
-        close(slave_fd);  
-        // Identify ourselves as a real ANSI/xterm-compatible terminal so
-        // full-screen programs (vim, nano, less, top, ...) emit proper
-        // escape sequences instead of falling back to a dumb terminal.
-        setenv("TERM", "xterm-256color", 1);
-        setenv("COLORTERM", "truecolor", 1);
-        unsetenv("LINES");
-        unsetenv("COLUMNS");
-        const char *currentPath = std::getenv("PATH");
-        if (!currentPath || std::string(currentPath).find("/app/bin") == std::string::npos) {
-            std::string shellPath = "/app/bin";
-            if (currentPath && currentPath[0] != '\0') {
-                shellPath += ':';
-                shellPath += currentPath;
-            } else {
-                shellPath += ":/usr/bin:/bin";
-            }
-            setenv("PATH", shellPath.c_str(), 1);
-        }
-        // Set PS1 via the environment so bash's *first* prompt already
-        // uses our format -- avoids the double-prompt that resulted from
-        // running an `export PS1=...` line after bash had already drawn
-        // its default prompt.
-        setenv("PS1", "\\u@\\h:\\W\\$ ", 1);
-        execlp("bash", "bash", NULL);
-        perror("Failed to exec bash");
-        exit(1);
-    } else {
-        close(slave_fd);
-        // Push initial PTY window size so child knows our cell grid.
-        updatePtySize();
-    }
-    bashThread = SDL_CreateThread(bashReaderThread, "bashReaderThread", this);
-    #endif
-    }
+    // Set PS1 via the environment so bash's *first* prompt already
+    // uses our format -- avoids the double-prompt that resulted from
+    // running an `export PS1=...` line after bash had already drawn
+    // its default prompt.
+    setenv("PS1", "\\u@\\h:\\W\\$ ", 1);
+    execlp("bash", "bash", NULL);
+    perror("Failed to exec bash");
+    exit(1);
+  } else {
+    close(slave_fd);
+    // Push initial PTY window size so child knows our cell grid.
+    updatePtySize();
+  }
+  bashThread = SDL_CreateThread(bashReaderThread, "bashReaderThread", this);
+#endif
+}
 
-     void Terminal::setWallpaper(SDL_Texture *tex) {
-        wallpaper = tex;
-     }
+void Terminal::setWallpaper(SDL_Texture *tex) { wallpaper = tex; }
 
-    bool Terminal::cycleWallpaper(mxApp &app) {
-        if (!wallpaperCycleInit_) {
-            wallpaperCycleInit_ = true;
-            const std::string bgCsv = app.config.itemAtKey("desktop", "backgrounds").value;
-            std::vector<std::string> paths = app.config.splitByComma(bgCsv);
-            for (std::string path : paths) {
-                while (!path.empty() && std::isspace(static_cast<unsigned char>(path.front()))) {
-                    path.erase(path.begin());
-                }
-                while (!path.empty() && std::isspace(static_cast<unsigned char>(path.back()))) {
-                    path.pop_back();
-                }
-                if (path.empty()) {
-                    continue;
-                }
-                SDL_Texture *tex = loadTexture(app, path);
-                if (tex) {
-                    wallpaperCycle_.push_back(tex);
-                }
-            }
-
-            SDL_Texture *current = nullptr;
-            if (dim && dim->wallpaper) {
-                current = dim->wallpaper;
-            } else if (wallpaper) {
-                current = wallpaper;
-            }
-            if (current) {
-                for (size_t i = 0; i < wallpaperCycle_.size(); ++i) {
-                    if (wallpaperCycle_[i] == current) {
-                        wallpaperCycleIndex_ = i;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (wallpaperCycle_.empty()) {
-            return false;
-        }
-
-        wallpaperCycleIndex_ = (wallpaperCycleIndex_ + 1) % wallpaperCycle_.size();
-        SDL_Texture *next = wallpaperCycle_[wallpaperCycleIndex_];
-        if (!next) {
-            return false;
-        }
-
-        if (dim) {
-            dim->wallpaper = next;
-            for (auto &obj : dim->objects) {
-                if (auto *tabs = dynamic_cast<TerminalTabs *>(obj.get())) {
-                    tabs->setWallpaper(next);
-                }
-            }
-        }
-        setWallpaper(next);
-        return true;
+bool Terminal::cycleWallpaper(mxApp &app) {
+  if (!wallpaperCycleInit_) {
+    wallpaperCycleInit_ = true;
+    const std::string bgCsv =
+        app.config.itemAtKey("desktop", "backgrounds").value;
+    std::vector<std::string> paths = app.config.splitByComma(bgCsv);
+    for (std::string path : paths) {
+      while (!path.empty() &&
+             std::isspace(static_cast<unsigned char>(path.front()))) {
+        path.erase(path.begin());
+      }
+      while (!path.empty() &&
+             std::isspace(static_cast<unsigned char>(path.back()))) {
+        path.pop_back();
+      }
+      if (path.empty()) {
+        continue;
+      }
+      SDL_Texture *tex = loadTexture(app, path);
+      if (tex) {
+        wallpaperCycle_.push_back(tex);
+      }
     }
 
-    void Terminal::pasteFromClipboard() {
+    SDL_Texture *current = nullptr;
+    if (dim && dim->wallpaper) {
+      current = dim->wallpaper;
+    } else if (wallpaper) {
+      current = wallpaper;
+    }
+    if (current) {
+      for (size_t i = 0; i < wallpaperCycle_.size(); ++i) {
+        if (wallpaperCycle_[i] == current) {
+          wallpaperCycleIndex_ = i;
+          break;
+        }
+      }
+    }
+  }
+
+  if (wallpaperCycle_.empty()) {
+    return false;
+  }
+
+  wallpaperCycleIndex_ = (wallpaperCycleIndex_ + 1) % wallpaperCycle_.size();
+  SDL_Texture *next = wallpaperCycle_[wallpaperCycleIndex_];
+  if (!next) {
+    return false;
+  }
+
+  if (dim) {
+    dim->wallpaper = next;
+    for (auto &obj : dim->objects) {
+      if (auto *tabs = dynamic_cast<TerminalTabs *>(obj.get())) {
+        tabs->setWallpaper(next);
+      }
+    }
+  }
+  setWallpaper(next);
+  return true;
+}
+
+void Terminal::pasteFromClipboard() {
 #ifdef FOR_WASM
-        EM_ASM({
-            navigator.clipboard.readText().then(function(text) {
-                if (text && text.length > 0) {
-                    var cleanText = text.split(String.fromCharCode(13)).join("").split(String.fromCharCode(10)).join("");
-                    Module.ccall('terminalPasteText', null, ['string'], [cleanText]);
-                }
-            }).catch(function(err) {
-                console.log('Clipboard read failed:', err);
-            });
-        });
+  EM_ASM({
+    navigator.clipboard.readText()
+        .then(function(text) {
+          if (text && text.length > 0) {
+            var cleanText = text.split(String.fromCharCode(13))
+                                .join("")
+                                .split(String.fromCharCode(10))
+                                .join("");
+            Module.ccall('terminalPasteText', null, ['string'], [cleanText]);
+          }
+        })
+        .catch(function(err) { console.log('Clipboard read failed:', err); });
+  });
 #else
-        char* clipboardText = SDL_GetClipboardText();
-        if (clipboardText && clipboardText[0] != '\0') {
-            std::string pasteText(clipboardText);
+  char *clipboardText = SDL_GetClipboardText();
+  if (clipboardText && clipboardText[0] != '\0') {
+    std::string pasteText(clipboardText);
 #if defined(__linux__) || defined(__APPLE__)
-            // PTY raw mode: send directly to the shell. Normalize CRLF/CR
-            // to LF so multi-line pastes are interpreted as Enter presses
-            // by the running program (just like xterm/gnome-terminal).
-            if (master_fd > 0 && !waitingForInput) {
-                std::string normalized;
-                normalized.reserve(pasteText.size());
-                for (size_t i = 0; i < pasteText.size(); ++i) {
-                    char c = pasteText[i];
-                    if (c == '\r') {
-                        normalized.push_back('\n');
-                        if (i + 1 < pasteText.size() && pasteText[i + 1] == '\n')
-                            ++i; // skip LF of CRLF
-                    } else {
-                        normalized.push_back(c);
-                    }
-                }
-                writeToPty(normalized);
-                SDL_free(clipboardText);
-                return;
-            }
+    // PTY raw mode: send directly to the shell. Normalize CRLF/CR
+    // to LF so multi-line pastes are interpreted as Enter presses
+    // by the running program (just like xterm/gnome-terminal).
+    if (master_fd > 0 && !waitingForInput) {
+      std::string normalized;
+      normalized.reserve(pasteText.size());
+      for (size_t i = 0; i < pasteText.size(); ++i) {
+        char c = pasteText[i];
+        if (c == '\r') {
+          normalized.push_back('\n');
+          if (i + 1 < pasteText.size() && pasteText[i + 1] == '\n')
+            ++i; // skip LF of CRLF
+        } else {
+          normalized.push_back(c);
+        }
+      }
+      writeToPty(normalized);
+      SDL_free(clipboardText);
+      return;
+    }
 #elif defined(_WIN32)
-            // Windows: send to child stdin if a PTY-style pipe exists.
-            if (hChildStdinWr != INVALID_HANDLE_VALUE && !waitingForInput) {
-                std::string normalized;
-                normalized.reserve(pasteText.size());
-                for (size_t i = 0; i < pasteText.size(); ++i) {
-                    char c = pasteText[i];
-                    if (c == '\r') {
-                        normalized.push_back('\r');
-                        normalized.push_back('\n');
-                        if (i + 1 < pasteText.size() && pasteText[i + 1] == '\n')
-                            ++i;
-                    } else if (c == '\n') {
-                        normalized.push_back('\r');
-                        normalized.push_back('\n');
-                    } else {
-                        normalized.push_back(c);
-                    }
-                }
-                writeToPty(normalized);
-                SDL_free(clipboardText);
-                return;
-            }
-#endif
-            // Cooked / built-in input() mode fallback: edit local buffer.
-            for (char c : pasteText) {
-                if (c != '\r' && c != '\n') {
-                    inputText.insert(cursorPosition, 1, c);
-                    cursorPosition++;
-                }
-            }
-            scroll();
+    // Windows: send to child stdin if a PTY-style pipe exists.
+    if (hChildStdinWr != INVALID_HANDLE_VALUE && !waitingForInput) {
+      std::string normalized;
+      normalized.reserve(pasteText.size());
+      for (size_t i = 0; i < pasteText.size(); ++i) {
+        char c = pasteText[i];
+        if (c == '\r') {
+          normalized.push_back('\r');
+          normalized.push_back('\n');
+          if (i + 1 < pasteText.size() && pasteText[i + 1] == '\n')
+            ++i;
+        } else if (c == '\n') {
+          normalized.push_back('\r');
+          normalized.push_back('\n');
+        } else {
+          normalized.push_back(c);
         }
-        SDL_free(clipboardText);
-#endif
+      }
+      writeToPty(normalized);
+      SDL_free(clipboardText);
+      return;
     }
+#endif
+    // Cooked / built-in input() mode fallback: edit local buffer.
+    for (char c : pasteText) {
+      if (c != '\r' && c != '\n') {
+        inputText.insert(cursorPosition, 1, c);
+        cursorPosition++;
+      }
+    }
+    scroll();
+  }
+  SDL_free(clipboardText);
+#endif
+}
 
-    void Terminal::copyToClipboard() {
-        if (hasSelection) {
-            copySelectionToClipboard();
-            return;
-        }
+void Terminal::copyToClipboard() {
+  if (hasSelection) {
+    copySelectionToClipboard();
+    return;
+  }
 #ifdef FOR_WASM
-        std::string allText = orig_text;
-        EM_ASM({
-            var text = UTF8ToString($0);
-            navigator.clipboard.writeText(text).then(function() {
-                console.log('Copied to clipboard');
-            }).catch(function(err) {
-                console.log('Clipboard write failed:', err);
-            });
-        }, allText.c_str());
+  std::string allText = orig_text;
+  EM_ASM(
+      {
+        var text = UTF8ToString($0);
+        navigator.clipboard.writeText(text)
+            .then(function() { console.log('Copied to clipboard'); })
+            .catch(
+                function(err) { console.log('Clipboard write failed:', err); });
+      },
+      allText.c_str());
 #else
-        SDL_SetClipboardText(orig_text.c_str());
+  SDL_SetClipboardText(orig_text.c_str());
 #endif
+}
+
+void Terminal::insertText(const std::string &text) {
+  for (char c : text) {
+    if (c != '\r' && c != '\n') {
+      inputText.insert(cursorPosition, 1, c);
+      cursorPosition++;
     }
+  }
+  scroll();
+}
 
-    void Terminal::insertText(const std::string &text) {
-        for (char c : text) {
-            if (c != '\r' && c != '\n') {
-                inputText.insert(cursorPosition, 1, c);
-                cursorPosition++;
-            }
-        }
-        scroll();
-    }
+bool Terminal::setFontSize(int size) {
+  if (size < kMinFontSize)
+    size = kMinFontSize;
+  if (size > kMaxFontSize)
+    size = kMaxFontSize;
+  if (size == font_size_)
+    return false;
 
-    bool Terminal::setFontSize(int size) {
-        if (size < kMinFontSize) size = kMinFontSize;
-        if (size > kMaxFontSize) size = kMaxFontSize;
-        if (size == font_size_) return false;
+  TTF_Font *newFont = TTF_OpenFont(getPath(font_name_).c_str(), size);
+  if (!newFont) {
+    mx::system_err << "MasterX System Error: could not resize terminal font to "
+                   << size << "\n";
+    mx::system_err.flush();
+    return false;
+  }
 
-        TTF_Font *newFont = TTF_OpenFont(getPath(font_name_).c_str(), size);
-        if (!newFont) {
-            mx::system_err << "MasterX System Error: could not resize terminal font to " << size << "\n";
-            mx::system_err.flush();
-            return false;
-        }
+  if (font) {
+    TTF_CloseFont(font);
+  }
+  font = newFont;
+  font_size_ = size;
+  clearRunCache();
+  scroll();
+  updatePtySize();
+  return true;
+}
 
-        if (font) {
-            TTF_CloseFont(font);
-        }
-        font = newFont;
-        font_size_ = size;
-        clearRunCache();
-        scroll();
-        updatePtySize();
-        return true;
-    }
+bool Terminal::adjustFontSize(int delta) {
+  if (delta == 0)
+    return false;
+  return setFontSize(font_size_ + delta);
+}
 
-    bool Terminal::adjustFontSize(int delta) {
-        if (delta == 0) return false;
-        return setFontSize(font_size_ + delta);
-    }
+SDL_Rect Terminal::textViewportRect() const {
+  SDL_Rect rc;
+  const_cast<Terminal *>(this)->Window::getRect(rc);
 
-    SDL_Rect Terminal::textViewportRect() const {
-        SDL_Rect rc;
-        const_cast<Terminal*>(this)->Window::getRect(rc);
+  // Terminal content excludes the title strip and keeps a 5px text pad.
+  rc.y += 28;
+  rc.h -= 28;
+  if (rc.h < 0)
+    rc.h = 0;
 
-        // Terminal content excludes the title strip and keeps a 5px text pad.
-        rc.y += 28;
-        rc.h -= 28;
-        if (rc.h < 0) rc.h = 0;
+  SDL_Rect vp{rc.x + 5, rc.y + 5, rc.w - 10 - scrollBarWidth, rc.h - 10};
+  if (vp.w < 1)
+    vp.w = 1;
+  if (vp.h < 1)
+    vp.h = 1;
+  return vp;
+}
 
-        SDL_Rect vp{rc.x + 5, rc.y + 5, rc.w - 10 - scrollBarWidth, rc.h - 10};
-        if (vp.w < 1) vp.w = 1;
-        if (vp.h < 1) vp.h = 1;
-        return vp;
-    }
-
-    bool Terminal::pointToCell(int px, int py, int &row, int &col) const {
-        if (!font) return false;
-        SDL_Rect viewport = textViewportRect();
-        if (px < viewport.x || px >= viewport.x + viewport.w) return false;
-        if (py < viewport.y || py >= viewport.y + viewport.h) return false;
-        int lineH = TTF_FontHeight(const_cast<TTF_Font*>(font));
-        if (lineH <= 0) lineH = 16;
-        int cellW = 0;
-        TTF_SizeText(const_cast<TTF_Font*>(font), "M", &cellW, nullptr);
-        if (cellW <= 0) cellW = 8;
-        int relY = py - viewport.y;
-        int relX = px - viewport.x;
-        if (relY < 0) relY = 0;
-        if (relX < 0) relX = 0;
-        int visibleRow = relY / lineH;
-        int absCol = relX / cellW;
-        if (absCol < 0) absCol = 0;
-        int maxWidth = viewport.w;
+bool Terminal::pointToCell(int px, int py, int &row, int &col) const {
+  if (!font)
+    return false;
+  SDL_Rect viewport = textViewportRect();
+  if (px < viewport.x || px >= viewport.x + viewport.w)
+    return false;
+  if (py < viewport.y || py >= viewport.y + viewport.h)
+    return false;
+  int lineH = TTF_FontHeight(const_cast<TTF_Font *>(font));
+  if (lineH <= 0)
+    lineH = 16;
+  int cellW = 0;
+  TTF_SizeText(const_cast<TTF_Font *>(font), "M", &cellW, nullptr);
+  if (cellW <= 0)
+    cellW = 8;
+  int relY = py - viewport.y;
+  int relX = px - viewport.x;
+  if (relY < 0)
+    relY = 0;
+  if (relX < 0)
+    relX = 0;
+  int visibleRow = relY / lineH;
+  int absCol = relX / cellW;
+  if (absCol < 0)
+    absCol = 0;
+  int maxWidth = viewport.w;
 
 #ifdef FOR_WASM
-        if (!hasInlineSelectableInput()) {
-            std::vector<std::string> inputLines = buildSelectableInputLines(maxWidth);
-            if (!inputLines.empty()) {
-                int outputRows = visibleOutputRowCapacity(lineH, maxWidth);
-                if (visibleRow >= outputRows) {
-                    int inputRow = visibleRow - outputRows;
-                    if (inputRow < 0) inputRow = 0;
-                    if (inputRow >= static_cast<int>(inputLines.size()))
-                        inputRow = static_cast<int>(inputLines.size()) - 1;
-                    row = static_cast<int>(outputLines.size()) + inputRow;
-                    col = absCol;
-                    return true;
-                }
-            }
-        }
-#endif
-
-        int absRow = visibleRow + (altScreen ? 0 : scrollOffset);
-        int total = selectableLineCount(maxWidth);
-        if (total == 0) return false;
-        if (absRow < 0) absRow = 0;
-        if (absRow >= total) absRow = total - 1;
-        row = absRow;
+  if (!hasInlineSelectableInput()) {
+    std::vector<std::string> inputLines = buildSelectableInputLines(maxWidth);
+    if (!inputLines.empty()) {
+      int outputRows = visibleOutputRowCapacity(lineH, maxWidth);
+      if (visibleRow >= outputRows) {
+        int inputRow = visibleRow - outputRows;
+        if (inputRow < 0)
+          inputRow = 0;
+        if (inputRow >= static_cast<int>(inputLines.size()))
+          inputRow = static_cast<int>(inputLines.size()) - 1;
+        row = static_cast<int>(outputLines.size()) + inputRow;
         col = absCol;
         return true;
+      }
     }
+  }
+#endif
 
-    bool Terminal::hasInlineSelectableInput() const {
+  int absRow = visibleRow + (altScreen ? 0 : scrollOffset);
+  int total = selectableLineCount(maxWidth);
+  if (total == 0)
+    return false;
+  if (absRow < 0)
+    absRow = 0;
+  if (absRow >= total)
+    absRow = total - 1;
+  row = absRow;
+  col = absCol;
+  return true;
+}
+
+bool Terminal::hasInlineSelectableInput() const {
 #ifdef FOR_WASM
-        return waitingForInput && !orig_text.empty() && orig_text.back() != '\n';
+  return waitingForInput && !orig_text.empty() && orig_text.back() != '\n';
 #else
-        return false;
+  return false;
 #endif
+}
+
+std::vector<std::string>
+Terminal::buildSelectableInputLines(int maxWidth) const {
+  std::vector<std::string> lines;
+#ifdef FOR_WASM
+  if (hasInlineSelectableInput())
+    return lines;
+  if (!font) {
+    lines.push_back((waitingForInput ? "" : prompt) + inputText);
+    return lines;
+  }
+
+  const int margin = 5;
+  int availableWidth = maxWidth - margin * 2;
+  if (availableWidth < 1)
+    availableWidth = 1;
+
+  auto appendWrappedLine = [&](const std::string &prefix,
+                               const std::string &text) {
+    int prefixWidth = 0;
+    TTF_SizeText(const_cast<TTF_Font *>(font), prefix.c_str(), &prefixWidth,
+                 nullptr);
+
+    if (text.empty()) {
+      lines.push_back(prefix);
+      return;
     }
 
-    std::vector<std::string> Terminal::buildSelectableInputLines(int maxWidth) const {
-        std::vector<std::string> lines;
-#ifdef FOR_WASM
-        if (hasInlineSelectableInput()) return lines;
-        if (!font) {
-            lines.push_back((waitingForInput ? "" : prompt) + inputText);
-            return lines;
+    size_t pos = 0;
+    bool firstVisualLine = true;
+    while (pos < text.size()) {
+      std::string chunk;
+      int currentWidth = 0;
+      int lineWidth =
+          firstVisualLine ? availableWidth - prefixWidth : availableWidth;
+      if (lineWidth < 1)
+        lineWidth = 1;
+
+      while (pos < text.size()) {
+        std::string testChunk = chunk + text[pos];
+        TTF_SizeText(const_cast<TTF_Font *>(font), testChunk.c_str(),
+                     &currentWidth, nullptr);
+        if (currentWidth > lineWidth) {
+          if (chunk.empty()) {
+            chunk += text[pos++];
+          }
+          break;
         }
+        chunk = std::move(testChunk);
+        ++pos;
+      }
 
-        const int margin = 5;
-        int availableWidth = maxWidth - margin * 2;
-        if (availableWidth < 1) availableWidth = 1;
+      lines.push_back(firstVisualLine ? prefix + chunk : chunk);
+      firstVisualLine = false;
+    }
+  };
 
-        auto appendWrappedLine = [&](const std::string &prefix, const std::string &text) {
-            int prefixWidth = 0;
-            TTF_SizeText(const_cast<TTF_Font*>(font), prefix.c_str(), &prefixWidth, nullptr);
+  if (inputText.find('\n') != std::string::npos) {
+    bool firstLogicalLine = true;
+    size_t pos = 0;
+    while (true) {
+      size_t next = inputText.find('\n', pos);
+      std::string segment = (next == std::string::npos)
+                                ? inputText.substr(pos)
+                                : inputText.substr(pos, next - pos);
+      appendWrappedLine(firstLogicalLine ? (waitingForInput ? "" : prompt)
+                                         : continuationPrompt,
+                        segment);
+      if (next == std::string::npos)
+        break;
+      pos = next + 1;
+      firstLogicalLine = false;
+    }
+  } else {
+    appendWrappedLine(waitingForInput ? "" : prompt, inputText);
+  }
 
-            if (text.empty()) {
-                lines.push_back(prefix);
-                return;
-            }
-
-            size_t pos = 0;
-            bool firstVisualLine = true;
-            while (pos < text.size()) {
-                std::string chunk;
-                int currentWidth = 0;
-                int lineWidth = firstVisualLine ? availableWidth - prefixWidth : availableWidth;
-                if (lineWidth < 1) lineWidth = 1;
-
-                while (pos < text.size()) {
-                    std::string testChunk = chunk + text[pos];
-                    TTF_SizeText(const_cast<TTF_Font*>(font), testChunk.c_str(), &currentWidth, nullptr);
-                    if (currentWidth > lineWidth) {
-                        if (chunk.empty()) {
-                            chunk += text[pos++];
-                        }
-                        break;
-                    }
-                    chunk = std::move(testChunk);
-                    ++pos;
-                }
-
-                lines.push_back(firstVisualLine ? prefix + chunk : chunk);
-                firstVisualLine = false;
-            }
-        };
-
-        if (inputText.find('\n') != std::string::npos) {
-            bool firstLogicalLine = true;
-            size_t pos = 0;
-            while (true) {
-                size_t next = inputText.find('\n', pos);
-                std::string segment = (next == std::string::npos)
-                    ? inputText.substr(pos)
-                    : inputText.substr(pos, next - pos);
-                appendWrappedLine(firstLogicalLine ? (waitingForInput ? "" : prompt) : continuationPrompt,
-                                  segment);
-                if (next == std::string::npos) break;
-                pos = next + 1;
-                firstLogicalLine = false;
-            }
-        } else {
-            appendWrappedLine(waitingForInput ? "" : prompt, inputText);
-        }
-
-        if (lines.empty()) {
-            lines.push_back(waitingForInput ? "" : prompt);
-        }
+  if (lines.empty()) {
+    lines.push_back(waitingForInput ? "" : prompt);
+  }
 #else
-        (void)maxWidth;
+  (void)maxWidth;
 #endif
-        return lines;
-    }
+  return lines;
+}
 
-    std::string Terminal::selectableLineText(int row, int maxWidth) const {
-        if (row < 0) return "";
+std::string Terminal::selectableLineText(int row, int maxWidth) const {
+  if (row < 0)
+    return "";
 
-        const int outputCount = static_cast<int>(outputLines.size());
-        if (row < outputCount) {
+  const int outputCount = static_cast<int>(outputLines.size());
+  if (row < outputCount) {
 #ifdef FOR_WASM
-            if (hasInlineSelectableInput() && row == outputCount - 1) {
-                return outputLines[row] + inputText;
-            }
+    if (hasInlineSelectableInput() && row == outputCount - 1) {
+      return outputLines[row] + inputText;
+    }
 #endif
-            return outputLines[row];
-        }
+    return outputLines[row];
+  }
 
-        std::vector<std::string> inputLines = buildSelectableInputLines(maxWidth);
-        int inputRow = row - outputCount;
-        if (inputRow < 0 || inputRow >= static_cast<int>(inputLines.size())) return "";
-        return inputLines[inputRow];
-    }
+  std::vector<std::string> inputLines = buildSelectableInputLines(maxWidth);
+  int inputRow = row - outputCount;
+  if (inputRow < 0 || inputRow >= static_cast<int>(inputLines.size()))
+    return "";
+  return inputLines[inputRow];
+}
 
-    int Terminal::selectableLineCount(int maxWidth) const {
-        return static_cast<int>(outputLines.size()) + static_cast<int>(buildSelectableInputLines(maxWidth).size());
-    }
+int Terminal::selectableLineCount(int maxWidth) const {
+  return static_cast<int>(outputLines.size()) +
+         static_cast<int>(buildSelectableInputLines(maxWidth).size());
+}
 
-    int Terminal::visibleOutputRowCapacity(int lineHeight, int maxWidth) const {
-        if (lineHeight <= 0) return 0;
+int Terminal::visibleOutputRowCapacity(int lineHeight, int maxWidth) const {
+  if (lineHeight <= 0)
+    return 0;
 
-        SDL_Rect viewport = textViewportRect();
-        if (viewport.h < lineHeight) return 0;
+  SDL_Rect viewport = textViewportRect();
+  if (viewport.h < lineHeight)
+    return 0;
 
 #ifdef FOR_WASM
-        if (!hasInlineSelectableInput()) {
-            int inputRows = static_cast<int>(buildSelectableInputLines(maxWidth).size());
-            if (inputRows < 1) inputRows = 1;
-            int capacity = viewport.h / lineHeight - inputRows;
-            if (capacity < 0) capacity = 0;
-            // Number of output rows that draw() will actually render.
-            int available = static_cast<int>(outputLines.size()) - scrollOffset;
-            if (available < 0) available = 0;
-            int drawn = available < capacity ? available : capacity;
-            if (drawn < 0) drawn = 0;
-            return drawn;
-        }
+  if (!hasInlineSelectableInput()) {
+    int inputRows =
+        static_cast<int>(buildSelectableInputLines(maxWidth).size());
+    if (inputRows < 1)
+      inputRows = 1;
+    int capacity = viewport.h / lineHeight - inputRows;
+    if (capacity < 0)
+      capacity = 0;
+    // Number of output rows that draw() will actually render.
+    int available = static_cast<int>(outputLines.size()) - scrollOffset;
+    if (available < 0)
+      available = 0;
+    int drawn = available < capacity ? available : capacity;
+    if (drawn < 0)
+      drawn = 0;
+    return drawn;
+  }
 #endif
-        (void)maxWidth;
-        int visibleRows = viewport.h / lineHeight;
-        if (visibleRows < 1) visibleRows = 1;
-        return visibleRows;
-    }
+  (void)maxWidth;
+  int visibleRows = viewport.h / lineHeight;
+  if (visibleRows < 1)
+    visibleRows = 1;
+  return visibleRows;
+}
 
-    void Terminal::normalizedSelection(int &r0, int &c0, int &r1, int &c1) const {
-        r0 = selAnchorRow; c0 = selAnchorCol;
-        r1 = selFocusRow;  c1 = selFocusCol;
-        if (r1 < r0 || (r1 == r0 && c1 < c0)) {
-            std::swap(r0, r1);
-            std::swap(c0, c1);
-        }
-    }
+void Terminal::normalizedSelection(int &r0, int &c0, int &r1, int &c1) const {
+  r0 = selAnchorRow;
+  c0 = selAnchorCol;
+  r1 = selFocusRow;
+  c1 = selFocusCol;
+  if (r1 < r0 || (r1 == r0 && c1 < c0)) {
+    std::swap(r0, r1);
+    std::swap(c0, c1);
+  }
+}
 
-    std::string Terminal::getSelectedText() const {
-        if (!hasSelection) return "";
-        int r0, c0, r1, c1;
-        normalizedSelection(r0, c0, r1, c1);
-        std::string out;
-        SDL_Rect viewport = textViewportRect();
-        int maxWidth = viewport.w;
-        int total = selectableLineCount(maxWidth);
-        for (int r = r0; r <= r1 && r < total; ++r) {
-            std::string line = selectableLineText(r, maxWidth);
-            int len = static_cast<int>(line.size());
-            int startC = (r == r0) ? c0 : 0;
-            int endC   = (r == r1) ? c1 : len;
-            if (startC < 0) startC = 0;
-            if (endC > len) endC = len;
-            if (startC < endC)
-                out.append(line, startC, endC - startC);
-            if (r != r1) out.push_back('\n');
-        }
-        return out;
-    }
+std::string Terminal::getSelectedText() const {
+  if (!hasSelection)
+    return "";
+  int r0, c0, r1, c1;
+  normalizedSelection(r0, c0, r1, c1);
+  std::string out;
+  SDL_Rect viewport = textViewportRect();
+  int maxWidth = viewport.w;
+  int total = selectableLineCount(maxWidth);
+  for (int r = r0; r <= r1 && r < total; ++r) {
+    std::string line = selectableLineText(r, maxWidth);
+    int len = static_cast<int>(line.size());
+    int startC = (r == r0) ? c0 : 0;
+    int endC = (r == r1) ? c1 : len;
+    if (startC < 0)
+      startC = 0;
+    if (endC > len)
+      endC = len;
+    if (startC < endC)
+      out.append(line, startC, endC - startC);
+    if (r != r1)
+      out.push_back('\n');
+  }
+  return out;
+}
 
-    void Terminal::copySelectionToClipboard() {
-        std::string sel = getSelectedText();
-        if (sel.empty()) return;
+void Terminal::copySelectionToClipboard() {
+  std::string sel = getSelectedText();
+  if (sel.empty())
+    return;
 #ifdef FOR_WASM
-        EM_ASM({
-            var text = UTF8ToString($0);
-            navigator.clipboard.writeText(text).then(function() {}).catch(function(err) {});
-        }, sel.c_str());
+  EM_ASM(
+      {
+        var text = UTF8ToString($0);
+        navigator.clipboard.writeText(text)
+            .then(function(){})
+            .catch(function(err){});
+      },
+      sel.c_str());
 #else
-        SDL_SetClipboardText(sel.c_str());
+  SDL_SetClipboardText(sel.c_str());
 #endif
-    }
+}
 
-    void Terminal::clearSelection() {
-        selecting = false;
-        hasSelection = false;
-        selAnchorRow = selAnchorCol = 0;
-        selFocusRow  = selFocusCol  = 0;
-    }
+void Terminal::clearSelection() {
+  selecting = false;
+  hasSelection = false;
+  selAnchorRow = selAnchorCol = 0;
+  selFocusRow = selFocusCol = 0;
+}
 
-    void Terminal::drawSelection(mxApp &app, const SDL_Rect &viewport, int lineHeight, int cellW) {
-        if (!hasSelection) return;
-        int r0, c0, r1, c1;
-        normalizedSelection(r0, c0, r1, c1);
-        int maxWidth = viewport.w;
-        int total = selectableLineCount(maxWidth);
-        int outputCount = static_cast<int>(outputLines.size());
-        int baseRow = altScreen ? 0 : scrollOffset;
-        int inputBaseRow = visibleOutputRowCapacity(lineHeight, maxWidth);
-        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(app.ren, 100, 100,200, 110);
-        for (int r = r0; r <= r1 && r < total; ++r) {
-            int y = 0;
-            if (r < outputCount) {
-                int screenRow = r - baseRow;
-                if (screenRow < 0) continue;
-                y = viewport.y + screenRow * lineHeight;
-            } else {
-                int inputRow = r - outputCount;
-                y = viewport.y + (inputBaseRow + inputRow) * lineHeight;
-            }
-            if (y + lineHeight <= viewport.y) continue;
-            if (y >= viewport.y + viewport.h) break;
-            std::string line = selectableLineText(r, maxWidth);
-            int lineLen = static_cast<int>(line.size());
-            int startC = (r == r0) ? c0 : 0;
-            int endC   = (r == r1) ? c1 : lineLen;
-            if (startC < 0) startC = 0;
-            if (endC < startC) endC = startC;
-            if (r != r1 && endC == startC) endC = startC + 1; // visual hint for empty lines mid-selection
-            int x = viewport.x + startC * cellW;
-            int w = (endC - startC) * cellW;
-            if (w < 1) w = 1;
-            SDL_Rect sr{ x, y, w, lineHeight };
-            SDL_RenderFillRect(app.ren, &sr);
-        }
-        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
+void Terminal::drawSelection(mxApp &app, const SDL_Rect &viewport,
+                             int lineHeight, int cellW) {
+  if (!hasSelection)
+    return;
+  int r0, c0, r1, c1;
+  normalizedSelection(r0, c0, r1, c1);
+  int maxWidth = viewport.w;
+  int total = selectableLineCount(maxWidth);
+  int outputCount = static_cast<int>(outputLines.size());
+  int baseRow = altScreen ? 0 : scrollOffset;
+  int inputBaseRow = visibleOutputRowCapacity(lineHeight, maxWidth);
+  SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(app.ren, 100, 100, 200, 110);
+  for (int r = r0; r <= r1 && r < total; ++r) {
+    int y = 0;
+    if (r < outputCount) {
+      int screenRow = r - baseRow;
+      if (screenRow < 0)
+        continue;
+      y = viewport.y + screenRow * lineHeight;
+    } else {
+      int inputRow = r - outputCount;
+      y = viewport.y + (inputBaseRow + inputRow) * lineHeight;
     }
+    if (y + lineHeight <= viewport.y)
+      continue;
+    if (y >= viewport.y + viewport.h)
+      break;
+    std::string line = selectableLineText(r, maxWidth);
+    int lineLen = static_cast<int>(line.size());
+    int startC = (r == r0) ? c0 : 0;
+    int endC = (r == r1) ? c1 : lineLen;
+    if (startC < 0)
+      startC = 0;
+    if (endC < startC)
+      endC = startC;
+    if (r != r1 && endC == startC)
+      endC = startC + 1; // visual hint for empty lines mid-selection
+    int x = viewport.x + startC * cellW;
+    int w = (endC - startC) * cellW;
+    if (w < 1)
+      w = 1;
+    SDL_Rect sr{x, y, w, lineHeight};
+    SDL_RenderFillRect(app.ren, &sr);
+  }
+  SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
+}
 
-    std::string Terminal::getInput() {
-        waitingForInput = true;
-        inputResult.clear();
-        
+std::string Terminal::getInput() {
+  waitingForInput = true;
+  inputResult.clear();
+
 #ifdef FOR_WASM
-        scroll();
-        forceFrameRender();
-        
-        while (waitingForInput) {
-            forceFrameRender();
-            emscripten_sleep(16);
-        }
+  scroll();
+  forceFrameRender();
+
+  while (waitingForInput) {
+    forceFrameRender();
+    emscripten_sleep(16);
+  }
 #else
-        std::unique_lock<std::mutex> lock(inputMutex);
-        inputCondition.wait(lock, [this]() { return !waitingForInput; });
+  std::unique_lock<std::mutex> lock(inputMutex);
+  inputCondition.wait(lock, [this]() { return !waitingForInput; });
 #endif
-        
-        return inputResult;
+
+  return inputResult;
+}
+
+void Terminal::sendCommand(const std::string &cmd) {
+#if defined(__linux__) || defined(__APPLE__)
+  int bytes = 0;
+  while (bytes < static_cast<int>(cmd.size())) {
+    int wrote = write(master_fd, cmd.c_str(), cmd.size());
+    if (wrote < 0) {
+      mx::system_err << "MasterX: System error could write.\n";
+      return;
+    }
+    bytes += wrote;
+  }
+#elif defined(_WIN32)
+  DWORD written;
+  WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
+#endif
+}
+
+std::string Terminal::handleBackspaces(const std::string &str) {
+  std::string result;
+  for (char c : str) {
+    if (c == '\b') {
+      if (!result.empty()) {
+        result.pop_back();
+      }
+    } else {
+      result += c;
+    }
+  }
+  return result;
+}
+
+std::string cleanTerminalOutput(const std::string &input) {
+  std::regex ps1LineRegex(R"((export PS1=.*))");
+  return std::regex_replace(input, ps1LineRegex, "");
+}
+
+static SDL_Color ansiBasicColor(int code, const SDL_Color &fallback) {
+  static const SDL_Color normal[8] = {
+      {0, 0, 0, 255},      {205, 49, 49, 255},  {13, 188, 121, 255},
+      {229, 229, 16, 255}, {36, 114, 200, 255}, {188, 63, 188, 255},
+      {17, 168, 205, 255}, {229, 229, 229, 255}};
+  static const SDL_Color bright[8] = {
+      {102, 102, 102, 255}, {241, 76, 76, 255},  {35, 209, 139, 255},
+      {245, 245, 67, 255},  {59, 142, 234, 255}, {214, 112, 214, 255},
+      {41, 184, 219, 255},  {255, 255, 255, 255}};
+
+  if (code >= 30 && code <= 37)
+    return normal[code - 30];
+  if (code >= 90 && code <= 97)
+    return bright[code - 90];
+  if (code == 39)
+    return fallback;
+  return fallback;
+}
+
+static SDL_Color ansiBasicBgColor(int code) {
+  static const SDL_Color normal[8] = {
+      {0, 0, 0, 255},      {205, 49, 49, 255},  {13, 188, 121, 255},
+      {229, 229, 16, 255}, {36, 114, 200, 255}, {188, 63, 188, 255},
+      {17, 168, 205, 255}, {229, 229, 229, 255}};
+  static const SDL_Color bright[8] = {
+      {102, 102, 102, 255}, {241, 76, 76, 255},  {35, 209, 139, 255},
+      {245, 245, 67, 255},  {59, 142, 234, 255}, {214, 112, 214, 255},
+      {41, 184, 219, 255},  {255, 255, 255, 255}};
+  if (code >= 40 && code <= 47)
+    return normal[code - 40];
+  if (code >= 100 && code <= 107)
+    return bright[code - 100];
+  return {0, 0, 0, 0};
+}
+
+void Terminal::initAnsiState() {
+  ansiLines = outputLines;
+  ansiLineColors.clear();
+  ansiLineColors.reserve(ansiLines.size());
+  ansiLineIsAscii.assign(ansiLines.size(), 0);
+  ansiLineSoftWrap.assign(ansiLines.size(), 0);
+  CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
+  for (size_t i = 0; i < ansiLines.size(); ++i) {
+    ansiLineColors.emplace_back(ansiLines[i].size(), defStyle);
+    bool ascii = true;
+    for (unsigned char c : ansiLines[i]) {
+      if (c >= 0x80) {
+        ascii = false;
+        break;
+      }
+    }
+    ansiLineIsAscii[i] = ascii ? 1 : 0;
+  }
+  if (ansiLines.empty()) {
+    ansiLines.emplace_back("");
+    ansiLineColors.emplace_back();
+    ansiLineIsAscii.push_back(1);
+    ansiLineSoftWrap.push_back(0);
+  }
+  ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
+  ansiCursorCol = static_cast<int>(ansiLines.back().size());
+  ansiSavedRow = ansiCursorRow;
+  ansiSavedCol = ansiCursorCol;
+  ansiCurrentColor = text_color;
+  ansiCurrentBg = {0, 0, 0, 0};
+  ansiBold = false;
+  ansiUnderline = false;
+  ansiInitialized = true;
+}
+
+void Terminal::reflowPrimaryBufferToCols(int cols) {
+  if (!ansiInitialized || altScreen)
+    return;
+  if (cols < 1)
+    cols = 1;
+
+  // Make sure parallel arrays are sized.
+  if (ansiLineColors.size() < ansiLines.size())
+    ansiLineColors.resize(ansiLines.size());
+  if (ansiLineIsAscii.size() < ansiLines.size())
+    ansiLineIsAscii.resize(ansiLines.size(), 1);
+  if (ansiLineSoftWrap.size() < ansiLines.size())
+    ansiLineSoftWrap.resize(ansiLines.size(), 0);
+
+  const int oldCursorRow = ansiCursorRow;
+  const int oldCursorCol = ansiCursorCol;
+
+  // ---------------------------------------------------------------
+  // Step 1: collapse the visible buffer into LOGICAL lines by
+  // joining every run of soft-wrapped continuations back into the
+  // line that originated them. This is the same trick xterm and
+  // konsole use: a "logical" line is the longest sequence of rows
+  // where every row after the first has the soft-wrap flag set.
+  //
+  // For each logical line we also remember which column (in the
+  // joined cell stream) the cursor was sitting at, so we can place
+  // it correctly after the re-split below.
+  // ---------------------------------------------------------------
+  struct LogicalLine {
+    std::string text;
+    std::vector<CharStyle> styles;
+    // -1 if the cursor is not on this logical line, otherwise the
+    // cursor column within the joined cell stream.
+    int cursorCell = -1;
+  };
+
+  std::vector<LogicalLine> logical;
+  logical.reserve(ansiLines.size());
+
+  for (int i = 0; i < static_cast<int>(ansiLines.size()); ++i) {
+    const std::string &line = ansiLines[i];
+    const std::vector<CharStyle> &styles =
+        (i < static_cast<int>(ansiLineColors.size()))
+            ? ansiLineColors[i]
+            : std::vector<CharStyle>{};
+
+    bool isContinuation =
+        (i > 0 && i < static_cast<int>(ansiLineSoftWrap.size()) &&
+         ansiLineSoftWrap[i] != 0);
+
+    if (!isContinuation || logical.empty()) {
+      logical.emplace_back();
     }
 
-    void Terminal::sendCommand(const std::string &cmd) {
-        #if defined(__linux__) || defined(__APPLE__)
-            int bytes = 0;
-            while(bytes < static_cast<int>(cmd.size())) {
-                int wrote = write(master_fd, cmd.c_str(), cmd.size());
-                if(wrote < 0) {
-                    mx::system_err << "MasterX: System error could write.\n";
-                    return;
-                }
-                bytes += wrote;
-            }
-        #elif defined(_WIN32)
-            DWORD written;
-            WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
-        #endif
+    LogicalLine &ll = logical.back();
+    int prevCells = utf8_cell_count(ll.text);
+    ll.text.append(line);
+    // Append styles, padding with default style if shorter than
+    // text (defensive — they should normally match byte for byte).
+    CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
+    if (!line.empty()) {
+      size_t add = line.size();
+      size_t haveStyles = std::min(add, styles.size());
+      ll.styles.insert(ll.styles.end(), styles.begin(),
+                       styles.begin() + haveStyles);
+      if (haveStyles < add) {
+        ll.styles.insert(ll.styles.end(), add - haveStyles, defStyle);
+      }
     }
 
-    std::string Terminal::handleBackspaces(const std::string &str) {
-        std::string result;
-        for (char c : str) {
-            if (c == '\b') {
-                if (!result.empty()) {
-                    result.pop_back();
-                }
-            } else {
-                result += c;
-            }
+    if (i == oldCursorRow) {
+      ll.cursorCell = prevCells + oldCursorCol;
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Step 2: re-split each logical line at the new column width,
+  // marking every segment past the first as a soft-wrap
+  // continuation. Empty logical lines become a single empty row
+  // with softWrap=0 (they were a hard break).
+  // ---------------------------------------------------------------
+  std::vector<std::string> newLines;
+  std::vector<std::vector<CharStyle>> newColors;
+  std::vector<unsigned char> newAscii;
+  std::vector<unsigned char> newSoftWrap;
+  newLines.reserve(logical.size());
+  newColors.reserve(logical.size());
+  newAscii.reserve(logical.size());
+  newSoftWrap.reserve(logical.size());
+
+  int newCursorRow = 0;
+  int newCursorCol = 0;
+  bool placedCursor = false;
+
+  for (const LogicalLine &ll : logical) {
+    const int cells = utf8_cell_count(ll.text);
+    int segmentCount = (cells <= 0) ? 1 : (cells + cols - 1) / cols;
+
+    int segmentBaseRow = static_cast<int>(newLines.size());
+
+    if (cells == 0) {
+      newLines.emplace_back("");
+      newColors.emplace_back();
+      newAscii.push_back(1);
+      newSoftWrap.push_back(0);
+    } else {
+      for (int seg = 0; seg < segmentCount; ++seg) {
+        int startCell = seg * cols;
+        int endCell = std::min(cells, startCell + cols);
+        size_t startByte = utf8_cell_to_byte(ll.text, startCell);
+        size_t endByte = utf8_cell_to_byte(ll.text, endCell);
+        if (startByte > ll.text.size())
+          startByte = ll.text.size();
+        if (endByte > ll.text.size())
+          endByte = ll.text.size();
+        if (endByte < startByte)
+          endByte = startByte;
+
+        newLines.push_back(ll.text.substr(startByte, endByte - startByte));
+
+        std::vector<CharStyle> segStyles;
+        if (startByte < ll.styles.size()) {
+          size_t clippedEnd = std::min(endByte, ll.styles.size());
+          if (clippedEnd > startByte) {
+            segStyles.insert(segStyles.end(), ll.styles.begin() + startByte,
+                             ll.styles.begin() + clippedEnd);
+          }
         }
-        return result;
+        newColors.push_back(std::move(segStyles));
+
+        bool ascii = true;
+        for (unsigned char c : newLines.back()) {
+          if (c >= 0x80) {
+            ascii = false;
+            break;
+          }
+        }
+        newAscii.push_back(ascii ? 1 : 0);
+        // First segment is a hard break (or BOF); the rest
+        // are soft-wrap continuations.
+        newSoftWrap.push_back(seg == 0 ? 0 : 1);
+      }
     }
 
+    if (!placedCursor && ll.cursorCell >= 0) {
+      int seg = ll.cursorCell / cols;
+      int colInSeg = ll.cursorCell % cols;
+      if (seg >= segmentCount) {
+        seg = std::max(0, segmentCount - 1);
+        colInSeg = std::min(cols - 1, cells - seg * cols);
+        if (colInSeg < 0)
+          colInSeg = 0;
+      }
+      newCursorRow = segmentBaseRow + seg;
+      newCursorCol = colInSeg;
+      placedCursor = true;
+    }
+  }
 
+  if (newLines.empty()) {
+    newLines.emplace_back("");
+    newColors.emplace_back();
+    newAscii.push_back(1);
+    newSoftWrap.push_back(0);
+    newCursorRow = 0;
+    newCursorCol = 0;
+  }
 
-    std::string cleanTerminalOutput(const std::string &input) {
-        std::regex ps1LineRegex(R"((export PS1=.*))");
-        return std::regex_replace(input, ps1LineRegex, "");
+  ansiLines = std::move(newLines);
+  ansiLineColors = std::move(newColors);
+  ansiLineIsAscii = std::move(newAscii);
+  ansiLineSoftWrap = std::move(newSoftWrap);
+
+  if (newCursorRow < 0)
+    newCursorRow = 0;
+  if (newCursorRow >= static_cast<int>(ansiLines.size()))
+    newCursorRow = static_cast<int>(ansiLines.size()) - 1;
+  if (newCursorCol < 0)
+    newCursorCol = 0;
+  if (newCursorCol > cols)
+    newCursorCol = cols;
+  ansiCursorRow = newCursorRow;
+  ansiCursorCol = newCursorCol;
+
+  if (scrollBot >= static_cast<int>(ansiLines.size())) {
+    scrollBot = static_cast<int>(ansiLines.size()) - 1;
+  }
+}
+
+void Terminal::syncAnsiToOutput() {
+  outputLines = ansiLines;
+  outputLineColors = ansiLineColors;
+
+  std::ostringstream oss;
+  for (size_t i = 0; i < outputLines.size(); ++i) {
+    oss << outputLines[i];
+    if (i + 1 < outputLines.size())
+      oss << '\n';
+  }
+  orig_text = oss.str();
+  if (orig_text.length() > 4096)
+    orig_text = orig_text.substr(orig_text.size() - 4096);
+  scroll();
+}
+
+void Terminal::applyAnsiData(const std::string &input) {
+  if (!ansiInitialized)
+    initAnsiState();
+
+  auto ensureRow = [&](int row) {
+    while (row >= static_cast<int>(ansiLines.size())) {
+      ansiLines.emplace_back("");
+      ansiLineColors.emplace_back();
+      ansiLineIsAscii.push_back(1);
+      ansiLineSoftWrap.push_back(0);
+    }
+    if (ansiLineIsAscii.size() < ansiLines.size())
+      ansiLineIsAscii.resize(ansiLines.size(), 1);
+    if (ansiLineSoftWrap.size() < ansiLines.size())
+      ansiLineSoftWrap.resize(ansiLines.size(), 0);
+    if (row < 0)
+      ansiCursorRow = 0;
+  };
+
+  auto ensureCol = [&](int row, int col) {
+    if (row < 0)
+      return;
+    ensureRow(row);
+    int existingCells = ansiLineIsAscii[row]
+                            ? static_cast<int>(ansiLines[row].size())
+                            : utf8_cell_count(ansiLines[row]);
+    if (col > existingCells) {
+      int pad = col - existingCells;
+      ansiLines[row].append(static_cast<size_t>(pad), ' ');
+      CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
+      auto &colors = ansiLineColors[row];
+      colors.insert(colors.end(), static_cast<size_t>(pad), padStyle);
+    }
+    if (ansiLineColors[row].size() < ansiLines[row].size()) {
+      CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
+      ansiLineColors[row].resize(ansiLines[row].size(), padStyle);
+    }
+  };
+
+  auto clearToLineEnd = [&]() {
+    ensureRow(ansiCursorRow);
+    ensureCol(ansiCursorRow, ansiCursorCol);
+    auto &line = ansiLines[ansiCursorRow];
+    size_t byteOff = utf8_cell_to_byte(line, ansiCursorCol);
+    if (byteOff < line.size()) {
+      line.erase(byteOff);
+      ansiLineColors[ansiCursorRow].erase(
+          ansiLineColors[ansiCursorRow].begin() + byteOff,
+          ansiLineColors[ansiCursorRow].end());
+    }
+  };
+
+  auto regionBounds = [&](int &top, int &bot) {
+    top = scrollTop;
+    int maxRow = static_cast<int>(ansiLines.size()) - 1;
+    if (scrollBot < 0)
+      bot = maxRow;
+    else
+      bot = std::min(scrollBot, maxRow);
+    if (top < 0)
+      top = 0;
+    if (bot < top)
+      bot = top;
+  };
+
+  auto scrollRegionUp = [&](int n) {
+    int top, bot;
+    regionBounds(top, bot);
+    if (n <= 0)
+      return;
+    int span = bot - top + 1;
+    if (n > span)
+      n = span;
+    for (int k = 0; k < n; ++k) {
+      if (top < static_cast<int>(ansiLines.size())) {
+        ansiLines.erase(ansiLines.begin() + top);
+        ansiLineColors.erase(ansiLineColors.begin() + top);
+        if (top < static_cast<int>(ansiLineIsAscii.size()))
+          ansiLineIsAscii.erase(ansiLineIsAscii.begin() + top);
+        if (top < static_cast<int>(ansiLineSoftWrap.size()))
+          ansiLineSoftWrap.erase(ansiLineSoftWrap.begin() + top);
+      }
+      if (bot < static_cast<int>(ansiLines.size())) {
+        ansiLines.insert(ansiLines.begin() + bot, std::string{});
+        ansiLineColors.insert(ansiLineColors.begin() + bot,
+                              std::vector<CharStyle>{});
+        ansiLineIsAscii.insert(ansiLineIsAscii.begin() + bot, 1);
+        ansiLineSoftWrap.insert(ansiLineSoftWrap.begin() + bot, 0);
+      } else {
+        ansiLines.emplace_back();
+        ansiLineColors.emplace_back();
+        ansiLineIsAscii.push_back(1);
+        ansiLineSoftWrap.push_back(0);
+      }
+    }
+  };
+
+  auto scrollRegionDown = [&](int n) {
+    int top, bot;
+    regionBounds(top, bot);
+    if (n <= 0)
+      return;
+    int span = bot - top + 1;
+    if (n > span)
+      n = span;
+    for (int k = 0; k < n; ++k) {
+      if (bot < static_cast<int>(ansiLines.size())) {
+        ansiLines.erase(ansiLines.begin() + bot);
+        ansiLineColors.erase(ansiLineColors.begin() + bot);
+        if (bot < static_cast<int>(ansiLineIsAscii.size()))
+          ansiLineIsAscii.erase(ansiLineIsAscii.begin() + bot);
+        if (bot < static_cast<int>(ansiLineSoftWrap.size()))
+          ansiLineSoftWrap.erase(ansiLineSoftWrap.begin() + bot);
+      }
+      ansiLines.insert(ansiLines.begin() + top, std::string{});
+      ansiLineColors.insert(ansiLineColors.begin() + top,
+                            std::vector<CharStyle>{});
+      ansiLineIsAscii.insert(ansiLineIsAscii.begin() + top, 1);
+      ansiLineSoftWrap.insert(ansiLineSoftWrap.begin() + top, 0);
+    }
+  };
+
+  auto doNewline = [&]() {
+    int top, bot;
+    regionBounds(top, bot);
+    if (ansiCursorRow >= bot && (altScreen || scrollBot >= 0)) {
+      scrollRegionUp(1);
+      ansiCursorRow = bot;
+    } else {
+      ansiCursorRow++;
+      ensureRow(ansiCursorRow);
+    }
+  };
+
+  auto putChar = [&](const std::string &seq) {
+    if (seq.empty())
+      return;
+    // DECAWM-style autowrap. xterm default is on, and most
+    // programs (fastfetch, bash readline, ls without -w, ...)
+    // assume the terminal will fold long output at the right
+    // margin instead of letting glyphs run off-screen. We honor
+    // termCols (which is what we report via TIOCSWINSZ) so the
+    // visible wrap matches the size we hand to the PTY.
+    if (decawm && termCols > 0 && ansiCursorCol >= termCols) {
+      ansiCursorCol = 0;
+      doNewline();
+      // Mark the freshly-introduced row as a soft-wrap
+      // continuation. Reflow uses this to re-join logical
+      // lines when the terminal is resized.
+      if (ansiCursorRow >= 0 &&
+          ansiCursorRow < static_cast<int>(ansiLineSoftWrap.size())) {
+        ansiLineSoftWrap[ansiCursorRow] = 1;
+      }
+    }
+    ensureRow(ansiCursorRow);
+    auto &line = ansiLines[ansiCursorRow];
+    auto &colors = ansiLineColors[ansiCursorRow];
+    CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
+
+    // O(1) fast path: appending an ASCII byte to a pure-ASCII
+    // line, with the cursor at end-of-line. This is by far the
+    // most common case (typed text, shell output, etc.).
+    bool seqIsAscii =
+        (seq.size() == 1 && static_cast<unsigned char>(seq[0]) < 0x80);
+    if (seqIsAscii && ansiLineIsAscii[ansiCursorRow] &&
+        ansiCursorCol == static_cast<int>(line.size())) {
+      line.push_back(seq[0]);
+      colors.push_back(cs);
+      ++ansiCursorCol;
+      return;
     }
 
-    static SDL_Color ansiBasicColor(int code, const SDL_Color &fallback) {
-        static const SDL_Color normal[8] = {
-            {0, 0, 0, 255},       {205, 49, 49, 255},  {13, 188, 121, 255},
-            {229, 229, 16, 255},  {36, 114, 200, 255}, {188, 63, 188, 255},
-            {17, 168, 205, 255},  {229, 229, 229, 255}};
-        static const SDL_Color bright[8] = {
-            {102, 102, 102, 255}, {241, 76, 76, 255},  {35, 209, 139, 255},
-            {245, 245, 67, 255},  {59, 142, 234, 255}, {214, 112, 214, 255},
-            {41, 184, 219, 255},  {255, 255, 255, 255}};
+    ensureCol(ansiCursorRow, ansiCursorCol);
+    if (!seqIsAscii)
+      ansiLineIsAscii[ansiCursorRow] = 0;
 
-        if (code >= 30 && code <= 37)
-            return normal[code - 30];
-        if (code >= 90 && code <= 97)
-            return bright[code - 90];
-        if (code == 39)
-            return fallback;
-        return fallback;
+    size_t byteOff = ansiLineIsAscii[ansiCursorRow]
+                         ? static_cast<size_t>(ansiCursorCol)
+                         : utf8_cell_to_byte(line, ansiCursorCol);
+    if (byteOff > line.size())
+      byteOff = line.size();
+    if (byteOff < line.size()) {
+      int oldLen = utf8_lead_len(static_cast<unsigned char>(line[byteOff]));
+      if (byteOff + oldLen > line.size())
+        oldLen = static_cast<int>(line.size() - byteOff);
+      line.replace(byteOff, oldLen, seq);
+      colors.erase(colors.begin() + byteOff, colors.begin() + byteOff + oldLen);
+      colors.insert(colors.begin() + byteOff, seq.size(), cs);
+    } else {
+      line.append(seq);
+      for (size_t b = 0; b < seq.size(); ++b)
+        colors.push_back(cs);
     }
+    ansiCursorCol++;
+  };
 
-    static SDL_Color ansiBasicBgColor(int code) {
-        static const SDL_Color normal[8] = {
-            {0, 0, 0, 255},       {205, 49, 49, 255},  {13, 188, 121, 255},
-            {229, 229, 16, 255},  {36, 114, 200, 255}, {188, 63, 188, 255},
-            {17, 168, 205, 255},  {229, 229, 229, 255}};
-        static const SDL_Color bright[8] = {
-            {102, 102, 102, 255}, {241, 76, 76, 255},  {35, 209, 139, 255},
-            {245, 245, 67, 255},  {59, 142, 234, 255}, {214, 112, 214, 255},
-            {41, 184, 219, 255},  {255, 255, 255, 255}};
-        if (code >= 40 && code <= 47)
-            return normal[code - 40];
-        if (code >= 100 && code <= 107)
-            return bright[code - 100];
-        return {0, 0, 0, 0};
+  auto parseParams = [](const std::string &paramText) {
+    std::vector<int> out;
+    if (paramText.empty()) {
+      out.push_back(0);
+      return out;
     }
-
-    void Terminal::initAnsiState() {
-        ansiLines = outputLines;
-        ansiLineColors.clear();
-        ansiLineColors.reserve(ansiLines.size());
-        ansiLineIsAscii.assign(ansiLines.size(), 0);
-        ansiLineSoftWrap.assign(ansiLines.size(), 0);
-        CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
-        for (size_t i = 0; i < ansiLines.size(); ++i) {
-            ansiLineColors.emplace_back(ansiLines[i].size(), defStyle);
-            bool ascii = true;
-            for (unsigned char c : ansiLines[i]) {
-                if (c >= 0x80) { ascii = false; break; }
-            }
-            ansiLineIsAscii[i] = ascii ? 1 : 0;
-        }
-        if (ansiLines.empty()) {
-            ansiLines.emplace_back("");
-            ansiLineColors.emplace_back();
-            ansiLineIsAscii.push_back(1);
-            ansiLineSoftWrap.push_back(0);
-        }
-        ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
-        ansiCursorCol = static_cast<int>(ansiLines.back().size());
-        ansiSavedRow = ansiCursorRow;
-        ansiSavedCol = ansiCursorCol;
-        ansiCurrentColor = text_color;
-        ansiCurrentBg = {0, 0, 0, 0};
-        ansiBold = false;
-        ansiUnderline = false;
-        ansiInitialized = true;
+    std::string token;
+    for (char ch : paramText) {
+      if (ch == ';') {
+        if (token.empty())
+          out.push_back(0);
+        else
+          out.push_back(std::atoi(token.c_str()));
+        token.clear();
+      } else {
+        token.push_back(ch);
+      }
     }
+    if (token.empty())
+      out.push_back(0);
+    else
+      out.push_back(std::atoi(token.c_str()));
+    return out;
+  };
 
-    void Terminal::reflowPrimaryBufferToCols(int cols) {
-        if (!ansiInitialized || altScreen) return;
-        if (cols < 1) cols = 1;
-
-        // Make sure parallel arrays are sized.
-        if (ansiLineColors.size() < ansiLines.size())
-            ansiLineColors.resize(ansiLines.size());
-        if (ansiLineIsAscii.size() < ansiLines.size())
-            ansiLineIsAscii.resize(ansiLines.size(), 1);
-        if (ansiLineSoftWrap.size() < ansiLines.size())
-            ansiLineSoftWrap.resize(ansiLines.size(), 0);
-
-        const int oldCursorRow = ansiCursorRow;
-        const int oldCursorCol = ansiCursorCol;
-
-        // ---------------------------------------------------------------
-        // Step 1: collapse the visible buffer into LOGICAL lines by
-        // joining every run of soft-wrapped continuations back into the
-        // line that originated them. This is the same trick xterm and
-        // konsole use: a "logical" line is the longest sequence of rows
-        // where every row after the first has the soft-wrap flag set.
-        //
-        // For each logical line we also remember which column (in the
-        // joined cell stream) the cursor was sitting at, so we can place
-        // it correctly after the re-split below.
-        // ---------------------------------------------------------------
-        struct LogicalLine {
-            std::string text;
-            std::vector<CharStyle> styles;
-            // -1 if the cursor is not on this logical line, otherwise the
-            // cursor column within the joined cell stream.
-            int cursorCell = -1;
-        };
-
-        std::vector<LogicalLine> logical;
-        logical.reserve(ansiLines.size());
-
-        for (int i = 0; i < static_cast<int>(ansiLines.size()); ++i) {
-            const std::string &line = ansiLines[i];
-            const std::vector<CharStyle> &styles =
-                (i < static_cast<int>(ansiLineColors.size()))
-                    ? ansiLineColors[i]
-                    : std::vector<CharStyle>{};
-
-            bool isContinuation =
-                (i > 0 && i < static_cast<int>(ansiLineSoftWrap.size()) &&
-                 ansiLineSoftWrap[i] != 0);
-
-            if (!isContinuation || logical.empty()) {
-                logical.emplace_back();
-            }
-
-            LogicalLine &ll = logical.back();
-            int prevCells = utf8_cell_count(ll.text);
-            ll.text.append(line);
-            // Append styles, padding with default style if shorter than
-            // text (defensive — they should normally match byte for byte).
-            CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
-            if (!line.empty()) {
-                size_t add = line.size();
-                size_t haveStyles = std::min(add, styles.size());
-                ll.styles.insert(ll.styles.end(),
-                                 styles.begin(),
-                                 styles.begin() + haveStyles);
-                if (haveStyles < add) {
-                    ll.styles.insert(ll.styles.end(),
-                                     add - haveStyles,
-                                     defStyle);
-                }
-            }
-
-            if (i == oldCursorRow) {
-                ll.cursorCell = prevCells + oldCursorCol;
-            }
+  const std::string data = cleanTerminalOutput(input);
+  size_t i = 0;
+  while (i < data.size()) {
+    unsigned char ch = static_cast<unsigned char>(data[i]);
+    if (ch == 0x1B) {
+      if (i + 1 < data.size() && data[i + 1] == ']') {
+        // OSC: consume until BEL or ST.
+        size_t j = i + 2;
+        while (j < data.size()) {
+          if (data[j] == '\a') {
+            j++;
+            break;
+          }
+          if (data[j] == 0x1B && (j + 1) < data.size() && data[j + 1] == '\\') {
+            j += 2;
+            break;
+          }
+          ++j;
         }
+        i = j;
+        continue;
+      }
 
-        // ---------------------------------------------------------------
-        // Step 2: re-split each logical line at the new column width,
-        // marking every segment past the first as a soft-wrap
-        // continuation. Empty logical lines become a single empty row
-        // with softWrap=0 (they were a hard break).
-        // ---------------------------------------------------------------
-        std::vector<std::string> newLines;
-        std::vector<std::vector<CharStyle>> newColors;
-        std::vector<unsigned char> newAscii;
-        std::vector<unsigned char> newSoftWrap;
-        newLines.reserve(logical.size());
-        newColors.reserve(logical.size());
-        newAscii.reserve(logical.size());
-        newSoftWrap.reserve(logical.size());
-
-        int newCursorRow = 0;
-        int newCursorCol = 0;
-        bool placedCursor = false;
-
-        for (const LogicalLine &ll : logical) {
-            const int cells = utf8_cell_count(ll.text);
-            int segmentCount = (cells <= 0) ? 1 : (cells + cols - 1) / cols;
-
-            int segmentBaseRow = static_cast<int>(newLines.size());
-
-            if (cells == 0) {
-                newLines.emplace_back("");
-                newColors.emplace_back();
-                newAscii.push_back(1);
-                newSoftWrap.push_back(0);
-            } else {
-                for (int seg = 0; seg < segmentCount; ++seg) {
-                    int startCell = seg * cols;
-                    int endCell = std::min(cells, startCell + cols);
-                    size_t startByte = utf8_cell_to_byte(ll.text, startCell);
-                    size_t endByte = utf8_cell_to_byte(ll.text, endCell);
-                    if (startByte > ll.text.size()) startByte = ll.text.size();
-                    if (endByte > ll.text.size()) endByte = ll.text.size();
-                    if (endByte < startByte) endByte = startByte;
-
-                    newLines.push_back(ll.text.substr(startByte, endByte - startByte));
-
-                    std::vector<CharStyle> segStyles;
-                    if (startByte < ll.styles.size()) {
-                        size_t clippedEnd = std::min(endByte, ll.styles.size());
-                        if (clippedEnd > startByte) {
-                            segStyles.insert(segStyles.end(),
-                                             ll.styles.begin() + startByte,
-                                             ll.styles.begin() + clippedEnd);
-                        }
-                    }
-                    newColors.push_back(std::move(segStyles));
-
-                    bool ascii = true;
-                    for (unsigned char c : newLines.back()) {
-                        if (c >= 0x80) { ascii = false; break; }
-                    }
-                    newAscii.push_back(ascii ? 1 : 0);
-                    // First segment is a hard break (or BOF); the rest
-                    // are soft-wrap continuations.
-                    newSoftWrap.push_back(seg == 0 ? 0 : 1);
-                }
-            }
-
-            if (!placedCursor && ll.cursorCell >= 0) {
-                int seg = ll.cursorCell / cols;
-                int colInSeg = ll.cursorCell % cols;
-                if (seg >= segmentCount) {
-                    seg = std::max(0, segmentCount - 1);
-                    colInSeg = std::min(cols - 1, cells - seg * cols);
-                    if (colInSeg < 0) colInSeg = 0;
-                }
-                newCursorRow = segmentBaseRow + seg;
-                newCursorCol = colInSeg;
-                placedCursor = true;
-            }
+      if (i + 1 < data.size() && data[i + 1] != '[') {
+        // Non-CSI ESC sequences: ESC X (single char).
+        char esc2 = data[i + 1];
+        bool consumed = true;
+        switch (esc2) {
+        case 'D': // IND - line feed
+          doNewline();
+          break;
+        case 'M': // RI - reverse line feed
+          if (ansiCursorRow <= scrollTop)
+            scrollRegionDown(1);
+          else {
+            ansiCursorRow--;
+            if (ansiCursorRow < 0)
+              ansiCursorRow = 0;
+          }
+          break;
+        case 'E': // NEL - next line
+          ansiCursorCol = 0;
+          doNewline();
+          break;
+        case '7': // DECSC - save cursor + attrs
+          ansiSavedRow = ansiCursorRow;
+          ansiSavedCol = ansiCursorCol;
+          savedAltFg = ansiCurrentColor;
+          savedAltBg = ansiCurrentBg;
+          savedAltBold = ansiBold;
+          savedAltUnderline = ansiUnderline;
+          break;
+        case '8': // DECRC - restore cursor + attrs
+          ansiCursorRow = ansiSavedRow;
+          ansiCursorCol = ansiSavedCol;
+          ansiCurrentColor = savedAltFg;
+          ansiCurrentBg = savedAltBg;
+          ansiBold = savedAltBold;
+          ansiUnderline = savedAltUnderline;
+          ensureRow(ansiCursorRow);
+          break;
+        case '=':
+          keypadApp = true;
+          break;
+        case '>':
+          keypadApp = false;
+          break;
+        case 'H': /* HTS - tab set, ignore */
+          break;
+        case 'c': /* RIS - full reset, ignore */
+          break;
+        case '(':
+        case ')':
+        case '*':
+        case '+':
+          // Charset designation: G0/G1/G2/G3 - consume next byte.
+          if (i + 2 < data.size())
+            i++;
+          break;
+        default:
+          consumed = false;
+          break;
         }
-
-        if (newLines.empty()) {
-            newLines.emplace_back("");
-            newColors.emplace_back();
-            newAscii.push_back(1);
-            newSoftWrap.push_back(0);
-            newCursorRow = 0;
-            newCursorCol = 0;
+        if (consumed) {
+          i += 2;
+          continue;
         }
+      }
 
-        ansiLines = std::move(newLines);
-        ansiLineColors = std::move(newColors);
-        ansiLineIsAscii = std::move(newAscii);
-        ansiLineSoftWrap = std::move(newSoftWrap);
-
-        if (newCursorRow < 0) newCursorRow = 0;
-        if (newCursorRow >= static_cast<int>(ansiLines.size()))
-            newCursorRow = static_cast<int>(ansiLines.size()) - 1;
-        if (newCursorCol < 0) newCursorCol = 0;
-        if (newCursorCol > cols) newCursorCol = cols;
-        ansiCursorRow = newCursorRow;
-        ansiCursorCol = newCursorCol;
-
-        if (scrollBot >= static_cast<int>(ansiLines.size())) {
-            scrollBot = static_cast<int>(ansiLines.size()) - 1;
+      if (i + 1 < data.size() && data[i + 1] == '[') {
+        size_t j = i + 2;
+        while (j < data.size()) {
+          unsigned char cj = static_cast<unsigned char>(data[j]);
+          if (cj >= 0x40 && cj <= 0x7E)
+            break;
+          ++j;
         }
-    }
+        if (j >= data.size())
+          break;
 
-    void Terminal::syncAnsiToOutput() {
-        outputLines = ansiLines;
-        outputLineColors = ansiLineColors;
+        const char cmd = data[j];
+        std::string params = data.substr(i + 2, j - (i + 2));
+        bool privateMode = !params.empty() && params[0] == '?';
+        if (privateMode)
+          params.erase(params.begin());
 
-        std::ostringstream oss;
-        for (size_t i = 0; i < outputLines.size(); ++i) {
-            oss << outputLines[i];
-            if (i + 1 < outputLines.size())
-                oss << '\n';
-        }
-        orig_text = oss.str();
-        if (orig_text.length() > 4096)
-            orig_text = orig_text.substr(orig_text.size() - 4096);
-        scroll();
-    }
+        auto nums = parseParams(params);
+        auto n0 = [&]() { return nums.empty() || nums[0] <= 0 ? 1 : nums[0]; };
 
-    void Terminal::applyAnsiData(const std::string &input) {
-        if (!ansiInitialized)
-            initAnsiState();
-
-        auto ensureRow = [&](int row) {
-            while (row >= static_cast<int>(ansiLines.size())) {
-                ansiLines.emplace_back("");
-                ansiLineColors.emplace_back();
-                ansiLineIsAscii.push_back(1);
-                ansiLineSoftWrap.push_back(0);
+        if (privateMode && (cmd == 'h' || cmd == 'l')) {
+          bool set = (cmd == 'h');
+          for (int code : nums) {
+            switch (code) {
+            case 25:
+#ifdef __linux__
+              cursorVisible = set;
+#endif
+              break;
+            case 1:
+              decckm = set;
+              break;
+            case 7:
+              decawm = set;
+              break;
+            case 47:
+            case 1047:
+            case 1049:
+              if (set)
+                enterAltScreen();
+              else
+                leaveAltScreen();
+              break;
+            case 1048: // save/restore cursor
+              if (set) {
+                ansiSavedRow = ansiCursorRow;
+                ansiSavedCol = ansiCursorCol;
+              } else {
+                ansiCursorRow = ansiSavedRow;
+                ansiCursorCol = ansiSavedCol;
+              }
+              break;
+            default:
+              break;
             }
-            if (ansiLineIsAscii.size() < ansiLines.size())
-                ansiLineIsAscii.resize(ansiLines.size(), 1);
-            if (ansiLineSoftWrap.size() < ansiLines.size())
-                ansiLineSoftWrap.resize(ansiLines.size(), 0);
-            if (row < 0)
-                ansiCursorRow = 0;
-        };
-
-        auto ensureCol = [&](int row, int col) {
-            if (row < 0)
-                return;
-            ensureRow(row);
-            int existingCells = ansiLineIsAscii[row]
-                ? static_cast<int>(ansiLines[row].size())
-                : utf8_cell_count(ansiLines[row]);
-            if (col > existingCells) {
-                int pad = col - existingCells;
-                ansiLines[row].append(static_cast<size_t>(pad), ' ');
-                CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
-                auto &colors = ansiLineColors[row];
-                colors.insert(colors.end(), static_cast<size_t>(pad), padStyle);
+          }
+        } else if (cmd == 'm') {
+          for (size_t k = 0; k < nums.size(); ++k) {
+            int code = nums[k];
+            if (code == 0) {
+              ansiCurrentColor = text_color;
+              ansiCurrentBg = {0, 0, 0, 0};
+              ansiBold = false;
+              ansiUnderline = false;
+              continue;
             }
-            if (ansiLineColors[row].size() < ansiLines[row].size()) {
-                CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
-                ansiLineColors[row].resize(ansiLines[row].size(), padStyle);
+            if (code == 1) {
+              ansiBold = true;
+              continue;
             }
-        };
-
-        auto clearToLineEnd = [&]() {
-            ensureRow(ansiCursorRow);
-            ensureCol(ansiCursorRow, ansiCursorCol);
-            auto &line = ansiLines[ansiCursorRow];
-            size_t byteOff = utf8_cell_to_byte(line, ansiCursorCol);
-            if (byteOff < line.size()) {
-                line.erase(byteOff);
-                ansiLineColors[ansiCursorRow].erase(
-                    ansiLineColors[ansiCursorRow].begin() + byteOff,
-                    ansiLineColors[ansiCursorRow].end());
+            if (code == 22) {
+              ansiBold = false;
+              continue;
             }
-        };
-
-        auto regionBounds = [&](int &top, int &bot) {
-            top = scrollTop;
-            int maxRow = static_cast<int>(ansiLines.size()) - 1;
-            if (scrollBot < 0)
-                bot = maxRow;
-            else
-                bot = std::min(scrollBot, maxRow);
-            if (top < 0) top = 0;
-            if (bot < top) bot = top;
-        };
-
-        auto scrollRegionUp = [&](int n) {
-            int top, bot; regionBounds(top, bot);
-            if (n <= 0) return;
-            int span = bot - top + 1;
-            if (n > span) n = span;
-            for (int k = 0; k < n; ++k) {
-                if (top < static_cast<int>(ansiLines.size())) {
-                    ansiLines.erase(ansiLines.begin() + top);
-                    ansiLineColors.erase(ansiLineColors.begin() + top);
-                    if (top < static_cast<int>(ansiLineIsAscii.size()))
-                        ansiLineIsAscii.erase(ansiLineIsAscii.begin() + top);
-                    if (top < static_cast<int>(ansiLineSoftWrap.size()))
-                        ansiLineSoftWrap.erase(ansiLineSoftWrap.begin() + top);
+            if (code == 4) {
+              ansiUnderline = true;
+              continue;
+            }
+            if (code == 24) {
+              ansiUnderline = false;
+              continue;
+            }
+            if (code == 49) {
+              ansiCurrentBg = {0, 0, 0, 0};
+              continue;
+            }
+            if ((code >= 40 && code <= 47) || (code >= 100 && code <= 107)) {
+              ansiCurrentBg = ansiBasicBgColor(code);
+              continue;
+            }
+            if (code == 38 && k + 1 < nums.size()) {
+              if (nums[k + 1] == 5 && k + 2 < nums.size()) {
+                int idx = nums[k + 2];
+                if (idx >= 16 && idx <= 231) {
+                  idx -= 16;
+                  int r = (idx / 36) % 6;
+                  int g = (idx / 6) % 6;
+                  int b = idx % 6;
+                  ansiCurrentColor = SDL_Color{
+                      static_cast<Uint8>(r == 0 ? 0 : r * 40 + 55),
+                      static_cast<Uint8>(g == 0 ? 0 : g * 40 + 55),
+                      static_cast<Uint8>(b == 0 ? 0 : b * 40 + 55), 255};
+                } else if (idx >= 232 && idx <= 255) {
+                  Uint8 gray = static_cast<Uint8>((idx - 232) * 10 + 8);
+                  ansiCurrentColor = SDL_Color{gray, gray, gray, 255};
                 }
-                if (bot < static_cast<int>(ansiLines.size())) {
-                    ansiLines.insert(ansiLines.begin() + bot, std::string{});
-                    ansiLineColors.insert(ansiLineColors.begin() + bot,
-                                          std::vector<CharStyle>{});
-                    ansiLineIsAscii.insert(ansiLineIsAscii.begin() + bot, 1);
-                    ansiLineSoftWrap.insert(ansiLineSoftWrap.begin() + bot, 0);
-                } else {
-                    ansiLines.emplace_back();
-                    ansiLineColors.emplace_back();
-                    ansiLineIsAscii.push_back(1);
-                    ansiLineSoftWrap.push_back(0);
+                k += 2;
+                continue;
+              }
+              if (nums[k + 1] == 2 && k + 4 < nums.size()) {
+                ansiCurrentColor = SDL_Color{
+                    static_cast<Uint8>(std::max(0, std::min(255, nums[k + 2]))),
+                    static_cast<Uint8>(std::max(0, std::min(255, nums[k + 3]))),
+                    static_cast<Uint8>(std::max(0, std::min(255, nums[k + 4]))),
+                    255};
+                k += 4;
+                continue;
+              }
+            }
+            if (code == 48 && k + 1 < nums.size()) {
+              if (nums[k + 1] == 5 && k + 2 < nums.size()) {
+                int idx = nums[k + 2];
+                if (idx >= 16 && idx <= 231) {
+                  idx -= 16;
+                  int r = (idx / 36) % 6;
+                  int g = (idx / 6) % 6;
+                  int b = idx % 6;
+                  ansiCurrentBg = SDL_Color{
+                      static_cast<Uint8>(r == 0 ? 0 : r * 40 + 55),
+                      static_cast<Uint8>(g == 0 ? 0 : g * 40 + 55),
+                      static_cast<Uint8>(b == 0 ? 0 : b * 40 + 55), 255};
+                } else if (idx >= 232 && idx <= 255) {
+                  Uint8 gray = static_cast<Uint8>((idx - 232) * 10 + 8);
+                  ansiCurrentBg = SDL_Color{gray, gray, gray, 255};
                 }
+                k += 2;
+                continue;
+              }
+              if (nums[k + 1] == 2 && k + 4 < nums.size()) {
+                ansiCurrentBg = SDL_Color{
+                    static_cast<Uint8>(std::max(0, std::min(255, nums[k + 2]))),
+                    static_cast<Uint8>(std::max(0, std::min(255, nums[k + 3]))),
+                    static_cast<Uint8>(std::max(0, std::min(255, nums[k + 4]))),
+                    255};
+                k += 4;
+                continue;
+              }
             }
-        };
-
-        auto scrollRegionDown = [&](int n) {
-            int top, bot; regionBounds(top, bot);
-            if (n <= 0) return;
-            int span = bot - top + 1;
-            if (n > span) n = span;
-            for (int k = 0; k < n; ++k) {
-                if (bot < static_cast<int>(ansiLines.size())) {
-                    ansiLines.erase(ansiLines.begin() + bot);
-                    ansiLineColors.erase(ansiLineColors.begin() + bot);
-                    if (bot < static_cast<int>(ansiLineIsAscii.size()))
-                        ansiLineIsAscii.erase(ansiLineIsAscii.begin() + bot);
-                    if (bot < static_cast<int>(ansiLineSoftWrap.size()))
-                        ansiLineSoftWrap.erase(ansiLineSoftWrap.begin() + bot);
-                }
-                ansiLines.insert(ansiLines.begin() + top, std::string{});
-                ansiLineColors.insert(ansiLineColors.begin() + top,
-                                      std::vector<CharStyle>{});
-                ansiLineIsAscii.insert(ansiLineIsAscii.begin() + top, 1);
-                ansiLineSoftWrap.insert(ansiLineSoftWrap.begin() + top, 0);
-            }
-        };
-
-        auto doNewline = [&]() {
-            int top, bot; regionBounds(top, bot);
-            if (ansiCursorRow >= bot && (altScreen || scrollBot >= 0)) {
-                scrollRegionUp(1);
-                ansiCursorRow = bot;
-            } else {
-                ansiCursorRow++;
-                ensureRow(ansiCursorRow);
-            }
-        };
-
-        auto putChar = [&](const std::string &seq) {
-            if (seq.empty()) return;
-            // DECAWM-style autowrap. xterm default is on, and most
-            // programs (fastfetch, bash readline, ls without -w, ...)
-            // assume the terminal will fold long output at the right
-            // margin instead of letting glyphs run off-screen. We honor
-            // termCols (which is what we report via TIOCSWINSZ) so the
-            // visible wrap matches the size we hand to the PTY.
-            if (decawm && termCols > 0 && ansiCursorCol >= termCols) {
-                ansiCursorCol = 0;
-                doNewline();
-                // Mark the freshly-introduced row as a soft-wrap
-                // continuation. Reflow uses this to re-join logical
-                // lines when the terminal is resized.
-                if (ansiCursorRow >= 0 &&
-                    ansiCursorRow < static_cast<int>(ansiLineSoftWrap.size())) {
-                    ansiLineSoftWrap[ansiCursorRow] = 1;
-                }
-            }
-            ensureRow(ansiCursorRow);
+            ansiCurrentColor = ansiBasicColor(code, ansiCurrentColor);
+          }
+        } else if (cmd == 'A') {
+          ansiCursorRow = std::max(0, ansiCursorRow - n0());
+        } else if (cmd == 'B') {
+          ansiCursorRow += n0();
+          ensureRow(ansiCursorRow);
+        } else if (cmd == 'C') {
+          ansiCursorCol += n0();
+        } else if (cmd == 'D') {
+          ansiCursorCol = std::max(0, ansiCursorCol - n0());
+        } else if (cmd == 'G') {
+          ansiCursorCol = std::max(0, n0() - 1);
+        } else if (cmd == 'H' || cmd == 'f') {
+          int row = nums.size() > 0 ? std::max(1, nums[0]) : 1;
+          int col = nums.size() > 1 ? std::max(1, nums[1]) : 1;
+          ansiCursorRow = row - 1;
+          ansiCursorCol = col - 1;
+          ensureRow(ansiCursorRow);
+        } else if (cmd == 'K') {
+          int mode = nums.empty() ? 0 : nums[0];
+          ensureRow(ansiCursorRow);
+          ensureCol(ansiCursorRow, ansiCursorCol);
+          CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
+          if (mode == 0) {
+            clearToLineEnd();
+          } else if (mode == 1) {
             auto &line = ansiLines[ansiCursorRow];
             auto &colors = ansiLineColors[ansiCursorRow];
-            CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
-
-            // O(1) fast path: appending an ASCII byte to a pure-ASCII
-            // line, with the cursor at end-of-line. This is by far the
-            // most common case (typed text, shell output, etc.).
-            bool seqIsAscii = (seq.size() == 1 && static_cast<unsigned char>(seq[0]) < 0x80);
-            if (seqIsAscii && ansiLineIsAscii[ansiCursorRow] &&
-                ansiCursorCol == static_cast<int>(line.size())) {
-                line.push_back(seq[0]);
-                colors.push_back(cs);
-                ++ansiCursorCol;
-                return;
+            int end = std::min(ansiCursorCol, static_cast<int>(line.size()));
+            for (int c = 0; c < end; ++c) {
+              line[c] = ' ';
+              colors[c] = padStyle;
             }
-
-            ensureCol(ansiCursorRow, ansiCursorCol);
-            if (!seqIsAscii) ansiLineIsAscii[ansiCursorRow] = 0;
-
-            size_t byteOff = ansiLineIsAscii[ansiCursorRow]
-                ? static_cast<size_t>(ansiCursorCol)
-                : utf8_cell_to_byte(line, ansiCursorCol);
-            if (byteOff > line.size()) byteOff = line.size();
-            if (byteOff < line.size()) {
-                int oldLen = utf8_lead_len(static_cast<unsigned char>(line[byteOff]));
-                if (byteOff + oldLen > line.size())
-                    oldLen = static_cast<int>(line.size() - byteOff);
-                line.replace(byteOff, oldLen, seq);
-                colors.erase(colors.begin() + byteOff,
-                             colors.begin() + byteOff + oldLen);
-                colors.insert(colors.begin() + byteOff, seq.size(), cs);
-            } else {
-                line.append(seq);
-                for (size_t b = 0; b < seq.size(); ++b)
-                    colors.push_back(cs);
+          } else if (mode == 2) {
+            ansiLines[ansiCursorRow].clear();
+            ansiLineColors[ansiCursorRow].clear();
+            ansiCursorCol = 0;
+          }
+        } else if (cmd == 'J') {
+          int mode = nums.empty() ? 0 : nums[0];
+          ensureRow(ansiCursorRow);
+          if (mode == 2) {
+            ansiLines.assign(1, std::string{});
+            ansiLineColors.assign(1, std::vector<CharStyle>{});
+            ansiLineIsAscii.assign(1, 1);
+            ansiCursorRow = 0;
+            ansiCursorCol = 0;
+          } else if (mode == 0) {
+            clearToLineEnd();
+            for (size_t r = static_cast<size_t>(ansiCursorRow + 1);
+                 r < ansiLines.size(); ++r) {
+              ansiLines[r].clear();
+              ansiLineColors[r].clear();
+              if (r < ansiLineIsAscii.size())
+                ansiLineIsAscii[r] = 1;
             }
-            ansiCursorCol++;
-        };
-
-        auto parseParams = [](const std::string &paramText) {
-            std::vector<int> out;
-            if (paramText.empty()) {
-                out.push_back(0);
-                return out;
+          } else if (mode == 1) {
+            for (int r = 0; r < ansiCursorRow; ++r) {
+              ansiLines[r].clear();
+              ansiLineColors[r].clear();
+              if (static_cast<size_t>(r) < ansiLineIsAscii.size())
+                ansiLineIsAscii[r] = 1;
             }
-            std::string token;
-            for (char ch : paramText) {
-                if (ch == ';') {
-                    if (token.empty())
-                        out.push_back(0);
-                    else
-                        out.push_back(std::atoi(token.c_str()));
-                    token.clear();
-                } else {
-                    token.push_back(ch);
-                }
+            auto &line = ansiLines[ansiCursorRow];
+            auto &colors = ansiLineColors[ansiCursorRow];
+            CharStyle padStyle{text_color, {0, 0, 0, 0}, false, false};
+            size_t endByte = utf8_cell_to_byte(line, ansiCursorCol);
+            if (endByte > line.size())
+              endByte = line.size();
+            for (size_t b = 0; b < endByte; ++b) {
+              line[b] = ' ';
+              if (b < colors.size())
+                colors[b] = padStyle;
             }
-            if (token.empty())
-                out.push_back(0);
-            else
-                out.push_back(std::atoi(token.c_str()));
-            return out;
-        };
-
-        const std::string data = cleanTerminalOutput(input);
-        size_t i = 0;
-        while (i < data.size()) {
-            unsigned char ch = static_cast<unsigned char>(data[i]);
-            if (ch == 0x1B) {
-                if (i + 1 < data.size() && data[i + 1] == ']') {
-                    // OSC: consume until BEL or ST.
-                    size_t j = i + 2;
-                    while (j < data.size()) {
-                        if (data[j] == '\a') {
-                            j++;
-                            break;
-                        }
-                        if (data[j] == 0x1B && (j + 1) < data.size() && data[j + 1] == '\\') {
-                            j += 2;
-                            break;
-                        }
-                        ++j;
-                    }
-                    i = j;
-                    continue;
-                }
-
-                if (i + 1 < data.size() && data[i + 1] != '[') {
-                    // Non-CSI ESC sequences: ESC X (single char).
-                    char esc2 = data[i + 1];
-                    bool consumed = true;
-                    switch (esc2) {
-                        case 'D': // IND - line feed
-                            doNewline();
-                            break;
-                        case 'M': // RI - reverse line feed
-                            if (ansiCursorRow <= scrollTop)
-                                scrollRegionDown(1);
-                            else {
-                                ansiCursorRow--;
-                                if (ansiCursorRow < 0) ansiCursorRow = 0;
-                            }
-                            break;
-                        case 'E': // NEL - next line
-                            ansiCursorCol = 0;
-                            doNewline();
-                            break;
-                        case '7': // DECSC - save cursor + attrs
-                            ansiSavedRow = ansiCursorRow;
-                            ansiSavedCol = ansiCursorCol;
-                            savedAltFg = ansiCurrentColor;
-                            savedAltBg = ansiCurrentBg;
-                            savedAltBold = ansiBold;
-                            savedAltUnderline = ansiUnderline;
-                            break;
-                        case '8': // DECRC - restore cursor + attrs
-                            ansiCursorRow = ansiSavedRow;
-                            ansiCursorCol = ansiSavedCol;
-                            ansiCurrentColor = savedAltFg;
-                            ansiCurrentBg    = savedAltBg;
-                            ansiBold         = savedAltBold;
-                            ansiUnderline    = savedAltUnderline;
-                            ensureRow(ansiCursorRow);
-                            break;
-                        case '=': keypadApp = true; break;
-                        case '>': keypadApp = false; break;
-                        case 'H': /* HTS - tab set, ignore */ break;
-                        case 'c': /* RIS - full reset, ignore */ break;
-                        case '(': case ')': case '*': case '+':
-                            // Charset designation: G0/G1/G2/G3 - consume next byte.
-                            if (i + 2 < data.size()) i++;
-                            break;
-                        default:
-                            consumed = false;
-                            break;
-                    }
-                    if (consumed) {
-                        i += 2;
-                        continue;
-                    }
-                }
-
-                if (i + 1 < data.size() && data[i + 1] == '[') {
-                    size_t j = i + 2;
-                    while (j < data.size()) {
-                        unsigned char cj = static_cast<unsigned char>(data[j]);
-                        if (cj >= 0x40 && cj <= 0x7E)
-                            break;
-                        ++j;
-                    }
-                    if (j >= data.size())
-                        break;
-
-                    const char cmd = data[j];
-                    std::string params = data.substr(i + 2, j - (i + 2));
-                    bool privateMode = !params.empty() && params[0] == '?';
-                    if (privateMode)
-                        params.erase(params.begin());
-
-                    auto nums = parseParams(params);
-                    auto n0 = [&]() { return nums.empty() || nums[0] <= 0 ? 1 : nums[0]; };
-
-                    if (privateMode && (cmd == 'h' || cmd == 'l')) {
-                        bool set = (cmd == 'h');
-                        for (int code : nums) {
-                            switch (code) {
-                                case 25:
-#ifdef __linux__
-                                    cursorVisible = set;
-#endif
-                                    break;
-                                case 1:    decckm = set;     break;
-                                case 7:    decawm = set;     break;
-                                case 47:
-                                case 1047:
-                                case 1049:
-                                    if (set) enterAltScreen();
-                                    else     leaveAltScreen();
-                                    break;
-                                case 1048: // save/restore cursor
-                                    if (set) {
-                                        ansiSavedRow = ansiCursorRow;
-                                        ansiSavedCol = ansiCursorCol;
-                                    } else {
-                                        ansiCursorRow = ansiSavedRow;
-                                        ansiCursorCol = ansiSavedCol;
-                                    }
-                                    break;
-                                default: break;
-                            }
-                        }
-                    } else if (cmd == 'm') {
-                        for (size_t k = 0; k < nums.size(); ++k) {
-                            int code = nums[k];
-                            if (code == 0) {
-                                ansiCurrentColor = text_color;
-                                ansiCurrentBg = {0, 0, 0, 0};
-                                ansiBold = false;
-                                ansiUnderline = false;
-                                continue;
-                            }
-                            if (code == 1) { ansiBold = true; continue; }
-                            if (code == 22) { ansiBold = false; continue; }
-                            if (code == 4) { ansiUnderline = true; continue; }
-                            if (code == 24) { ansiUnderline = false; continue; }
-                            if (code == 49) { ansiCurrentBg = {0, 0, 0, 0}; continue; }
-                            if ((code >= 40 && code <= 47) || (code >= 100 && code <= 107)) {
-                                ansiCurrentBg = ansiBasicBgColor(code);
-                                continue;
-                            }
-                            if (code == 38 && k + 1 < nums.size()) {
-                                if (nums[k + 1] == 5 && k + 2 < nums.size()) {
-                                    int idx = nums[k + 2];
-                                    if (idx >= 16 && idx <= 231) {
-                                        idx -= 16;
-                                        int r = (idx / 36) % 6;
-                                        int g = (idx / 6) % 6;
-                                        int b = idx % 6;
-                                        ansiCurrentColor = SDL_Color{
-                                            static_cast<Uint8>(r == 0 ? 0 : r * 40 + 55),
-                                            static_cast<Uint8>(g == 0 ? 0 : g * 40 + 55),
-                                            static_cast<Uint8>(b == 0 ? 0 : b * 40 + 55),
-                                            255};
-                                    } else if (idx >= 232 && idx <= 255) {
-                                        Uint8 gray = static_cast<Uint8>((idx - 232) * 10 + 8);
-                                        ansiCurrentColor = SDL_Color{gray, gray, gray, 255};
-                                    }
-                                    k += 2;
-                                    continue;
-                                }
-                                if (nums[k + 1] == 2 && k + 4 < nums.size()) {
-                                    ansiCurrentColor = SDL_Color{
-                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 2]))),
-                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 3]))),
-                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 4]))),
-                                        255};
-                                    k += 4;
-                                    continue;
-                                }
-                            }
-                            if (code == 48 && k + 1 < nums.size()) {
-                                if (nums[k + 1] == 5 && k + 2 < nums.size()) {
-                                    int idx = nums[k + 2];
-                                    if (idx >= 16 && idx <= 231) {
-                                        idx -= 16;
-                                        int r = (idx / 36) % 6;
-                                        int g = (idx / 6) % 6;
-                                        int b = idx % 6;
-                                        ansiCurrentBg = SDL_Color{
-                                            static_cast<Uint8>(r == 0 ? 0 : r * 40 + 55),
-                                            static_cast<Uint8>(g == 0 ? 0 : g * 40 + 55),
-                                            static_cast<Uint8>(b == 0 ? 0 : b * 40 + 55),
-                                            255};
-                                    } else if (idx >= 232 && idx <= 255) {
-                                        Uint8 gray = static_cast<Uint8>((idx - 232) * 10 + 8);
-                                        ansiCurrentBg = SDL_Color{gray, gray, gray, 255};
-                                    }
-                                    k += 2;
-                                    continue;
-                                }
-                                if (nums[k + 1] == 2 && k + 4 < nums.size()) {
-                                    ansiCurrentBg = SDL_Color{
-                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 2]))),
-                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 3]))),
-                                        static_cast<Uint8>(std::max(0, std::min(255, nums[k + 4]))),
-                                        255};
-                                    k += 4;
-                                    continue;
-                                }
-                            }
-                            ansiCurrentColor = ansiBasicColor(code, ansiCurrentColor);
-                        }
-                    } else if (cmd == 'A') {
-                        ansiCursorRow = std::max(0, ansiCursorRow - n0());
-                    } else if (cmd == 'B') {
-                        ansiCursorRow += n0();
-                        ensureRow(ansiCursorRow);
-                    } else if (cmd == 'C') {
-                        ansiCursorCol += n0();
-                    } else if (cmd == 'D') {
-                        ansiCursorCol = std::max(0, ansiCursorCol - n0());
-                    } else if (cmd == 'G') {
-                        ansiCursorCol = std::max(0, n0() - 1);
-                    } else if (cmd == 'H' || cmd == 'f') {
-                        int row = nums.size() > 0 ? std::max(1, nums[0]) : 1;
-                        int col = nums.size() > 1 ? std::max(1, nums[1]) : 1;
-                        ansiCursorRow = row - 1;
-                        ansiCursorCol = col - 1;
-                        ensureRow(ansiCursorRow);
-                    } else if (cmd == 'K') {
-                        int mode = nums.empty() ? 0 : nums[0];
-                        ensureRow(ansiCursorRow);
-                        ensureCol(ansiCursorRow, ansiCursorCol);
-                        CharStyle padStyle{text_color, {0,0,0,0}, false, false};
-                        if (mode == 0) {
-                            clearToLineEnd();
-                        } else if (mode == 1) {
-                            auto &line = ansiLines[ansiCursorRow];
-                            auto &colors = ansiLineColors[ansiCursorRow];
-                            int end = std::min(ansiCursorCol, static_cast<int>(line.size()));
-                            for (int c = 0; c < end; ++c) {
-                                line[c] = ' ';
-                                colors[c] = padStyle;
-                            }
-                        } else if (mode == 2) {
-                            ansiLines[ansiCursorRow].clear();
-                            ansiLineColors[ansiCursorRow].clear();
-                            ansiCursorCol = 0;
-                        }
-                    } else if (cmd == 'J') {
-                        int mode = nums.empty() ? 0 : nums[0];
-                        ensureRow(ansiCursorRow);
-                        if (mode == 2) {
-                            ansiLines.assign(1, std::string{});
-                            ansiLineColors.assign(1, std::vector<CharStyle>{});
-                            ansiLineIsAscii.assign(1, 1);
-                            ansiCursorRow = 0;
-                            ansiCursorCol = 0;
-                        } else if (mode == 0) {
-                            clearToLineEnd();
-                            for (size_t r = static_cast<size_t>(ansiCursorRow + 1); r < ansiLines.size(); ++r) {
-                                ansiLines[r].clear();
-                                ansiLineColors[r].clear();
-                                if (r < ansiLineIsAscii.size())
-                                    ansiLineIsAscii[r] = 1;
-                            }
-                        } else if (mode == 1) {
-                            for (int r = 0; r < ansiCursorRow; ++r) {
-                                ansiLines[r].clear();
-                                ansiLineColors[r].clear();
-                                if (static_cast<size_t>(r) < ansiLineIsAscii.size())
-                                    ansiLineIsAscii[r] = 1;
-                            }
-                            auto &line = ansiLines[ansiCursorRow];
-                            auto &colors = ansiLineColors[ansiCursorRow];
-                            CharStyle padStyle{text_color, {0,0,0,0}, false, false};
-                            size_t endByte = utf8_cell_to_byte(line, ansiCursorCol);
-                            if (endByte > line.size()) endByte = line.size();
-                            for (size_t b = 0; b < endByte; ++b) {
-                                line[b] = ' ';
-                                if (b < colors.size()) colors[b] = padStyle;
-                            }
-                        }
-                    } else if (cmd == 's') {
-                        ansiSavedRow = ansiCursorRow;
-                        ansiSavedCol = ansiCursorCol;
-                    } else if (cmd == 'u') {
-                        ansiCursorRow = std::max(0, ansiSavedRow);
-                        ansiCursorCol = std::max(0, ansiSavedCol);
-                        ensureRow(ansiCursorRow);
-                    } else if (cmd == 'r') {
-                        // DECSTBM: set scrolling region (1-based, inclusive).
-                        int top = (nums.size() > 0 && nums[0] > 0) ? nums[0] - 1 : 0;
-                        int bot = (nums.size() > 1 && nums[1] > 0) ? nums[1] - 1 : -1;
-                        scrollTop = std::max(0, top);
-                        scrollBot = bot;
-                        ansiCursorRow = scrollTop;
-                        ansiCursorCol = 0;
-                    } else if (cmd == 'L') {
-                        // IL: insert N lines at cursor (within scroll region).
-                        int n = n0();
-                        int savedTop = scrollTop;
-                        scrollTop = ansiCursorRow;
-                        scrollRegionDown(n);
-                        scrollTop = savedTop;
-                    } else if (cmd == 'M') {
-                        // DL: delete N lines at cursor.
-                        int n = n0();
-                        int savedTop = scrollTop;
-                        scrollTop = ansiCursorRow;
-                        scrollRegionUp(n);
-                        scrollTop = savedTop;
-                    } else if (cmd == 'P') {
-                        // DCH: delete N characters at cursor.
-                        int n = n0();
-                        ensureRow(ansiCursorRow);
-                        auto &line   = ansiLines[ansiCursorRow];
-                        auto &colors = ansiLineColors[ansiCursorRow];
-                        size_t startByte = utf8_cell_to_byte(line, ansiCursorCol);
-                        size_t endByte   = utf8_cell_to_byte(line, ansiCursorCol + n);
-                        if (endByte > line.size()) endByte = line.size();
-                        if (startByte < line.size() && endByte > startByte) {
-                            line.erase(line.begin() + startByte, line.begin() + endByte);
-                            colors.erase(colors.begin() + startByte, colors.begin() + endByte);
-                        }
-                    } else if (cmd == '@') {
-                        // ICH: insert N blank characters at cursor.
-                        int n = n0();
-                        ensureRow(ansiCursorRow);
-                        ensureCol(ansiCursorRow, ansiCursorCol);
-                        auto &line   = ansiLines[ansiCursorRow];
-                        auto &colors = ansiLineColors[ansiCursorRow];
-                        CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
-                        size_t byteOff = utf8_cell_to_byte(line, ansiCursorCol);
-                        line.insert(byteOff, n, ' ');
-                        colors.insert(colors.begin() + byteOff, n, cs);
-                    } else if (cmd == 'X') {
-                        // ECH: erase N characters in place using current bg.
-                        int n = n0();
-                        ensureRow(ansiCursorRow);
-                        ensureCol(ansiCursorRow, ansiCursorCol + n);
-                        auto &line   = ansiLines[ansiCursorRow];
-                        auto &colors = ansiLineColors[ansiCursorRow];
-                        CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold, ansiUnderline};
-                        size_t startByte = utf8_cell_to_byte(line, ansiCursorCol);
-                        size_t endByte   = utf8_cell_to_byte(line, ansiCursorCol + n);
-                        if (endByte > line.size()) endByte = line.size();
-                        for (size_t b = startByte; b < endByte; ++b) {
-                            line[b]   = ' ';
-                            if (b < colors.size()) colors[b] = cs;
-                        }
-                        // Collapse multi-byte sequences in [startByte,endByte)
-                        // into single-byte spaces so cells == bytes there.
-                        if (endByte > startByte) {
-                            int cellsErased = n;
-                            line.replace(startByte, endByte - startByte,
-                                         std::string(static_cast<size_t>(cellsErased), ' '));
-                            colors.erase(colors.begin() + startByte, colors.begin() + endByte);
-                            colors.insert(colors.begin() + startByte,
-                                          static_cast<size_t>(cellsErased), cs);
-                        }
-                    } else if (cmd == 'S') {
-                        scrollRegionUp(n0());
-                    } else if (cmd == 'T') {
-                        scrollRegionDown(n0());
-                    } else if (cmd == 'd') {
-                        // VPA: vertical position absolute (1-based).
-                        int row = (nums.size() > 0 && nums[0] > 0) ? nums[0] - 1 : 0;
-                        ansiCursorRow = std::max(0, row);
-                        ensureRow(ansiCursorRow);
-                    }
-
-                    i = j + 1;
-                    continue;
-                }
-            }
-
-            if (ch == '\r') {
-                ansiCursorCol = 0;
-            } else if (ch == '\n') {
-                doNewline();
-                if (!altScreen)
-                    ansiCursorCol = 0;
-            } else if (ch == '\b') {
-                ansiCursorCol = std::max(0, ansiCursorCol - 1);
-            } else if (ch == '\t') {
-                int spaces = 4 - (ansiCursorCol % 4);
-                for (int s = 0; s < spaces; ++s)
-                    putChar(std::string(1, ' '));
-            } else if (ch >= 0x80) {
-                // UTF-8 multi-byte codepoint: emit as one cell.
-                int len = utf8_lead_len(ch);
-                if (i + len > data.size()) len = static_cast<int>(data.size() - i);
-                if (len <= 0) len = 1;
-                putChar(data.substr(i, len));
-                i += len;
-                continue;
-            } else if (ch >= 32) {
-                putChar(std::string(1, static_cast<char>(ch)));
-            }
-            ++i;
+          }
+        } else if (cmd == 's') {
+          ansiSavedRow = ansiCursorRow;
+          ansiSavedCol = ansiCursorCol;
+        } else if (cmd == 'u') {
+          ansiCursorRow = std::max(0, ansiSavedRow);
+          ansiCursorCol = std::max(0, ansiSavedCol);
+          ensureRow(ansiCursorRow);
+        } else if (cmd == 'r') {
+          // DECSTBM: set scrolling region (1-based, inclusive).
+          int top = (nums.size() > 0 && nums[0] > 0) ? nums[0] - 1 : 0;
+          int bot = (nums.size() > 1 && nums[1] > 0) ? nums[1] - 1 : -1;
+          scrollTop = std::max(0, top);
+          scrollBot = bot;
+          ansiCursorRow = scrollTop;
+          ansiCursorCol = 0;
+        } else if (cmd == 'L') {
+          // IL: insert N lines at cursor (within scroll region).
+          int n = n0();
+          int savedTop = scrollTop;
+          scrollTop = ansiCursorRow;
+          scrollRegionDown(n);
+          scrollTop = savedTop;
+        } else if (cmd == 'M') {
+          // DL: delete N lines at cursor.
+          int n = n0();
+          int savedTop = scrollTop;
+          scrollTop = ansiCursorRow;
+          scrollRegionUp(n);
+          scrollTop = savedTop;
+        } else if (cmd == 'P') {
+          // DCH: delete N characters at cursor.
+          int n = n0();
+          ensureRow(ansiCursorRow);
+          auto &line = ansiLines[ansiCursorRow];
+          auto &colors = ansiLineColors[ansiCursorRow];
+          size_t startByte = utf8_cell_to_byte(line, ansiCursorCol);
+          size_t endByte = utf8_cell_to_byte(line, ansiCursorCol + n);
+          if (endByte > line.size())
+            endByte = line.size();
+          if (startByte < line.size() && endByte > startByte) {
+            line.erase(line.begin() + startByte, line.begin() + endByte);
+            colors.erase(colors.begin() + startByte, colors.begin() + endByte);
+          }
+        } else if (cmd == '@') {
+          // ICH: insert N blank characters at cursor.
+          int n = n0();
+          ensureRow(ansiCursorRow);
+          ensureCol(ansiCursorRow, ansiCursorCol);
+          auto &line = ansiLines[ansiCursorRow];
+          auto &colors = ansiLineColors[ansiCursorRow];
+          CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold,
+                       ansiUnderline};
+          size_t byteOff = utf8_cell_to_byte(line, ansiCursorCol);
+          line.insert(byteOff, n, ' ');
+          colors.insert(colors.begin() + byteOff, n, cs);
+        } else if (cmd == 'X') {
+          // ECH: erase N characters in place using current bg.
+          int n = n0();
+          ensureRow(ansiCursorRow);
+          ensureCol(ansiCursorRow, ansiCursorCol + n);
+          auto &line = ansiLines[ansiCursorRow];
+          auto &colors = ansiLineColors[ansiCursorRow];
+          CharStyle cs{ansiCurrentColor, ansiCurrentBg, ansiBold,
+                       ansiUnderline};
+          size_t startByte = utf8_cell_to_byte(line, ansiCursorCol);
+          size_t endByte = utf8_cell_to_byte(line, ansiCursorCol + n);
+          if (endByte > line.size())
+            endByte = line.size();
+          for (size_t b = startByte; b < endByte; ++b) {
+            line[b] = ' ';
+            if (b < colors.size())
+              colors[b] = cs;
+          }
+          // Collapse multi-byte sequences in [startByte,endByte)
+          // into single-byte spaces so cells == bytes there.
+          if (endByte > startByte) {
+            int cellsErased = n;
+            line.replace(startByte, endByte - startByte,
+                         std::string(static_cast<size_t>(cellsErased), ' '));
+            colors.erase(colors.begin() + startByte, colors.begin() + endByte);
+            colors.insert(colors.begin() + startByte,
+                          static_cast<size_t>(cellsErased), cs);
+          }
+        } else if (cmd == 'S') {
+          scrollRegionUp(n0());
+        } else if (cmd == 'T') {
+          scrollRegionDown(n0());
+        } else if (cmd == 'd') {
+          // VPA: vertical position absolute (1-based).
+          int row = (nums.size() > 0 && nums[0] > 0) ? nums[0] - 1 : 0;
+          ansiCursorRow = std::max(0, row);
+          ensureRow(ansiCursorRow);
         }
 
-        syncAnsiToOutput();
+        i = j + 1;
+        continue;
+      }
     }
 
-    std::string Terminal::parseTerminalData(const std::string &input) {
-        std::regex promptRegex(R"(BEGIN_PROMPT(.*?)END_PROMPT)");
-        std::smatch promptMatch;
-        std::string promptText;
-        if (std::regex_search(input, promptMatch, promptRegex)) {
-            promptText = promptMatch[1].str();
-        }
-
-        std::string stream = std::regex_replace(input, promptRegex, "");
-        applyAnsiData(stream);
-        return promptText;
+    if (ch == '\r') {
+      ansiCursorCol = 0;
+    } else if (ch == '\n') {
+      doNewline();
+      if (!altScreen)
+        ansiCursorCol = 0;
+    } else if (ch == '\b') {
+      ansiCursorCol = std::max(0, ansiCursorCol - 1);
+    } else if (ch == '\t') {
+      int spaces = 4 - (ansiCursorCol % 4);
+      for (int s = 0; s < spaces; ++s)
+        putChar(std::string(1, ' '));
+    } else if (ch >= 0x80) {
+      // UTF-8 multi-byte codepoint: emit as one cell.
+      int len = utf8_lead_len(ch);
+      if (i + len > data.size())
+        len = static_cast<int>(data.size() - i);
+      if (len <= 0)
+        len = 1;
+      putChar(data.substr(i, len));
+      i += len;
+      continue;
+    } else if (ch >= 32) {
+      putChar(std::string(1, static_cast<char>(ch)));
     }
+    ++i;
+  }
 
-    Terminal::~Terminal() {
-        active = false;
+  syncAnsiToOutput();
+}
+
+std::string Terminal::parseTerminalData(const std::string &input) {
+  std::regex promptRegex(R"(BEGIN_PROMPT(.*?)END_PROMPT)");
+  std::smatch promptMatch;
+  std::string promptText;
+  if (std::regex_search(input, promptMatch, promptRegex)) {
+    promptText = promptMatch[1].str();
+  }
+
+  std::string stream = std::regex_replace(input, promptRegex, "");
+  applyAnsiData(stream);
+  return promptText;
+}
+
+Terminal::~Terminal() {
+  active = false;
 #ifdef _WIN32
-        TerminateProcess(procInfo.hProcess, 0);
-        CloseHandle(procInfo.hProcess);
-        CloseHandle(procInfo.hThread);
-        CloseHandle(hChildStdinWr);
-        CloseHandle(hChildStdoutRd);
+  TerminateProcess(procInfo.hProcess, 0);
+  CloseHandle(procInfo.hProcess);
+  CloseHandle(procInfo.hThread);
+  CloseHandle(hChildStdinWr);
+  CloseHandle(hChildStdoutRd);
 #elif !defined(FOR_WASM)
-        // Politely ask bash to exit. We write directly (rather than via
-        // sendCommand) so a stalled write can't block the destructor and
-        // so we do not depend on master_fd still being valid.
-        if (master_fd >= 0) {
-            const char exit_cmd[] = "exit\n";
-            ssize_t _w = ::write(master_fd, exit_cmd, sizeof(exit_cmd) - 1);
-            (void)_w;
-        }
-        // Reap bash without blocking forever. Interactive bash ignores
-        // SIGTERM, so we escalate: graceful exit -> SIGHUP -> SIGKILL.
-        // Previously we used waitpid(..., 0) after SIGTERM, which froze
-        // the program when the user typed "exit" because bash never died
-        // from SIGTERM in interactive mode.
-        if (bashPID > 0) {
-            auto try_reap = [this](int attempts, int delay_ms) {
-                for (int i = 0; i < attempts; ++i) {
-                    pid_t r = waitpid(bashPID, nullptr, WNOHANG);
-                    if (r == bashPID || r == -1) return true;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
-                }
-                return false;
-            };
-            bool reaped = try_reap(20, 25);            // up to ~500ms
-            if (!reaped) {
-                kill(bashPID, SIGHUP);
-                reaped = try_reap(20, 25);             // up to ~500ms more
-            }
-            if (!reaped) {
-                kill(bashPID, SIGKILL);
-                waitpid(bashPID, nullptr, 0);
-            }
-        }
+  // Politely ask bash to exit. We write directly (rather than via
+  // sendCommand) so a stalled write can't block the destructor and
+  // so we do not depend on master_fd still being valid.
+  if (master_fd >= 0) {
+    const char exit_cmd[] = "exit\n";
+    ssize_t _w = ::write(master_fd, exit_cmd, sizeof(exit_cmd) - 1);
+    (void)_w;
+  }
+  // Reap bash without blocking forever. Interactive bash ignores
+  // SIGTERM, so we escalate: graceful exit -> SIGHUP -> SIGKILL.
+  // Previously we used waitpid(..., 0) after SIGTERM, which froze
+  // the program when the user typed "exit" because bash never died
+  // from SIGTERM in interactive mode.
+  if (bashPID > 0) {
+    auto try_reap = [this](int attempts, int delay_ms) {
+      for (int i = 0; i < attempts; ++i) {
+        pid_t r = waitpid(bashPID, nullptr, WNOHANG);
+        if (r == bashPID || r == -1)
+          return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+      }
+      return false;
+    };
+    bool reaped = try_reap(20, 25); // up to ~500ms
+    if (!reaped) {
+      kill(bashPID, SIGHUP);
+      reaped = try_reap(20, 25); // up to ~500ms more
+    }
+    if (!reaped) {
+      kill(bashPID, SIGKILL);
+      waitpid(bashPID, nullptr, 0);
+    }
+  }
 
-        if (master_fd >= 0) {
-            close(master_fd);
-            master_fd = -1;
-        }
-        if (bashThread) {
-            SDL_WaitThread(bashThread, nullptr);
-            bashThread = nullptr;
-        }
+  if (master_fd >= 0) {
+    close(master_fd);
+    master_fd = -1;
+  }
+  if (bashThread) {
+    SDL_WaitThread(bashThread, nullptr);
+    bashThread = nullptr;
+  }
 #endif
-        if(font != nullptr)
-            TTF_CloseFont(font);
-        clearRunCache();
-    }
+  if (font != nullptr)
+    TTF_CloseFont(font);
+  clearRunCache();
+}
 
-    void Terminal::clearRunCache() {
-        for (auto &kv : runCache_) {
-            if (kv.second) SDL_DestroyTexture(kv.second);
-        }
-        runCache_.clear();
-    }
+void Terminal::clearRunCache() {
+  for (auto &kv : runCache_) {
+    if (kv.second)
+      SDL_DestroyTexture(kv.second);
+  }
+  runCache_.clear();
+}
 
-    SDL_Texture *Terminal::getCachedRunTexture(mxApp &app, const std::string &text,
-                                               SDL_Color fg, int ttfStyle) {
-        if (text.empty()) return nullptr;
-        Uint32 packed = (static_cast<Uint32>(fg.r) << 24) |
-                        (static_cast<Uint32>(fg.g) << 16) |
-                        (static_cast<Uint32>(fg.b) << 8)  |
-                         static_cast<Uint32>(fg.a);
-        RunCacheKey key{text, packed, ttfStyle};
-        auto it = runCache_.find(key);
-        if (it != runCache_.end()) return it->second;
-        TTF_SetFontStyle(font, ttfStyle);
-        SDL_Surface *surface = TTF_RenderUTF8_Blended(font, text.c_str(), fg);
-        TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
-        if (!surface) return nullptr;
-        SDL_Texture *tex = SDL_CreateTextureFromSurface(app.ren, surface);
-        SDL_FreeSurface(surface);
-        if (!tex) return nullptr;
-        // Bound the cache so a long session of unique strings can't
-        // grow it without limit. ~4096 entries is plenty for typical
-        // terminal output and keeps memory in check.
-        if (runCache_.size() >= 4096) {
-            for (auto &kv : runCache_) {
-                if (kv.second) SDL_DestroyTexture(kv.second);
-            }
-            runCache_.clear();
-        }
-        runCache_.emplace(std::move(key), tex);
-        return tex;
+SDL_Texture *Terminal::getCachedRunTexture(mxApp &app, const std::string &text,
+                                           SDL_Color fg, int ttfStyle) {
+  if (text.empty())
+    return nullptr;
+  Uint32 packed = (static_cast<Uint32>(fg.r) << 24) |
+                  (static_cast<Uint32>(fg.g) << 16) |
+                  (static_cast<Uint32>(fg.b) << 8) | static_cast<Uint32>(fg.a);
+  RunCacheKey key{text, packed, ttfStyle};
+  auto it = runCache_.find(key);
+  if (it != runCache_.end())
+    return it->second;
+  TTF_SetFontStyle(font, ttfStyle);
+  SDL_Surface *surface = TTF_RenderUTF8_Blended(font, text.c_str(), fg);
+  TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
+  if (!surface)
+    return nullptr;
+  SDL_Texture *tex = SDL_CreateTextureFromSurface(app.ren, surface);
+  SDL_FreeSurface(surface);
+  if (!tex)
+    return nullptr;
+  // Bound the cache so a long session of unique strings can't
+  // grow it without limit. ~4096 entries is plenty for typical
+  // terminal output and keeps memory in check.
+  if (runCache_.size() >= 4096) {
+    for (auto &kv : runCache_) {
+      if (kv.second)
+        SDL_DestroyTexture(kv.second);
     }
+    runCache_.clear();
+  }
+  runCache_.emplace(std::move(key), tex);
+  return tex;
+}
 
-    void Terminal::draw(mxApp &app) {
-        if (!isVisible())
-            return;
+void Terminal::draw(mxApp &app) {
+  if (!isVisible())
+    return;
 
 #ifdef FOR_WASM
-        g_activeTerminal = this;
+  g_activeTerminal = this;
 #endif
 
-        if (!embedded_)
-            Window::draw(app);
+  if (!embedded_)
+    Window::draw(app);
 
-        // Even when minimized, keep the shader effect running on the
-        // full wallpaper so the dimension background stays animated.
-        if (isDraw() == false) {
-            if (activeEffect_ != TermEffect::None && dim && !dim->getMatrix())
-                drawEffectBackground(app);
-            return;
-        }
+  // Even when minimized, keep the shader effect running on the
+  // full wallpaper so the dimension background stays animated.
+  if (isDraw() == false) {
+    if (activeEffect_ != TermEffect::None && dim && !dim->getMatrix())
+      drawEffectBackground(app);
+    return;
+  }
 
-        // If the editor is active, render it inside the window content
-        // area (below the title bar) and skip the regular terminal UI.
-        if (editor && editor->isActive()) {
-            SDL_Rect rc;
-            Window::getRect(rc);
-            rc.y += 28;
-            rc.h -= 28;
-            if (rc.h < 0) rc.h = 0;
-            if (!embedded_)
-                Window::drawMenubar(app);
-            editor->draw(app, rc);
-            return;
-        }
+  // If the editor is active, render it inside the window content
+  // area (below the title bar) and skip the regular terminal UI.
+  if (editor && editor->isActive()) {
+    SDL_Rect rc;
+    Window::getRect(rc);
+    rc.y += 28;
+    rc.h -= 28;
+    if (rc.h < 0)
+      rc.h = 0;
+    if (!embedded_)
+      Window::drawMenubar(app);
+    editor->draw(app, rc);
+    return;
+  }
 
- 
-    #ifndef FOR_WASM
-        if (newData == true) {
-            std::lock_guard<std::mutex> lock(outputMutex);
-            std::string temp = new_data;
-            parseTerminalData(temp);
+#ifndef FOR_WASM
+  if (newData == true) {
+    std::lock_guard<std::mutex> lock(outputMutex);
+    std::string temp = new_data;
+    parseTerminalData(temp);
 #if defined(__linux__) || defined(__APPLE__)
-            if (temp.find("password for") != std::string::npos ||
-                temp.find("Password:") != std::string::npos) {
-                echo_enabled = false;
-            }
+    if (temp.find("password for") != std::string::npos ||
+        temp.find("Password:") != std::string::npos) {
+      echo_enabled = false;
+    }
 #endif
-            newData = false;
-            new_data = "";
-            
-        }
-    #endif
- 
-    #if defined(__linux__) || defined(__APPLE__)
-        if (!altScreen && !outputLines.empty()) {
-            prompt = outputLines.back();
-        }
-    #elif defined(_WIN32)
-        prompt = "$ ";
-    #endif
-        SDL_Rect outer;
-        Window::getRect(outer);
-        // Make sure the PTY always reflects the current window size; the
-        // initial constructor call ran before the window was sized.
-        updatePtySize();
-        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
-        if (activeEffect_ != TermEffect::None && !dim->getMatrix()) {
-            drawEffectBackground(app);
-        } else if (!embedded_ && dim->getMatrix()) {
-            SDL_RenderCopy(app.ren, dim->matrix_tex, nullptr, nullptr);
-        } else if (dim->wallpaper) {
-            // Fake transparency: blit the portion of the desktop wallpaper
-            // that lies behind this window, then let the dark overlay follow.
-            int wpW = dim->wallpaper->w;
-            int wpH = dim->wallpaper->h;
-            SDL_Rect src = {
-                outer.x * wpW / app.width,
-                outer.y * wpH / app.height,
-                outer.w * wpW / app.width,
-                outer.h * wpH / app.height
-            };
-            SDL_RenderCopy(app.ren, dim->wallpaper, &src, &outer);
-        }
-        // Translucent dark overlay for the terminal content area. When
-        // embedded, the parent draws title bar / tab strip on top of us
-        // afterwards, so restrict the overlay to our content rect to
-        // keep the shader/wallpaper showing through above the chrome.
-        SDL_Rect fillRect = outer;
-        if (embedded_) {
-            fillRect.y += 28;
-            fillRect.h -= 28;
-            if (fillRect.h < 0) fillRect.h = 0;
-        }
-        SDL_RenderFillRect(app.ren, &fillRect);
-        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
-
-        SDL_Rect contentRect = outer;
-        contentRect.y += 28;
-        contentRect.h -= 28;
-        if (contentRect.h < 0) contentRect.h = 0;
-        SDL_Rect viewport = textViewportRect();
-
-        if (!embedded_)
-            Window::drawMenubar(app);
-        // Clip text rendering to the exact viewport used for PTY sizing.
-        SDL_RenderSetClipRect(app.ren, &viewport);
- 
-
-        int lineHeight = TTF_FontHeight(font);
-        int maxWidth = viewport.w;
-        int y = viewport.y;
-
-        int promptWidth = 0;
-        TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
-        int requiredInputLines = calculateWrappedLinesForText(inputText, maxWidth - promptWidth, promptWidth);
-        if (requiredInputLines < 1) {
-            requiredInputLines = 1;
-        }
-
-        // In alt-screen (vim/nano/...) we draw the program-owned grid only,
-        // with no input echo line, no scrollback offset, and a cursor that
-        // follows the program's reported (row,col) position.
-        if (altScreen) {
-            int startRow = 0;
-            int rows = static_cast<int>(outputLines.size());
-            for (int i = startRow; i < rows; ++i) {
-                if (y + lineHeight > viewport.y + viewport.h) break;
-                renderOutputLine(app, i, viewport.x, y);
-                y += lineHeight;
-            }
-            // Cursor: place at ansiCursorRow/Col using a fixed cell width.
-            int cellW = 0;
-            TTF_SizeText(font, "M", &cellW, nullptr);
-            if (cellW <= 0) cellW = 8;
-            int cur_y = viewport.y + ansiCursorRow * lineHeight;
-            int cur_x = viewport.x + ansiCursorCol * cellW;
-            Uint32 t = SDL_GetTicks();
-            if (t - cursorTimer >= cursorBlinkInterval) {
-                showCursor = !showCursor;
-                cursorTimer = t;
-            }
-            drawCursor(app, cur_x, cur_y, showCursor);
-            int totalLinesAlt = static_cast<int>(outputLines.size());
-            if (totalLinesAlt <= maxVisibleLines) {
-                scrollBarHeight = 0;
-            }
-            SDL_RenderSetClipRect(app.ren, nullptr);
-            return;
-        }
-
-        for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
-            if (y + lineHeight * (requiredInputLines + 1) > viewport.y + viewport.h) {
-                break;
-            }
-            renderOutputLine(app, i, viewport.x, y);
-            y += lineHeight;
-        }
-
-        // Selection overlay (drawn after text so highlighting blends on top).
-        {
-            int cellW = 0;
-            TTF_SizeText(font, "M", &cellW, nullptr);
-            if (cellW <= 0) cellW = 8;
-            drawSelection(app, viewport, lineHeight, cellW);
-        }
-
-        int cx = viewport.x;
-        int cy = y;
+    newData = false;
+    new_data = "";
+  }
+#endif
 
 #if defined(__linux__) || defined(__APPLE__)
-        // PTY-driven session: bash already echoes typed characters and
-        // draws its own prompt as part of its output stream, so all we
-        // need to do here is place a blinking cursor at bash's reported
-        // cell position. We must NOT redraw `prompt + inputText` -- that
-        // produced the doubled prompt the user used to see.
-        if (!waitingForInput) {
-            int cellW = 0;
-            TTF_SizeText(font, "M", &cellW, nullptr);
-            if (cellW <= 0) cellW = 8;
-            // ansiCursorRow is an absolute row in outputLines; translate
-            // to a screen Y by subtracting the current scrollOffset.
-            int curRow = ansiCursorRow - scrollOffset;
-            int curCol = ansiCursorCol;
-            int cur_y = viewport.y + curRow * lineHeight;
-            int cur_x = viewport.x + curCol * cellW;
-            Uint32 t = SDL_GetTicks();
-            if (t - cursorTimer >= cursorBlinkInterval) {
-                showCursor = !showCursor;
-                cursorTimer = t;
-            }
-            // Only draw the cursor if its row is within the actually
-            // rendered output range (cy is the y just past the last line
-            // we drew). Otherwise scrolling away from the prompt would
-            // draw a stray cursor in the reserved input area.
-                if (cur_y >= viewport.y && cur_y + lineHeight <= cy)
-                drawCursor(app, cur_x, cur_y, showCursor);
-        }
-#endif
-
-#ifdef FOR_WASM
-        if (waitingForInput && !orig_text.empty() && orig_text.back() != '\n') {
-            int lastLineY = y - lineHeight;
-            int lastLineWidth = 0;
-            if (!outputLines.empty()) {
-                TTF_SizeText(font, outputLines.back().c_str(), &lastLineWidth, nullptr);
-            }
-            int inputStartX = viewport.x + lastLineWidth;
-            
-            if (!inputText.empty()) {
-                renderText(app, inputText, inputStartX, lastLineY);
-            }
-            
-            int inputWidth = 0;
-            if (!inputText.empty()) {
-                std::string textBeforeCursor = inputText.substr(0, cursorPosition);
-                TTF_SizeText(font, textBeforeCursor.c_str(), &inputWidth, nullptr);
-            }
-            
-            Uint32 currentTime = SDL_GetTicks();
-            if (currentTime - cursorTimer >= cursorBlinkInterval) {
-                showCursor = !showCursor;
-                cursorTimer = currentTime;
-            }
-            drawCursor(app, inputStartX + inputWidth, lastLineY, showCursor);
-        } else {
-            std::string displayPrompt = waitingForInput ? "" : prompt;
-            renderTextWrapped(app, displayPrompt, inputText, cx, cy, maxWidth);
-        }
+  if (!altScreen && !outputLines.empty()) {
+    prompt = outputLines.back();
+  }
 #elif defined(_WIN32)
-        // Windows path still uses cooked-mode line editing locally.
-        std::string displayPrompt = waitingForInput ? "" : prompt;
-        renderTextWrapped(app, displayPrompt, inputText, cx, cy, maxWidth);
-#else
-        // Linux / macOS: PTY raw mode -- nothing to draw here; bash owns
-        // the input line. The block above placed the cursor.
-        (void)cx; (void)cy;
+  prompt = "$ ";
 #endif
+  SDL_Rect outer;
+  Window::getRect(outer);
+  // Make sure the PTY always reflects the current window size; the
+  // initial constructor call ran before the window was sized.
+  updatePtySize();
+  SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 200);
+  if (activeEffect_ != TermEffect::None && !dim->getMatrix()) {
+    drawEffectBackground(app);
+  } else if (!embedded_ && dim->getMatrix()) {
+    SDL_RenderCopy(app.ren, dim->matrix_tex, nullptr, nullptr);
+  } else if (dim->wallpaper) {
+    // Fake transparency: blit the portion of the desktop wallpaper
+    // that lies behind this window, then let the dark overlay follow.
+    int wpW = dim->wallpaper->w;
+    int wpH = dim->wallpaper->h;
+    SDL_Rect src = {outer.x * wpW / app.width, outer.y * wpH / app.height,
+                    outer.w * wpW / app.width, outer.h * wpH / app.height};
+    SDL_RenderCopy(app.ren, dim->wallpaper, &src, &outer);
+  }
+  // Translucent dark overlay for the terminal content area. When
+  // embedded, the parent draws title bar / tab strip on top of us
+  // afterwards, so restrict the overlay to our content rect to
+  // keep the shader/wallpaper showing through above the chrome.
+  SDL_Rect fillRect = outer;
+  if (embedded_) {
+    fillRect.y += 28;
+    fillRect.h -= 28;
+    if (fillRect.h < 0)
+      fillRect.h = 0;
+  }
+  SDL_RenderFillRect(app.ren, &fillRect);
+  SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_NONE);
 
+  SDL_Rect contentRect = outer;
+  contentRect.y += 28;
+  contentRect.h -= 28;
+  if (contentRect.h < 0)
+    contentRect.h = 0;
+  SDL_Rect viewport = textViewportRect();
 
-        int totalLines = static_cast<int>(outputLines.size());
+  if (!embedded_)
+    Window::drawMenubar(app);
+  // Clip text rendering to the exact viewport used for PTY sizing.
+  SDL_RenderSetClipRect(app.ren, &viewport);
 
-        int totalWrappedLines = calculateWrappedLinesForText(inputText, maxWidth - promptWidth, promptWidth);
-        totalLines += totalWrappedLines;
+  int lineHeight = TTF_FontHeight(font);
+  int maxWidth = viewport.w;
+  int y = viewport.y;
 
-        // Recompute the visible-line capacity from the current content rect
-        // so a window resize (especially a horizontal-only one that doesn't
-        // call scroll()) immediately corrects the scrollbar geometry.
-        if (lineHeight > 0) {
-            maxVisibleLines = viewport.h / lineHeight;
-            if (maxVisibleLines < 1) maxVisibleLines = 1;
-        }
-        // scrollOffset indexes outputLines directly. The drawing loop above
-        // reserves the bottom (requiredInputLines + 1) rows for the input
-        // line, so the largest scrollOffset that still fills the output
-        // area is outputLines.size() - (maxVisibleLines - requiredInputLines).
-        // Clamp against that so resizing larger doesn't leave blank space
-        // below the last line (which also pushed the cursor and scrollbar
-        // mid-window).
-        int outputCount = static_cast<int>(outputLines.size());
-        int visibleOutputRows = maxVisibleLines - (requiredInputLines + 1);
-        if (visibleOutputRows < 1) visibleOutputRows = 1;
-        int maxScroll = outputCount - visibleOutputRows;
-        if (maxScroll < 0) maxScroll = 0;
-        if (scrollOffset > maxScroll) scrollOffset = maxScroll;
-        if (scrollOffset < 0) scrollOffset = 0;
+  int promptWidth = 0;
+  TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
+  int requiredInputLines = calculateWrappedLinesForText(
+      inputText, maxWidth - promptWidth, promptWidth);
+  if (requiredInputLines < 1) {
+    requiredInputLines = 1;
+  }
 
-        if (totalLines > maxVisibleLines) {
-            SDL_RenderSetClipRect(app.ren, &contentRect);
-            int offx = contentRect.x + contentRect.w;
-            int offy = contentRect.y;
-            int availableHeight = contentRect.h;
-
-            scrollBarHeight = (maxVisibleLines * availableHeight) / totalLines;
-
-            if (scrollBarHeight < 10) {
-                scrollBarHeight = 10;
-            }
-
-            // Use the same maxScroll that bounds scrollOffset so the bar
-            // reaches the bottom of the track exactly when content does.
-            int denom = maxScroll > 0 ? maxScroll : 1;
-            scrollBarPosY = offy + (scrollOffset * (availableHeight - scrollBarHeight)) / denom;
-
-            if (scrollBarPosY + scrollBarHeight > contentRect.y + contentRect.h) {
-                scrollBarPosY = contentRect.y + contentRect.h - scrollBarHeight;
-            }
-
-            SDL_Rect scrollBarRect = {offx - scrollBarWidth, scrollBarPosY, scrollBarWidth, scrollBarHeight};
-            SDL_SetRenderDrawColor(app.ren, 100, 100, 100, 255);
-            SDL_RenderFillRect(app.ren, &scrollBarRect);
-        }
-        SDL_RenderSetClipRect(app.ren, nullptr);
+  // In alt-screen (vim/nano/...) we draw the program-owned grid only,
+  // with no input echo line, no scrollback offset, and a cursor that
+  // follows the program's reported (row,col) position.
+  if (altScreen) {
+    int startRow = 0;
+    int rows = static_cast<int>(outputLines.size());
+    for (int i = startRow; i < rows; ++i) {
+      if (y + lineHeight > viewport.y + viewport.h)
+        break;
+      renderOutputLine(app, i, viewport.x, y);
+      y += lineHeight;
     }
-
-
-    void Terminal::renderText(mxApp &app, const std::string &text, int x, int y) {
-        if(!text.empty()) {
-            SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), text_color);
-            if(surface == nullptr) {
-                mx::system_err << "MasterX System Error: Render Text failed.\n";
-                mx::system_err.flush();
-                return;
-            }
-            SDL_Texture* texture = SDL_CreateTextureFromSurface(app.ren, surface);
-            if(texture == nullptr) {
-                mx::system_err << "MasterX System Error: Create Texture failed.\n";
-                mx::system_err.flush();
-                return;
-            }
-            SDL_Rect dstRect = {x, y, surface->w, surface->h};
-            SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
-
-            SDL_FreeSurface(surface);
-            SDL_DestroyTexture(texture);
-        }
+    // Cursor: place at ansiCursorRow/Col using a fixed cell width.
+    int cellW = 0;
+    TTF_SizeText(font, "M", &cellW, nullptr);
+    if (cellW <= 0)
+      cellW = 8;
+    int cur_y = viewport.y + ansiCursorRow * lineHeight;
+    int cur_x = viewport.x + ansiCursorCol * cellW;
+    Uint32 t = SDL_GetTicks();
+    if (t - cursorTimer >= cursorBlinkInterval) {
+      showCursor = !showCursor;
+      cursorTimer = t;
     }
-
-    void Terminal::renderOutputLine(mxApp &app, int lineIndex, int x, int y) {
-        if (lineIndex < 0 || lineIndex >= static_cast<int>(outputLines.size()))
-            return;
-
-        const std::string &line = outputLines[lineIndex];
-        if (line.empty())
-            return;
-
-        if (lineIndex >= static_cast<int>(outputLineColors.size()) ||
-            outputLineColors[lineIndex].size() != line.size()) {
-            renderText(app, line, x, y);
-            return;
-        }
-
-        const auto &styles = outputLineColors[lineIndex];
-        const int lineH = TTF_FontHeight(font);
-        // Use a fixed cell width so column alignment is preserved even
-        // when style runs (e.g. bold/colored directory names from `ls`)
-        // mix with regular text on the same line.
-        int cellW = 0;
-        TTF_SizeText(font, "M", &cellW, nullptr);
-        if (cellW <= 0) cellW = 8;
-        bool lineHasUtf8 = false;
-        for (unsigned char c : line) {
-            if (c >= 0x80) {
-                lineHasUtf8 = true;
-                break;
-            }
-        }
-        int drawX = x;
-        size_t i = 0;
-        while (i < line.size()) {
-            const CharStyle &run = styles[i];
-            size_t j = i + 1;
-            while (j < line.size() &&
-                   styles[j].fg.r == run.fg.r && styles[j].fg.g == run.fg.g &&
-                   styles[j].fg.b == run.fg.b && styles[j].fg.a == run.fg.a &&
-                   styles[j].bg.r == run.bg.r && styles[j].bg.g == run.bg.g &&
-                   styles[j].bg.b == run.bg.b && styles[j].bg.a == run.bg.a &&
-                   styles[j].bold == run.bold && styles[j].underline == run.underline) {
-                ++j;
-            }
-
-            std::string text = line.substr(i, j - i);
-            if (!text.empty()) {
-                // On ASCII-only lines we keep a strict cell grid so
-                // columns from `ls`, tables, etc. line up. SDL_ttf's
-                // built-in TTF_STYLE_BOLD makes glyphs wider than one
-                // cell which breaks that alignment, so for ASCII lines
-                // we render bold as an overstrike (draw the non-bold
-                // texture twice with a 1px x-offset). UTF-8 lines keep
-                // the natural-advance path with real bold styling.
-                bool overstrikeBold = run.bold && !lineHasUtf8;
-                int ttfStyle = TTF_STYLE_NORMAL;
-                if (run.bold && !overstrikeBold) ttfStyle |= TTF_STYLE_BOLD;
-                if (run.underline && !altScreen) ttfStyle |= TTF_STYLE_UNDERLINE;
-
-                SDL_Texture *texture = getCachedRunTexture(app, text, run.fg, ttfStyle);
-                int gw = 0, gh = lineH;
-                if (texture) {
-                    SDL_QueryTexture(texture, nullptr, nullptr, &gw, &gh);
-                }
-                // ASCII-only lines (ls columns) need strict cell-grid
-                // advance, but UTF-8 lines (fastfetch logo/tables) look
-                // better with natural glyph advance from SDL_ttf.
-                int runW = 0;
-                if (lineHasUtf8) {
-                    runW = gw > 0 ? gw : (utf8_cell_count(text) * cellW);
-                } else {
-                    runW = utf8_cell_count(text) * cellW;
-                }
-
-                if (run.bg.a != 0) {
-                    SDL_Rect bgRect = {drawX, y, runW, lineH};
-                    SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
-                    SDL_SetRenderDrawColor(app.ren, run.bg.r, run.bg.g, run.bg.b, run.bg.a);
-                    SDL_RenderFillRect(app.ren, &bgRect);
-                }
-
-                if (texture) {
-                    SDL_Rect dstRect = {drawX, y, gw, gh};
-                    SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
-                    if (overstrikeBold) {
-                        SDL_Rect dstRect2 = {drawX + 1, y, gw, gh};
-                        SDL_RenderCopy(app.ren, texture, nullptr, &dstRect2);
-                    }
-                }
-                drawX += runW;
-            }
-            i = j;
-        }
+    drawCursor(app, cur_x, cur_y, showCursor);
+    int totalLinesAlt = static_cast<int>(outputLines.size());
+    if (totalLinesAlt <= maxVisibleLines) {
+      scrollBarHeight = 0;
     }
+    SDL_RenderSetClipRect(app.ren, nullptr);
+    return;
+  }
 
-    std::vector<std::string> Terminal::splitText(const std::string &text) {
-        std::vector<std::string> words;
-        std::istringstream ss(text);
-        std::string word;
-
-        while (ss >> word) {  
-            words.push_back(word);
-        }
-
-        return words;
+  for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
+    if (y + lineHeight * (requiredInputLines + 1) > viewport.y + viewport.h) {
+      break;
     }
-    
-    void Terminal::drawCursor(mxApp &app, int x, int y, bool showCursor) {
-        #ifdef __linux__
-        if(cursorVisible && showCursor) {
-        #else
-        if (showCursor) {
-        #endif
-            int textHeight = TTF_FontHeight(font);
-            SDL_SetRenderDrawColor(app.ren, text_color.r, text_color.g, text_color.b, 255);
-            SDL_RenderDrawLine(app.ren, x, y, x, y + textHeight);  
-        }
-    }
+    renderOutputLine(app, i, viewport.x, y);
+    y += lineHeight;
+  }
 
-    void Terminal::renderTextWrapped(mxApp &app, const std::string &prompt, const std::string &inputText, int &x, int &y, int maxWidth) {
-        SDL_Rect rc;
-        Window::getRect(rc);
-        int margin = 5;
-        int availableWidth = maxWidth - margin * 2;
-        x = rc.x + margin;
-        int lineHeight = TTF_FontHeight(font);
+  // Selection overlay (drawn after text so highlighting blends on top).
+  {
+    int cellW = 0;
+    TTF_SizeText(font, "M", &cellW, nullptr);
+    if (cellW <= 0)
+      cellW = 8;
+    drawSelection(app, viewport, lineHeight, cellW);
+  }
+
+  int cx = viewport.x;
+  int cy = y;
+
+#if defined(__linux__) || defined(__APPLE__)
+  // PTY-driven session: bash already echoes typed characters and
+  // draws its own prompt as part of its output stream, so all we
+  // need to do here is place a blinking cursor at bash's reported
+  // cell position. We must NOT redraw `prompt + inputText` -- that
+  // produced the doubled prompt the user used to see.
+  if (!waitingForInput) {
+    int cellW = 0;
+    TTF_SizeText(font, "M", &cellW, nullptr);
+    if (cellW <= 0)
+      cellW = 8;
+    // ansiCursorRow is an absolute row in outputLines; translate
+    // to a screen Y by subtracting the current scrollOffset.
+    int curRow = ansiCursorRow - scrollOffset;
+    int curCol = ansiCursorCol;
+    int cur_y = viewport.y + curRow * lineHeight;
+    int cur_x = viewport.x + curCol * cellW;
+    Uint32 t = SDL_GetTicks();
+    if (t - cursorTimer >= cursorBlinkInterval) {
+      showCursor = !showCursor;
+      cursorTimer = t;
+    }
+    // Only draw the cursor if its row is within the actually
+    // rendered output range (cy is the y just past the last line
+    // we drew). Otherwise scrolling away from the prompt would
+    // draw a stray cursor in the reserved input area.
+    if (cur_y >= viewport.y && cur_y + lineHeight <= cy)
+      drawCursor(app, cur_x, cur_y, showCursor);
+  }
+#endif
 
 #ifdef FOR_WASM
-        if (inputText.find('\n') != std::string::npos) {
-            int cursorX = x;
-            int cursorY = y;
-            bool cursorDrawn = false;
+  if (waitingForInput && !orig_text.empty() && orig_text.back() != '\n') {
+    int lastLineY = y - lineHeight;
+    int lastLineWidth = 0;
+    if (!outputLines.empty()) {
+      TTF_SizeText(font, outputLines.back().c_str(), &lastLineWidth, nullptr);
+    }
+    int inputStartX = viewport.x + lastLineWidth;
 
-            auto renderOneLogicalLine = [&](const std::string& linePrompt, const std::string& lineText, int lineStartIndex) {
-                int prompt_w = 0;
-                TTF_SizeText(font, linePrompt.c_str(), &prompt_w, nullptr);
-                renderText(app, linePrompt, x, y);
+    if (!inputText.empty()) {
+      renderText(app, inputText, inputStartX, lastLineY);
+    }
 
-                int localCursorPos = -1;
-                if (cursorPosition >= lineStartIndex && cursorPosition <= lineStartIndex + static_cast<int>(lineText.size())) {
-                    localCursorPos = cursorPosition - lineStartIndex;
-                }
+    int inputWidth = 0;
+    if (!inputText.empty()) {
+      std::string textBeforeCursor = inputText.substr(0, cursorPosition);
+      TTF_SizeText(font, textBeforeCursor.c_str(), &inputWidth, nullptr);
+    }
 
-                int localCount = 0;
-                bool firstVisualLine = true;
-                int textX = x + prompt_w;
-                int textY = y;
-                std::string remainingText = lineText;
-
-                while (!remainingText.empty()) {
-                    std::string lineToRender;
-                    int currentWidth = 0;
-                    size_t i = 0;
-
-                    int lineWidth = firstVisualLine ? (availableWidth - prompt_w - 10) : (availableWidth - 10);
-                    int drawX = firstVisualLine ? textX : (rc.x + margin);
-
-                    while (i < remainingText.length()) {
-                        std::string testLine = lineToRender + remainingText[i];
-                        TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
-
-                        if (currentWidth > lineWidth) {
-                            if (!lineToRender.empty()) {
-                                break;
-                            }
-                            lineToRender += remainingText[i++];
-                            break;
-                        }
-
-                        lineToRender += remainingText[i++];
-                        localCount++;
-                        if (!cursorDrawn && localCursorPos >= 0 && localCount == localCursorPos) {
-                            cursorX = drawX + currentWidth;
-                            cursorY = textY;
-                            cursorDrawn = true;
-                        }
-                    }
-
-                    renderText(app, lineToRender, drawX, textY);
-
-                    textY += lineHeight;
-                    y = textY;
-                    remainingText = remainingText.substr(i);
-                    firstVisualLine = false;
-                }
-
-                if (lineText.empty()) {
-                    y += lineHeight;
-                }
-
-                x = rc.x + margin;
-            };
-
-            int lineStartIndex = 0;
-            size_t pos = 0;
-            size_t next = 0;
-            bool firstLine = true;
-            while (true) {
-                next = inputText.find('\n', pos);
-                std::string line = (next == std::string::npos) ? inputText.substr(pos) : inputText.substr(pos, next - pos);
-                renderOneLogicalLine(firstLine ? prompt : continuationPrompt, line, lineStartIndex);
-                lineStartIndex += static_cast<int>(line.size()) + 1;
-                if (next == std::string::npos) break;
-                pos = next + 1;
-                firstLine = false;
-            }
-
-            if (!cursorDrawn) {
-                cursorX = x;
-                cursorY = y;
-            }
-            if (cursorPosition == 0) {
-                cursorX = rc.x + margin;
-            }
-
-            Uint32 currentTime = SDL_GetTicks();
-            if (currentTime - cursorTimer >= cursorBlinkInterval) {
-                showCursor = !showCursor;
-                cursorTimer = currentTime;
-            }
-            drawCursor(app, cursorX, cursorY, showCursor);
-            return;
-        }
+    Uint32 currentTime = SDL_GetTicks();
+    if (currentTime - cursorTimer >= cursorBlinkInterval) {
+      showCursor = !showCursor;
+      cursorTimer = currentTime;
+    }
+    drawCursor(app, inputStartX + inputWidth, lastLineY, showCursor);
+  } else {
+    std::string displayPrompt = waitingForInput ? "" : prompt;
+    renderTextWrapped(app, displayPrompt, inputText, cx, cy, maxWidth);
+  }
+#elif defined(_WIN32)
+  // Windows path still uses cooked-mode line editing locally.
+  std::string displayPrompt = waitingForInput ? "" : prompt;
+  renderTextWrapped(app, displayPrompt, inputText, cx, cy, maxWidth);
+#else
+  // Linux / macOS: PTY raw mode -- nothing to draw here; bash owns
+  // the input line. The block above placed the cursor.
+  (void)cx;
+  (void)cy;
 #endif
 
-        int prompt_w = 0;
-        TTF_SizeText(font, prompt.c_str(), &prompt_w, nullptr);
-    #if defined(__linux__) || defined(__APPLE__)
-        y -= lineHeight;
-    #endif
-        
-        int cursorX = x;
-        int cursorY = y;
-        int charCount = 0;
-        bool cursorDrawn = false;
-       
-        std::string remainingPrompt = prompt;
-        int promptEndX = x;
-        int promptEndY = y;
+  int totalLines = static_cast<int>(outputLines.size());
 
-        while (!remainingPrompt.empty()) {
-            std::string promptLineToRender;
-            int promptCurrentWidth = 0;
-            size_t i = 0;
-            int promptLineWidth = availableWidth;
- 
-        
-            while (i < remainingPrompt.length()) {
-                std::string testLine = promptLineToRender + remainingPrompt[i];
-                TTF_SizeText(font, testLine.c_str(), &promptCurrentWidth, nullptr);
+  int totalWrappedLines = calculateWrappedLinesForText(
+      inputText, maxWidth - promptWidth, promptWidth);
+  totalLines += totalWrappedLines;
 
-                if (promptCurrentWidth > promptLineWidth) {
-                    if (!promptLineToRender.empty()) {
-                        break;
-                    } else {
-                        promptLineToRender += remainingPrompt[i++];
-                        break;
-                    }
-                } else {
-                    promptLineToRender += remainingPrompt[i++];
-                }
+  // Recompute the visible-line capacity from the current content rect
+  // so a window resize (especially a horizontal-only one that doesn't
+  // call scroll()) immediately corrects the scrollbar geometry.
+  if (lineHeight > 0) {
+    maxVisibleLines = viewport.h / lineHeight;
+    if (maxVisibleLines < 1)
+      maxVisibleLines = 1;
+  }
+  // scrollOffset indexes outputLines directly. The drawing loop above
+  // reserves the bottom (requiredInputLines + 1) rows for the input
+  // line, so the largest scrollOffset that still fills the output
+  // area is outputLines.size() - (maxVisibleLines - requiredInputLines).
+  // Clamp against that so resizing larger doesn't leave blank space
+  // below the last line (which also pushed the cursor and scrollbar
+  // mid-window).
+  int outputCount = static_cast<int>(outputLines.size());
+  int visibleOutputRows = maxVisibleLines - (requiredInputLines + 1);
+  if (visibleOutputRows < 1)
+    visibleOutputRows = 1;
+  int maxScroll = outputCount - visibleOutputRows;
+  if (maxScroll < 0)
+    maxScroll = 0;
+  if (scrollOffset > maxScroll)
+    scrollOffset = maxScroll;
+  if (scrollOffset < 0)
+    scrollOffset = 0;
+
+  if (totalLines > maxVisibleLines) {
+    SDL_RenderSetClipRect(app.ren, &contentRect);
+    int offx = contentRect.x + contentRect.w;
+    int offy = contentRect.y;
+    int availableHeight = contentRect.h;
+
+    scrollBarHeight = (maxVisibleLines * availableHeight) / totalLines;
+
+    if (scrollBarHeight < 10) {
+      scrollBarHeight = 10;
+    }
+
+    // Use the same maxScroll that bounds scrollOffset so the bar
+    // reaches the bottom of the track exactly when content does.
+    int denom = maxScroll > 0 ? maxScroll : 1;
+    scrollBarPosY =
+        offy + (scrollOffset * (availableHeight - scrollBarHeight)) / denom;
+
+    if (scrollBarPosY + scrollBarHeight > contentRect.y + contentRect.h) {
+      scrollBarPosY = contentRect.y + contentRect.h - scrollBarHeight;
+    }
+
+    SDL_Rect scrollBarRect = {offx - scrollBarWidth, scrollBarPosY,
+                              scrollBarWidth, scrollBarHeight};
+    SDL_SetRenderDrawColor(app.ren, 100, 100, 100, 255);
+    SDL_RenderFillRect(app.ren, &scrollBarRect);
+  }
+  SDL_RenderSetClipRect(app.ren, nullptr);
+}
+
+void Terminal::renderText(mxApp &app, const std::string &text, int x, int y) {
+  if (!text.empty()) {
+    SDL_Surface *surface =
+        TTF_RenderUTF8_Blended(font, text.c_str(), text_color);
+    if (surface == nullptr) {
+      mx::system_err << "MasterX System Error: Render Text failed.\n";
+      mx::system_err.flush();
+      return;
+    }
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(app.ren, surface);
+    if (texture == nullptr) {
+      mx::system_err << "MasterX System Error: Create Texture failed.\n";
+      mx::system_err.flush();
+      return;
+    }
+    SDL_Rect dstRect = {x, y, surface->w, surface->h};
+    SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
+
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+  }
+}
+
+void Terminal::renderOutputLine(mxApp &app, int lineIndex, int x, int y) {
+  if (lineIndex < 0 || lineIndex >= static_cast<int>(outputLines.size()))
+    return;
+
+  const std::string &line = outputLines[lineIndex];
+  if (line.empty())
+    return;
+
+  if (lineIndex >= static_cast<int>(outputLineColors.size()) ||
+      outputLineColors[lineIndex].size() != line.size()) {
+    renderText(app, line, x, y);
+    return;
+  }
+
+  const auto &styles = outputLineColors[lineIndex];
+  const int lineH = TTF_FontHeight(font);
+  // Use a fixed cell width so column alignment is preserved even
+  // when style runs (e.g. bold/colored directory names from `ls`)
+  // mix with regular text on the same line.
+  int cellW = 0;
+  TTF_SizeText(font, "M", &cellW, nullptr);
+  if (cellW <= 0)
+    cellW = 8;
+  bool lineHasUtf8 = false;
+  for (unsigned char c : line) {
+    if (c >= 0x80) {
+      lineHasUtf8 = true;
+      break;
+    }
+  }
+  int drawX = x;
+  size_t i = 0;
+  while (i < line.size()) {
+    const CharStyle &run = styles[i];
+    size_t j = i + 1;
+    while (j < line.size() && styles[j].fg.r == run.fg.r &&
+           styles[j].fg.g == run.fg.g && styles[j].fg.b == run.fg.b &&
+           styles[j].fg.a == run.fg.a && styles[j].bg.r == run.bg.r &&
+           styles[j].bg.g == run.bg.g && styles[j].bg.b == run.bg.b &&
+           styles[j].bg.a == run.bg.a && styles[j].bold == run.bold &&
+           styles[j].underline == run.underline) {
+      ++j;
+    }
+
+    std::string text = line.substr(i, j - i);
+    if (!text.empty()) {
+      // On ASCII-only lines we keep a strict cell grid so
+      // columns from `ls`, tables, etc. line up. SDL_ttf's
+      // built-in TTF_STYLE_BOLD makes glyphs wider than one
+      // cell which breaks that alignment, so for ASCII lines
+      // we render bold as an overstrike (draw the non-bold
+      // texture twice with a 1px x-offset). UTF-8 lines keep
+      // the natural-advance path with real bold styling.
+      bool overstrikeBold = run.bold && !lineHasUtf8;
+      int ttfStyle = TTF_STYLE_NORMAL;
+      if (run.bold && !overstrikeBold)
+        ttfStyle |= TTF_STYLE_BOLD;
+      if (run.underline && !altScreen)
+        ttfStyle |= TTF_STYLE_UNDERLINE;
+
+      SDL_Texture *texture = getCachedRunTexture(app, text, run.fg, ttfStyle);
+      int gw = 0, gh = lineH;
+      if (texture) {
+        SDL_QueryTexture(texture, nullptr, nullptr, &gw, &gh);
+      }
+      // ASCII-only lines (ls columns) need strict cell-grid
+      // advance, but UTF-8 lines (fastfetch logo/tables) look
+      // better with natural glyph advance from SDL_ttf.
+      int runW = 0;
+      if (lineHasUtf8) {
+        runW = gw > 0 ? gw : (utf8_cell_count(text) * cellW);
+      } else {
+        runW = utf8_cell_count(text) * cellW;
+      }
+
+      if (run.bg.a != 0) {
+        SDL_Rect bgRect = {drawX, y, runW, lineH};
+        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(app.ren, run.bg.r, run.bg.g, run.bg.b, run.bg.a);
+        SDL_RenderFillRect(app.ren, &bgRect);
+      }
+
+      if (texture) {
+        SDL_Rect dstRect = {drawX, y, gw, gh};
+        SDL_RenderCopy(app.ren, texture, nullptr, &dstRect);
+        if (overstrikeBold) {
+          SDL_Rect dstRect2 = {drawX + 1, y, gw, gh};
+          SDL_RenderCopy(app.ren, texture, nullptr, &dstRect2);
+        }
+      }
+      drawX += runW;
+    }
+    i = j;
+  }
+}
+
+std::vector<std::string> Terminal::splitText(const std::string &text) {
+  std::vector<std::string> words;
+  std::istringstream ss(text);
+  std::string word;
+
+  while (ss >> word) {
+    words.push_back(word);
+  }
+
+  return words;
+}
+
+void Terminal::drawCursor(mxApp &app, int x, int y, bool showCursor) {
+#ifdef __linux__
+  if (cursorVisible && showCursor) {
+#else
+  if (showCursor) {
+#endif
+    int textHeight = TTF_FontHeight(font);
+    SDL_SetRenderDrawColor(app.ren, text_color.r, text_color.g, text_color.b,
+                           255);
+    SDL_RenderDrawLine(app.ren, x, y, x, y + textHeight);
+  }
+}
+
+void Terminal::renderTextWrapped(mxApp &app, const std::string &prompt,
+                                 const std::string &inputText, int &x, int &y,
+                                 int maxWidth) {
+  SDL_Rect rc;
+  Window::getRect(rc);
+  int margin = 5;
+  int availableWidth = maxWidth - margin * 2;
+  x = rc.x + margin;
+  int lineHeight = TTF_FontHeight(font);
+
+#ifdef FOR_WASM
+  if (inputText.find('\n') != std::string::npos) {
+    int cursorX = x;
+    int cursorY = y;
+    bool cursorDrawn = false;
+
+    auto renderOneLogicalLine = [&](const std::string &linePrompt,
+                                    const std::string &lineText,
+                                    int lineStartIndex) {
+      int prompt_w = 0;
+      TTF_SizeText(font, linePrompt.c_str(), &prompt_w, nullptr);
+      renderText(app, linePrompt, x, y);
+
+      int localCursorPos = -1;
+      if (cursorPosition >= lineStartIndex &&
+          cursorPosition <=
+              lineStartIndex + static_cast<int>(lineText.size())) {
+        localCursorPos = cursorPosition - lineStartIndex;
+      }
+
+      int localCount = 0;
+      bool firstVisualLine = true;
+      int textX = x + prompt_w;
+      int textY = y;
+      std::string remainingText = lineText;
+
+      while (!remainingText.empty()) {
+        std::string lineToRender;
+        int currentWidth = 0;
+        size_t i = 0;
+
+        int lineWidth = firstVisualLine ? (availableWidth - prompt_w - 10)
+                                        : (availableWidth - 10);
+        int drawX = firstVisualLine ? textX : (rc.x + margin);
+
+        while (i < remainingText.length()) {
+          std::string testLine = lineToRender + remainingText[i];
+          TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
+
+          if (currentWidth > lineWidth) {
+            if (!lineToRender.empty()) {
+              break;
             }
+            lineToRender += remainingText[i++];
+            break;
+          }
+
+          lineToRender += remainingText[i++];
+          localCount++;
+          if (!cursorDrawn && localCursorPos >= 0 &&
+              localCount == localCursorPos) {
+            cursorX = drawX + currentWidth;
+            cursorY = textY;
+            cursorDrawn = true;
+          }
+        }
+
+        renderText(app, lineToRender, drawX, textY);
+
+        textY += lineHeight;
+        y = textY;
+        remainingText = remainingText.substr(i);
+        firstVisualLine = false;
+      }
+
+      if (lineText.empty()) {
+        y += lineHeight;
+      }
+
+      x = rc.x + margin;
+    };
+
+    int lineStartIndex = 0;
+    size_t pos = 0;
+    size_t next = 0;
+    bool firstLine = true;
+    while (true) {
+      next = inputText.find('\n', pos);
+      std::string line = (next == std::string::npos)
+                             ? inputText.substr(pos)
+                             : inputText.substr(pos, next - pos);
+      renderOneLogicalLine(firstLine ? prompt : continuationPrompt, line,
+                           lineStartIndex);
+      lineStartIndex += static_cast<int>(line.size()) + 1;
+      if (next == std::string::npos)
+        break;
+      pos = next + 1;
+      firstLine = false;
+    }
+
+    if (!cursorDrawn) {
+      cursorX = x;
+      cursorY = y;
+    }
+    if (cursorPosition == 0) {
+      cursorX = rc.x + margin;
+    }
+
+    Uint32 currentTime = SDL_GetTicks();
+    if (currentTime - cursorTimer >= cursorBlinkInterval) {
+      showCursor = !showCursor;
+      cursorTimer = currentTime;
+    }
+    drawCursor(app, cursorX, cursorY, showCursor);
+    return;
+  }
+#endif
+
+  int prompt_w = 0;
+  TTF_SizeText(font, prompt.c_str(), &prompt_w, nullptr);
+#if defined(__linux__) || defined(__APPLE__)
+  y -= lineHeight;
+#endif
+
+  int cursorX = x;
+  int cursorY = y;
+  int charCount = 0;
+  bool cursorDrawn = false;
+
+  std::string remainingPrompt = prompt;
+  int promptEndX = x;
+  int promptEndY = y;
+
+  while (!remainingPrompt.empty()) {
+    std::string promptLineToRender;
+    int promptCurrentWidth = 0;
+    size_t i = 0;
+    int promptLineWidth = availableWidth;
+
+    while (i < remainingPrompt.length()) {
+      std::string testLine = promptLineToRender + remainingPrompt[i];
+      TTF_SizeText(font, testLine.c_str(), &promptCurrentWidth, nullptr);
+
+      if (promptCurrentWidth > promptLineWidth) {
+        if (!promptLineToRender.empty()) {
+          break;
+        } else {
+          promptLineToRender += remainingPrompt[i++];
+          break;
+        }
+      } else {
+        promptLineToRender += remainingPrompt[i++];
+      }
+    }
 
 #if !defined(__linux__) && !defined(__APPLE__)
-            renderText(app, promptLineToRender, x, y);
+    renderText(app, promptLineToRender, x, y);
 #endif
 
-            
-            promptEndX = x + promptCurrentWidth;
-            promptEndY = y;
+    promptEndX = x + promptCurrentWidth;
+    promptEndY = y;
 
-            
-            y += lineHeight;
-            x = rc.x + margin;
-            remainingPrompt = remainingPrompt.substr(i);
-        }
+    y += lineHeight;
+    x = rc.x + margin;
+    remainingPrompt = remainingPrompt.substr(i);
+  }
 
-        
-        if (promptEndX < rc.x + margin + availableWidth) {
-            x = promptEndX;
-            y = promptEndY;
-        } else {
-            x = rc.x + margin;
-        }
+  if (promptEndX < rc.x + margin + availableWidth) {
+    x = promptEndX;
+    y = promptEndY;
+  } else {
+    x = rc.x + margin;
+  }
 
-        bool firstLine = true;
+  bool firstLine = true;
 #ifdef _WIN32
-        TTF_SizeText(font, "$ ",  &prompt_w, nullptr);
+  TTF_SizeText(font, "$ ", &prompt_w, nullptr);
 #endif
 
-        int sx = x, sy = y;
+  int sx = x, sy = y;
 
-        std::string remainingText = inputText;
-        while (!remainingText.empty()) {
-            std::string lineToRender;
-            int currentWidth = 0;
-            size_t i = 0;
-            int lineWidth = firstLine == true ? availableWidth - prompt_w-10 : availableWidth-10;
-            int lineY = y;
+  std::string remainingText = inputText;
+  while (!remainingText.empty()) {
+    std::string lineToRender;
+    int currentWidth = 0;
+    size_t i = 0;
+    int lineWidth = firstLine == true ? availableWidth - prompt_w - 10
+                                      : availableWidth - 10;
+    int lineY = y;
 
-            while (i < remainingText.length()) {
-                std::string testLine = lineToRender + remainingText[i];
-                TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
+    while (i < remainingText.length()) {
+      std::string testLine = lineToRender + remainingText[i];
+      TTF_SizeText(font, testLine.c_str(), &currentWidth, nullptr);
 
-                if (currentWidth > lineWidth) {
-                    if (!lineToRender.empty()) {
-                        break;
-                    } else {
-                        lineToRender += remainingText[i++];
-                        break;
-                    }
-                } else {
-                    lineToRender += remainingText[i++];
-                }
-
-                charCount++;
-                if (!cursorDrawn && charCount == cursorPosition) {
-                    cursorX = x + currentWidth;
-                    cursorY = lineY;
-                    cursorDrawn = true;
-                }
-            }
-
-            renderText(app, lineToRender, x, lineY);
-            y += lineHeight;
-            x = rc.x + margin;
-            firstLine = false;
-            remainingText = remainingText.substr(i);
+      if (currentWidth > lineWidth) {
+        if (!lineToRender.empty()) {
+          break;
+        } else {
+          lineToRender += remainingText[i++];
+          break;
         }
+      } else {
+        lineToRender += remainingText[i++];
+      }
 
-        if (!cursorDrawn) {
-            cursorX = x;
-            cursorY = y; 
-        }
-
-        if(cursorPosition == 0) {
-            cursorX = sx;
-            cursorY = sy;
-        }
-
-
-        Uint32 currentTime = SDL_GetTicks();
-        if (currentTime - cursorTimer >= cursorBlinkInterval) {
-            showCursor = !showCursor;
-            cursorTimer = currentTime;
-        }
-        drawCursor(app, cursorX, cursorY, showCursor);
+      charCount++;
+      if (!cursorDrawn && charCount == cursorPosition) {
+        cursorX = x + currentWidth;
+        cursorY = lineY;
+        cursorDrawn = true;
+      }
     }
 
-    bool Terminal::event(mxApp &app, SDL_Event &e) {
-        if (!Window::isVisible())
-           return false;
+    renderText(app, lineToRender, x, lineY);
+    y += lineHeight;
+    x = rc.x + margin;
+    firstLine = false;
+    remainingText = remainingText.substr(i);
+  }
 
-        // If the built-in text editor is active, route events to it.
-        if (editor && editor->isActive()) {
-            // Allow the window chrome (drag, close, resize) to still work.
-            if (!embedded_ &&
-                (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP ||
-                 e.type == SDL_MOUSEMOTION)) {
-                if (Window::event(app, e))
-                    return true;
-            }
-            editor->event(app, e);
-            if (!editor->isActive()) {
-                print("\n[ editor closed ]\n");
-                editor.reset();
-                print(prompt);
-                scroll();
-            }
-            return true;
-        }
+  if (!cursorDrawn) {
+    cursorX = x;
+    cursorY = y;
+  }
 
-        // Terminal-style copy / paste shortcuts. Use Ctrl+Shift+C/V so a
-        // bare Ctrl+C still reaches the foreground process via the PTY.
-        if (e.type == SDL_KEYDOWN) {
-            const Uint16 mod = e.key.keysym.mod;
-            const SDL_Keycode sym = e.key.keysym.sym;
-            const bool noModifiers = (mod & (KMOD_CTRL | KMOD_ALT | KMOD_GUI | KMOD_SHIFT)) == 0;
-            if (sym == SDLK_F8 && noModifiers) {
-                return cycleWallpaper(app);
-            }
-            const bool ctrlShift = (mod & KMOD_CTRL) && (mod & KMOD_SHIFT);
-            const bool ctrlOnly = (mod & KMOD_CTRL) && !(mod & KMOD_ALT) && !(mod & KMOD_GUI);
-            if (ctrlShift && sym == SDLK_c) {
-                copyToClipboard();
-                return true;
-            }
-            if (ctrlShift && sym == SDLK_v) {
-                pasteFromClipboard();
-                return true;
-            }
-            if (ctrlOnly && (sym == SDLK_EQUALS || sym == SDLK_PLUS || sym == SDLK_KP_PLUS)) {
-                adjustFontSize(1);
-                return true;
-            }
-            if (ctrlOnly && (sym == SDLK_MINUS || sym == SDLK_KP_MINUS)) {
-                adjustFontSize(-1);
-                return true;
-            }
-        }
+  if (cursorPosition == 0) {
+    cursorX = sx;
+    cursorY = sy;
+  }
 
-        // Pipe every keystroke straight to the PTY so bash's own readline
-        // performs line editing, history, tab completion, and signal
-        // handling -- exactly like a real terminal emulator. We only fall
-        // back to local cooked-mode line editing for built-in input prompts
-        // (input()) and on platforms without a PTY (Windows / WASM).
+  Uint32 currentTime = SDL_GetTicks();
+  if (currentTime - cursorTimer >= cursorBlinkInterval) {
+    showCursor = !showCursor;
+    cursorTimer = currentTime;
+  }
+  drawCursor(app, cursorX, cursorY, showCursor);
+}
+
+bool Terminal::event(mxApp &app, SDL_Event &e) {
+  if (!Window::isVisible())
+    return false;
+
+  // If the built-in text editor is active, route events to it.
+  if (editor && editor->isActive()) {
+    // Allow the window chrome (drag, close, resize) to still work.
+    if (!embedded_ &&
+        (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP ||
+         e.type == SDL_MOUSEMOTION)) {
+      if (Window::event(app, e))
+        return true;
+    }
+    editor->event(app, e);
+    if (!editor->isActive()) {
+      print("\n[ editor closed ]\n");
+      editor.reset();
+      print(prompt);
+      scroll();
+    }
+    return true;
+  }
+
+  // Terminal-style copy / paste shortcuts. Use Ctrl+Shift+C/V so a
+  // bare Ctrl+C still reaches the foreground process via the PTY.
+  if (e.type == SDL_KEYDOWN) {
+    const Uint16 mod = e.key.keysym.mod;
+    const SDL_Keycode sym = e.key.keysym.sym;
+    const bool noModifiers =
+        (mod & (KMOD_CTRL | KMOD_ALT | KMOD_GUI | KMOD_SHIFT)) == 0;
+    if (sym == SDLK_F8 && noModifiers) {
+      return cycleWallpaper(app);
+    }
+    const bool ctrlShift = (mod & KMOD_CTRL) && (mod & KMOD_SHIFT);
+    // ctrlWithoutAltGui allows SHIFT intentionally (Ctrl+Shift+= and Ctrl+- for
+    // zoom)
+    const bool ctrlWithoutAltGui =
+        (mod & KMOD_CTRL) && !(mod & KMOD_ALT) && !(mod & KMOD_GUI);
+    if (ctrlShift && sym == SDLK_c) {
+      copyToClipboard();
+      return true;
+    }
+    if (ctrlShift && sym == SDLK_v) {
+      pasteFromClipboard();
+      return true;
+    }
+    // Handle Ctrl+/- and Ctrl+Shift+= for font size adjustment
+    // These must be consumed here and NOT sent to the PTY
+    if (ctrlWithoutAltGui &&
+        (sym == SDLK_EQUALS || sym == SDLK_PLUS || sym == SDLK_KP_PLUS)) {
+      adjustFontSize(1);
+      return true; // Consume key - do NOT send to terminal
+    }
+    if (ctrlWithoutAltGui && (sym == SDLK_MINUS || sym == SDLK_KP_MINUS)) {
+      adjustFontSize(-1);
+      return true; // Consume key - do NOT send to terminal
+    }
+  }
+
+  // Pipe every keystroke straight to the PTY so bash's own readline
+  // performs line editing, history, tab completion, and signal
+  // handling -- exactly like a real terminal emulator. We only fall
+  // back to local cooked-mode line editing for built-in input prompts
+  // (input()) and on platforms without a PTY (Windows / WASM).
 #if defined(__linux__) || defined(__APPLE__)
-        if (master_fd > 0 && !waitingForInput &&
-            (e.type == SDL_KEYDOWN || e.type == SDL_TEXTINPUT)) {
-            if (handleRawKeyEvent(app, e))
-                return true;
-        }
+  if (master_fd > 0 && !waitingForInput &&
+      (e.type == SDL_KEYDOWN || e.type == SDL_TEXTINPUT)) {
+    if (handleRawKeyEvent(app, e))
+      return true;
+  }
 #else
-        if (altScreen &&
-            (e.type == SDL_KEYDOWN || e.type == SDL_TEXTINPUT)) {
-            if (handleRawKeyEvent(app, e))
-                return true;
-        }
+  if (altScreen && (e.type == SDL_KEYDOWN || e.type == SDL_TEXTINPUT)) {
+    if (handleRawKeyEvent(app, e))
+      return true;
+  }
 #endif
 
-        if (e.type == SDL_TEXTINPUT) {
-            inputText.insert(cursorPosition, e.text.text);
-            cursorPosition += strlen(e.text.text);
-            scroll();
-            return true;
-        }
+  if (e.type == SDL_TEXTINPUT) {
+    inputText.insert(cursorPosition, e.text.text);
+    cursorPosition += strlen(e.text.text);
+    scroll();
+    return true;
+  }
 
-        if (e.type == SDL_KEYDOWN) {
-            switch (e.key.keysym.sym) {
-                case SDLK_d: {
-                    SDL_Keycode keycode = e.key.keysym.sym;
-                    Uint16 mod = e.key.keysym.mod;
-                    bool altPressed = (mod & KMOD_ALT) != 0;
+  if (e.type == SDL_KEYDOWN) {
+    switch (e.key.keysym.sym) {
+    case SDLK_d: {
+      SDL_Keycode keycode = e.key.keysym.sym;
+      Uint16 mod = e.key.keysym.mod;
+      bool altPressed = (mod & KMOD_ALT) != 0;
 
-                    if (altPressed && (keycode == SDLK_d)) {
-                        
+      if (altPressed && (keycode == SDLK_d)) {
+
 #if !defined(_WIN32) && !defined(FOR_WASM)
-                        char eofChar = 0x04; 
-                        if(write(master_fd, &eofChar, 1) < 0) {
-                            mx::system_err << "MasterX System: Error could not write...\n";
-                            return false;
-                        }
-                        return true;
+        char eofChar = 0x04;
+        if (write(master_fd, &eofChar, 1) < 0) {
+          mx::system_err << "MasterX System: Error could not write...\n";
+          return false;
+        }
+        return true;
 #endif
-                        
-                    }
-                }
-                break;
-                case SDLK_c:
-                if (e.key.keysym.mod & KMOD_CTRL) {
-                    #ifdef FOR_WASM
-                        cancelWasmLoop();
-                        if (isMultiLineInput) {
-                            print("^C\n");
-                            multiLineBuffer.clear();
-                            isMultiLineInput = false;
-                            blockDepth = 0;
-                            inputText.clear();
-                            cursorPosition = 0;
-                            print(prompt);
-                        } else {
-                            print("^C\n");
-                            inputText.clear();
-                            cursorPosition = 0;
-                            print(prompt);
-                        }
-                    #elif !defined(_WIN32)
-                        echo_enabled = true;
-                        pid_t fg_pgid = tcgetpgrp(master_fd);
-                        if (fg_pgid == -1) {
-                            mx::system_err << "MasterX: Failed to get foreground process group\n";
-                            mx::system_err.flush();
-                            return true;
-                        }
-                        if (killpg(fg_pgid, SIGINT) == 0) {
-                            print("- Sent SIGINT to foreground process\n");
-                        } else {
-                            mx::system_err << "MasterX: failed to kill process..\n";
-                            return true;
-                        }
-                    #endif
-                }
-                break;
-                case SDLK_v:
-                if (e.key.keysym.mod & KMOD_CTRL) {
-                    pasteFromClipboard();
-                    return true;
-                }
-                break;
-                case SDLK_INSERT:
-                if (e.key.keysym.mod & KMOD_CTRL) {
-                    pasteFromClipboard();
-                    return true;
-                }
-                break;
-                case SDLK_BACKSPACE:
-                    if (!inputText.empty() && cursorPosition > 0) {
-                        inputText.erase(cursorPosition - 1, 1);
-                        cursorPosition--;
-                    }
-                    break;
-
-                case SDLK_DELETE:
-                    if (!inputText.empty() && cursorPosition < static_cast<int>(inputText.length())) {
-                        inputText.erase(cursorPosition, 1);
-                    }
-                    break;
-
-                case SDLK_LEFT:
-                    if (cursorPosition > 0) {
-                        cursorPosition--;
-                    }
-                    break;
-
-                case SDLK_RIGHT:
-                    if (cursorPosition < static_cast<int>(inputText.length())) {
-                        cursorPosition++;
-                    }
-                    break;
-
-                case SDLK_HOME:
-                    cursorPosition = 0;
-                    break;
-
-                case SDLK_END:
-                    cursorPosition = static_cast<int>(inputText.length());
-                    break;
-
-               case SDLK_UP:
+      }
+    } break;
+    case SDLK_c:
+      if (e.key.keysym.mod & KMOD_CTRL) {
 #ifdef FOR_WASM
-                    if (!stored_commands.empty()) {
-                        if (!cyclingThroughHistory) {
-                            savedInputText = inputText;
-                            cyclingThroughHistory = true;
-                        }
-                        if (store_offset > 0) {
-                            store_offset--;
-                        } else {
-                            store_offset = stored_commands.size() - 1;
-                        }
-                        inputText = stored_commands[store_offset];
-                        cursorPosition = inputText.length();
-                    }
-#else
-                    if (!stored_commands.empty()) {
-                        if (!cyclingThroughHistory) {
-                            savedInputText = inputText;
-                            cyclingThroughHistory = true;
-                        }
-                        if (store_offset > 0) {
-                            store_offset--;
-                        } else {
-                            store_offset = stored_commands.size() - 1;
-                        }
-                        inputText = stored_commands[store_offset];
-                        cursorPosition = inputText.length();
-                    }
+        cancelWasmLoop();
+        if (isMultiLineInput) {
+          print("^C\n");
+          multiLineBuffer.clear();
+          isMultiLineInput = false;
+          blockDepth = 0;
+          inputText.clear();
+          cursorPosition = 0;
+          print(prompt);
+        } else {
+          print("^C\n");
+          inputText.clear();
+          cursorPosition = 0;
+          print(prompt);
+        }
+#elif !defined(_WIN32)
+        echo_enabled = true;
+        pid_t fg_pgid = tcgetpgrp(master_fd);
+        if (fg_pgid == -1) {
+          mx::system_err << "MasterX: Failed to get foreground process group\n";
+          mx::system_err.flush();
+          return true;
+        }
+        if (killpg(fg_pgid, SIGINT) == 0) {
+          print("- Sent SIGINT to foreground process\n");
+        } else {
+          mx::system_err << "MasterX: failed to kill process..\n";
+          return true;
+        }
 #endif
-                    break;
+      }
+      break;
+    case SDLK_v:
+      if (e.key.keysym.mod & KMOD_CTRL) {
+        pasteFromClipboard();
+        return true;
+      }
+      break;
+    case SDLK_INSERT:
+      if (e.key.keysym.mod & KMOD_CTRL) {
+        pasteFromClipboard();
+        return true;
+      }
+      break;
+    case SDLK_BACKSPACE:
+      if (!inputText.empty() && cursorPosition > 0) {
+        inputText.erase(cursorPosition - 1, 1);
+        cursorPosition--;
+      }
+      break;
 
-            case SDLK_DOWN:
+    case SDLK_DELETE:
+      if (!inputText.empty() &&
+          cursorPosition < static_cast<int>(inputText.length())) {
+        inputText.erase(cursorPosition, 1);
+      }
+      break;
+
+    case SDLK_LEFT:
+      if (cursorPosition > 0) {
+        cursorPosition--;
+      }
+      break;
+
+    case SDLK_RIGHT:
+      if (cursorPosition < static_cast<int>(inputText.length())) {
+        cursorPosition++;
+      }
+      break;
+
+    case SDLK_HOME:
+      cursorPosition = 0;
+      break;
+
+    case SDLK_END:
+      cursorPosition = static_cast<int>(inputText.length());
+      break;
+
+    case SDLK_UP:
 #ifdef FOR_WASM
-                    if (!stored_commands.empty()) {
-                        if (store_offset < static_cast<int>(stored_commands.size() - 1)) {
-                            store_offset++;
-                            inputText = stored_commands[store_offset];
-                            cursorPosition = inputText.length();
-                        } else {
-                            inputText = savedInputText;
-                            cursorPosition = inputText.length();
-                            cyclingThroughHistory = false;
-                        }
-                    }
+      if (!stored_commands.empty()) {
+        if (!cyclingThroughHistory) {
+          savedInputText = inputText;
+          cyclingThroughHistory = true;
+        }
+        if (store_offset > 0) {
+          store_offset--;
+        } else {
+          store_offset = stored_commands.size() - 1;
+        }
+        inputText = stored_commands[store_offset];
+        cursorPosition = inputText.length();
+      }
 #else
-                    if (!stored_commands.empty()) {
-                        if (store_offset < static_cast<int>(stored_commands.size() - 1)) {
-                            store_offset++;
-                            inputText = stored_commands[store_offset];
-                            cursorPosition = inputText.length();
-                        } else {
-                            inputText = savedInputText;
-                            cursorPosition = inputText.length();
-                            cyclingThroughHistory = false;
-                        }
-                    }
+      if (!stored_commands.empty()) {
+        if (!cyclingThroughHistory) {
+          savedInputText = inputText;
+          cyclingThroughHistory = true;
+        }
+        if (store_offset > 0) {
+          store_offset--;
+        } else {
+          store_offset = stored_commands.size() - 1;
+        }
+        inputText = stored_commands[store_offset];
+        cursorPosition = inputText.length();
+      }
 #endif
-                    break;
-            case SDLK_RETURN:
-                if (waitingForInput) {
-                    print(inputText + "\n");
-                    inputResult = inputText;
-                    inputText.clear();
-                    cursorPosition = 0;
-                    waitingForInput = false;
+      break;
+
+    case SDLK_DOWN:
+#ifdef FOR_WASM
+      if (!stored_commands.empty()) {
+        if (store_offset < static_cast<int>(stored_commands.size() - 1)) {
+          store_offset++;
+          inputText = stored_commands[store_offset];
+          cursorPosition = inputText.length();
+        } else {
+          inputText = savedInputText;
+          cursorPosition = inputText.length();
+          cyclingThroughHistory = false;
+        }
+      }
+#else
+      if (!stored_commands.empty()) {
+        if (store_offset < static_cast<int>(stored_commands.size() - 1)) {
+          store_offset++;
+          inputText = stored_commands[store_offset];
+          cursorPosition = inputText.length();
+        } else {
+          inputText = savedInputText;
+          cursorPosition = inputText.length();
+          cyclingThroughHistory = false;
+        }
+      }
+#endif
+      break;
+    case SDLK_RETURN:
+      if (waitingForInput) {
+        print(inputText + "\n");
+        inputResult = inputText;
+        inputText.clear();
+        cursorPosition = 0;
+        waitingForInput = false;
 #ifndef FOR_WASM
-                    inputCondition.notify_one();
+        inputCondition.notify_one();
 #endif
-                    scroll();
-                    break;
-                }
+        scroll();
+        break;
+      }
 #ifdef FOR_WASM
-                if (!inputText.empty() || isMultiLineInput) {
-                    auto trimSpaces = [](const std::string& s) {
-                        const size_t start = s.find_first_not_of(" \t\r\n");
-                        if (start == std::string::npos) return std::string{};
-                        const size_t end = s.find_last_not_of(" \t\r\n");
-                        return s.substr(start, end - start + 1);
-                    };
-                    auto isBlockTerminator = [&](const std::string& s) {
-                        const std::string t = trimSpaces(s);
-                        return (t == "done" || t == "fi" || t == "end");
-                    };
+      if (!inputText.empty() || isMultiLineInput) {
+        auto trimSpaces = [](const std::string &s) {
+          const size_t start = s.find_first_not_of(" \t\r\n");
+          if (start == std::string::npos)
+            return std::string{};
+          const size_t end = s.find_last_not_of(" \t\r\n");
+          return s.substr(start, end - start + 1);
+        };
+        auto isBlockTerminator = [&](const std::string &s) {
+          const std::string t = trimSpaces(s);
+          return (t == "done" || t == "fi" || t == "end");
+        };
 
-                    auto ensureNewlineBeforeEcho = [&]() {
-                        if (!orig_text.empty() && orig_text.back() != '\n') {
-                            print("\n");
-                            forceFrameRender();
-                        }
-                    };
+        auto ensureNewlineBeforeEcho = [&]() {
+          if (!orig_text.empty() && orig_text.back() != '\n') {
+            print("\n");
+            forceFrameRender();
+          }
+        };
 
-                    bool lineContinuation = false;
-                    if (!inputText.empty()) {
-                        size_t lastNonSpace = inputText.find_last_not_of(" \t");
-                        if (lastNonSpace != std::string::npos && inputText[lastNonSpace] == '\\') {
-                            lineContinuation = true;
-                            inputText = inputText.substr(0, lastNonSpace);
-                        }
-                    }
-                    
-                    if (isMultiLineInput) {
-                        multiLineBuffer += "\n" + inputText;
-                    } else {
-                        multiLineBuffer = inputText;
-                    }
-                    MultiLineState state = checkMultiLineState(multiLineBuffer);
-                    
-                    if (lineContinuation || state.needsMoreInput) {
-                        isMultiLineInput = true;
-                        blockDepth = state.blockDepth;
-                        ensureNewlineBeforeEcho();
-                        print(prompt + inputText + "\n");
-                        stored_commands.push_back(inputText);
-                        store_offset = stored_commands.size();
-                        prompt = continuationPrompt;
-                        inputText.clear();
-                        cursorPosition = 0;
-                        forceFrameRender();
-                    } else {
-                        ensureNewlineBeforeEcho();
-                        print(prompt + inputText + "\n");
-                        stored_commands.push_back(inputText);
-                        inputText.clear();
-                        cursorPosition = 0;
-                        forceFrameRender();
-                        processCommand(app, multiLineBuffer);
-                        store_offset = stored_commands.size();
-                        isMultiLineInput = false;
-                        multiLineBuffer.clear();
-                        blockDepth = 0;
-                        prompt = "$ ";
-                    }
-                    scroll();
-                } else {
-                    print(prompt + "\n");
-                    scroll();
-                }
+        bool lineContinuation = false;
+        if (!inputText.empty()) {
+          size_t lastNonSpace = inputText.find_last_not_of(" \t");
+          if (lastNonSpace != std::string::npos &&
+              inputText[lastNonSpace] == '\\') {
+            lineContinuation = true;
+            inputText = inputText.substr(0, lastNonSpace);
+          }
+        }
+
+        if (isMultiLineInput) {
+          multiLineBuffer += "\n" + inputText;
+        } else {
+          multiLineBuffer = inputText;
+        }
+        MultiLineState state = checkMultiLineState(multiLineBuffer);
+
+        if (lineContinuation || state.needsMoreInput) {
+          isMultiLineInput = true;
+          blockDepth = state.blockDepth;
+          ensureNewlineBeforeEcho();
+          print(prompt + inputText + "\n");
+          stored_commands.push_back(inputText);
+          store_offset = stored_commands.size();
+          prompt = continuationPrompt;
+          inputText.clear();
+          cursorPosition = 0;
+          forceFrameRender();
+        } else {
+          ensureNewlineBeforeEcho();
+          print(prompt + inputText + "\n");
+          stored_commands.push_back(inputText);
+          inputText.clear();
+          cursorPosition = 0;
+          forceFrameRender();
+          processCommand(app, multiLineBuffer);
+          store_offset = stored_commands.size();
+          isMultiLineInput = false;
+          multiLineBuffer.clear();
+          blockDepth = 0;
+          prompt = "$ ";
+        }
+        scroll();
+      } else {
+        print(prompt + "\n");
+        scroll();
+      }
 #else
-                if (!inputText.empty()) {
-                    processCommand(app, inputText);            
-                    store_offset = stored_commands.size();  
-                    inputText.clear();
-                    cursorPosition = 0;
-                    scroll();
-                }
+      if (!inputText.empty()) {
+        processCommand(app, inputText);
+        store_offset = stored_commands.size();
+        inputText.clear();
+        cursorPosition = 0;
+        scroll();
+      }
 #endif
-                break;
-                default:
-                    break;
-            }
-        }
-
-        SDL_Rect rc;
-        Window::getRect(rc);
-        rc.y += 28;
-        if (e.type == SDL_MOUSEBUTTONDOWN) {
-            int mouseX = e.button.x;
-            int mouseY = e.button.y;
-
-            if (mouseX >= rc.x+rc.w - scrollBarWidth && mouseY >= scrollBarPosY && mouseY <= scrollBarPosY + scrollBarHeight) {
-                isScrolling = true;
-                scrollBarDragOffset = mouseY - scrollBarPosY;
-            } else if (e.button.button == SDL_BUTTON_LEFT) {
-                int row, col;
-                if (pointToCell(mouseX, mouseY, row, col)) {
-                    selecting = true;
-                    hasSelection = true;
-                    selAnchorRow = selFocusRow = row;
-                    selAnchorCol = selFocusCol = col;
-                    render_text = false;
-                    return true;
-                } else {
-                    if (hasSelection) { clearSelection(); render_text = false; }
-                }
-            } else if (e.button.button == SDL_BUTTON_MIDDLE) {
-                // X11-style middle-click paste from clipboard.
-                pasteFromClipboard();
-                return true;
-            }
-        }
-
-        if (e.type == SDL_MOUSEBUTTONUP) {
-            isScrolling = false;
-            if (selecting && e.button.button == SDL_BUTTON_LEFT) {
-                selecting = false;
-                if (selAnchorRow == selFocusRow && selAnchorCol == selFocusCol) {
-                    hasSelection = false;
-                }
-                render_text = false;
-            }
-        }
-
-        if (e.type == SDL_MOUSEMOTION && selecting) {
-            int row, col;
-            if (pointToCell(e.motion.x, e.motion.y, row, col)) {
-                selFocusRow = row;
-                selFocusCol = col;
-                hasSelection = true;
-                render_text = false;
-            }
-        }
-
-        if (e.type == SDL_MOUSEMOTION && isScrolling) {
-            int mouseY = e.motion.y;
-            int newScrollPosY = mouseY - scrollBarDragOffset;
-            int availableHeight = rc.h - 28;
-            int scrollableRange = availableHeight - scrollBarHeight;
-            // Use the same maxScroll the draw and wheel paths use so the
-            // bar's drag range matches what the wheel/draw can reach.
-            int outputCount = static_cast<int>(outputLines.size());
-            int promptW = 0;
-            if (font) TTF_SizeText(font, prompt.c_str(), &promptW, nullptr);
-            int maxWidth = rc.w - 10;
-            int reqInput = calculateWrappedLinesForText(inputText, maxWidth - promptW, promptW);
-            if (reqInput < 1) reqInput = 1;
-            int visibleOutputRows = maxVisibleLines - (reqInput + 1);
-            if (visibleOutputRows < 1) visibleOutputRows = 1;
-            int maxScroll = outputCount - visibleOutputRows;
-            if (maxScroll < 0) maxScroll = 0;
-            if (scrollableRange > 0 && maxScroll > 0) {
-                scrollOffset = ((newScrollPosY - rc.y) * maxScroll) / scrollableRange;
-                scrollOffset = my_max(0, my_min(scrollOffset, maxScroll));
-            }
-            render_text = false;
-        }
-
-        if (e.type == SDL_MOUSEWHEEL) {
-            handleScrolling(e.wheel.y);
-            render_text = false;
-            return true;
-        }
-        
-        if (!embedded_ && Window::event(app, e))
-            return true;
-
-        return false; 
+      break;
+    default:
+      break;
     }
+  }
 
-    void Terminal::handleScrolling(int direction) {
-        scrollOffset -= direction;
-        // Match the draw-time clamp: the visible output area is
-        // maxVisibleLines minus the rows reserved for the (possibly
-        // wrapped) input echo, so the user can scroll until the last
-        // output line sits at the bottom of that area.
-        int outputCount = static_cast<int>(outputLines.size());
-        SDL_Rect rc;
-        Window::getRect(rc);
-        int promptW = 0;
-        if (font) TTF_SizeText(font, prompt.c_str(), &promptW, nullptr);
-        int maxWidth = rc.w - 10;
-        int reqInput = calculateWrappedLinesForText(inputText, maxWidth - promptW, promptW);
-        if (reqInput < 1) reqInput = 1;
-        int visibleOutputRows = maxVisibleLines - (reqInput + 1);
-        if (visibleOutputRows < 1) visibleOutputRows = 1;
-        int maxScroll = outputCount - visibleOutputRows;
-        if (maxScroll < 0) maxScroll = 0;
-        scrollOffset = my_max(0, my_min(scrollOffset, maxScroll));
+  SDL_Rect rc;
+  Window::getRect(rc);
+  rc.y += 28;
+  if (e.type == SDL_MOUSEBUTTONDOWN) {
+    int mouseX = e.button.x;
+    int mouseY = e.button.y;
+
+    if (mouseX >= rc.x + rc.w - scrollBarWidth && mouseY >= scrollBarPosY &&
+        mouseY <= scrollBarPosY + scrollBarHeight) {
+      isScrolling = true;
+      scrollBarDragOffset = mouseY - scrollBarPosY;
+    } else if (e.button.button == SDL_BUTTON_LEFT) {
+      int row, col;
+      if (pointToCell(mouseX, mouseY, row, col)) {
+        selecting = true;
+        hasSelection = true;
+        selAnchorRow = selFocusRow = row;
+        selAnchorCol = selFocusCol = col;
+        render_text = false;
+        return true;
+      } else {
+        if (hasSelection) {
+          clearSelection();
+          render_text = false;
+        }
+      }
+    } else if (e.button.button == SDL_BUTTON_MIDDLE) {
+      // X11-style middle-click paste from clipboard.
+      pasteFromClipboard();
+      return true;
     }
+  }
 
-    void Terminal::processCommand(mxApp &app, std::string command) {
-        if(command.empty()) return;
-#ifdef FOR_WASM        
-        bool clear = false;
+  if (e.type == SDL_MOUSEBUTTONUP) {
+    isScrolling = false;
+    if (selecting && e.button.button == SDL_BUTTON_LEFT) {
+      selecting = false;
+      if (selAnchorRow == selFocusRow && selAnchorCol == selFocusCol) {
+        hasSelection = false;
+      }
+      render_text = false;
+    }
+  }
+
+  if (e.type == SDL_MOUSEMOTION && selecting) {
+    int row, col;
+    if (pointToCell(e.motion.x, e.motion.y, row, col)) {
+      selFocusRow = row;
+      selFocusCol = col;
+      hasSelection = true;
+      render_text = false;
+    }
+  }
+
+  if (e.type == SDL_MOUSEMOTION && isScrolling) {
+    int mouseY = e.motion.y;
+    int newScrollPosY = mouseY - scrollBarDragOffset;
+    int availableHeight = rc.h - 28;
+    int scrollableRange = availableHeight - scrollBarHeight;
+    // Use the same maxScroll the draw and wheel paths use so the
+    // bar's drag range matches what the wheel/draw can reach.
+    int outputCount = static_cast<int>(outputLines.size());
+    int promptW = 0;
+    if (font)
+      TTF_SizeText(font, prompt.c_str(), &promptW, nullptr);
+    int maxWidth = rc.w - 10;
+    int reqInput =
+        calculateWrappedLinesForText(inputText, maxWidth - promptW, promptW);
+    if (reqInput < 1)
+      reqInput = 1;
+    int visibleOutputRows = maxVisibleLines - (reqInput + 1);
+    if (visibleOutputRows < 1)
+      visibleOutputRows = 1;
+    int maxScroll = outputCount - visibleOutputRows;
+    if (maxScroll < 0)
+      maxScroll = 0;
+    if (scrollableRange > 0 && maxScroll > 0) {
+      scrollOffset = ((newScrollPosY - rc.y) * maxScroll) / scrollableRange;
+      scrollOffset = my_max(0, my_min(scrollOffset, maxScroll));
+    }
+    render_text = false;
+  }
+
+  if (e.type == SDL_MOUSEWHEEL) {
+    handleScrolling(e.wheel.y);
+    render_text = false;
+    return true;
+  }
+
+  if (!embedded_ && Window::event(app, e))
+    return true;
+
+  return false;
+}
+
+void Terminal::handleScrolling(int direction) {
+  scrollOffset -= direction;
+  // Match the draw-time clamp: the visible output area is
+  // maxVisibleLines minus the rows reserved for the (possibly
+  // wrapped) input echo, so the user can scroll until the last
+  // output line sits at the bottom of that area.
+  int outputCount = static_cast<int>(outputLines.size());
+  SDL_Rect rc;
+  Window::getRect(rc);
+  int promptW = 0;
+  if (font)
+    TTF_SizeText(font, prompt.c_str(), &promptW, nullptr);
+  int maxWidth = rc.w - 10;
+  int reqInput =
+      calculateWrappedLinesForText(inputText, maxWidth - promptW, promptW);
+  if (reqInput < 1)
+    reqInput = 1;
+  int visibleOutputRows = maxVisibleLines - (reqInput + 1);
+  if (visibleOutputRows < 1)
+    visibleOutputRows = 1;
+  int maxScroll = outputCount - visibleOutputRows;
+  if (maxScroll < 0)
+    maxScroll = 0;
+  scrollOffset = my_max(0, my_min(scrollOffset, maxScroll));
+}
+
+void Terminal::processCommand(mxApp &app, std::string command) {
+  if (command.empty())
+    return;
+#ifdef FOR_WASM
+  bool clear = false;
 #endif
-
-
 
 #if defined(__linux__) || defined(__APPLE__)
-    if(echo_enabled) {
-        stored_commands.push_back(command);
-        store_offset = stored_commands.size()-1;
-    }
-     echo_enabled = true;
+  if (echo_enabled) {
+    stored_commands.push_back(command);
+    store_offset = stored_commands.size() - 1;
+  }
+  echo_enabled = true;
 #elif defined(_WIN32)
-        stored_commands.push_back(command);
-        store_offset = stored_commands.size()-1;
+  stored_commands.push_back(command);
+  store_offset = stored_commands.size() - 1;
 #endif
 
 #if defined(_WIN32)
-        print("\n$ " + command + "\n");
+  print("\n$ " + command + "\n");
 #endif
-        std::vector<std::string> words;
-        words = splitText(command);
+  std::vector<std::string> words;
+  words = splitText(command);
 
-        if(words.size()==0)
-            return;
-        
-        if (words[0] == "edit") {
-            std::string fname;
-            if (words.size() >= 2)
-                fname = words[1];
-            print(command + "\n");
-            launchEditor(fname);
-            return;
-        }
-        if(command == "matrix") {
-            dim->setMatrix(app, dim->matrix_tex, !dim->getMatrix());
-            print(command + "\nNeo..\n");
-            command.clear();
-        } else if (words.size()==2 && words[0] == "setfull" && words[1] == "true") {
-            app.set_fullscreen(app.win, true);
-            print(command + "\nMasterX System: full screen is true\n");
-            command.clear();
-        } else if (words.size()==2 && words[0] == "setfull" && words[1] == "false") {
-           app.set_fullscreen(app.win, false);
-           print(command + "\nMasterX System: full screen is false\n");
-           command.clear();
-        } else if(words.size()==4 && words[0] == "setcolor") {
-            text_color.r = atoi(words[1].c_str());
-            text_color.g = atoi(words[2].c_str());
-            text_color.b = atoi(words[3].c_str());
-            text_color.a = 255;
-            print(command + "\nMasterX System: - set text color\n");
-            command.clear();
-        } else if(words.size() == 1 && words[0] == "about") {
-            print(command + "\nMasterX System written by Jared Bruni\n(C) 2026 LostSideDead Software.\nhttps://lostsidedead.biz\n");
-            command.clear();
-        } else if(words.size() == 1  && words[0] == "clear") {
-            orig_text = "";   
-            sendCommand("\n");
-            print("");
-            scroll(); 
+  if (words.size() == 0)
+    return;
+
+  if (words[0] == "edit") {
+    std::string fname;
+    if (words.size() >= 2)
+      fname = words[1];
+    print(command + "\n");
+    launchEditor(fname);
+    return;
+  }
+  if (command == "matrix") {
+    dim->setMatrix(app, dim->matrix_tex, !dim->getMatrix());
+    print(command + "\nNeo..\n");
+    command.clear();
+  } else if (words.size() == 2 && words[0] == "setfull" && words[1] == "true") {
+    app.set_fullscreen(app.win, true);
+    print(command + "\nMasterX System: full screen is true\n");
+    command.clear();
+  } else if (words.size() == 2 && words[0] == "setfull" &&
+             words[1] == "false") {
+    app.set_fullscreen(app.win, false);
+    print(command + "\nMasterX System: full screen is false\n");
+    command.clear();
+  } else if (words.size() == 4 && words[0] == "setcolor") {
+    text_color.r = atoi(words[1].c_str());
+    text_color.g = atoi(words[2].c_str());
+    text_color.b = atoi(words[3].c_str());
+    text_color.a = 255;
+    print(command + "\nMasterX System: - set text color\n");
+    command.clear();
+  } else if (words.size() == 1 && words[0] == "about") {
+    print(command + "\nMasterX System written by Jared Bruni\n(C) 2026 "
+                    "LostSideDead Software.\nhttps://lostsidedead.biz\n");
+    command.clear();
+  } else if (words.size() == 1 && words[0] == "clear") {
+    orig_text = "";
+    sendCommand("\n");
+    print("");
+    scroll();
 #ifdef FOR_WASM
-        clear = true;
+    clear = true;
 #endif
 #ifndef _WIN32
-            print("");
+    print("");
 #else
-             command.clear();
+    command.clear();
 #endif
-        }
-        
+  }
+
 #ifdef _WIN32
-    std::string cmd = command + "\n";
+  std::string cmd = command + "\n";
 
+  DWORD written;
+  if (hChildStdinWr == INVALID_HANDLE_VALUE) {
+    mx::system_err << "MasterX System: Invalid handle for stdin.\n";
+  }
 
+  mx::system_out << "MasterX: commad [ " << command << " ]\n";
 
-    DWORD written;
-    if (hChildStdinWr == INVALID_HANDLE_VALUE) {
-        mx::system_err << "MasterX System: Invalid handle for stdin.\n";
+  WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
+  if (written == 0) {
+    mx::system_err << "MasterX System: Error wrote zero bytes..\n";
+  }
+#elif !defined(FOR_WASM)
+  std::string cmd = command + "\n";
+  if (command != "clear")
+    if (write(master_fd, cmd.c_str(), cmd.size()) < 0) {
+      mx::system_err << "MasterX System: Error on write..\n";
     }
-
-    mx::system_out << "MasterX: commad [ "  << command << " ]\n";
-
-    WriteFile(hChildStdinWr, cmd.c_str(), cmd.length(), &written, NULL);
-    if(written == 0) {
-        mx::system_err << "MasterX System: Error wrote zero bytes..\n";
-    } 
-#elif !defined(FOR_WASM) 
-    std::string cmd = command + "\n";
-    if(command != "clear")
-        if(write(master_fd, cmd.c_str(), cmd.size()) < 0) {
-            mx::system_err << "MasterX System: Error on write..\n";
-        }
 #else
-    if(command.length() > 0 && clear == false) {
-        resetWasmLoop();  
-        Terminal* term = this;
-        setCmdUpdateCallback([term](const std::string& chunk) {
-            if (!chunk.empty()) {
-                term->print(chunk);
-                forceFrameRender();
-            }
-        });
+  if (command.length() > 0 && clear == false) {
+    resetWasmLoop();
+    Terminal *term = this;
+    setCmdUpdateCallback([term](const std::string &chunk) {
+      if (!chunk.empty()) {
+        term->print(chunk);
+        forceFrameRender();
+      }
+    });
 
-        setCmdInputCallback([term]() -> std::string {
-            return term->getInput();
-        });
-        
-        setCmdFlushCallback([term](const std::string& pending) {
-            if (!pending.empty()) {
-                term->print(pending);
-                term->scroll();
-                forceFrameRender();
-            }
-        });
+    setCmdInputCallback([term]() -> std::string { return term->getInput(); });
 
-        executeCmd(command);
+    setCmdFlushCallback([term](const std::string &pending) {
+      if (!pending.empty()) {
+        term->print(pending);
+        term->scroll();
+        forceFrameRender();
+      }
+    });
 
-        setCmdUpdateCallback(nullptr);
-        setCmdInputCallback(nullptr);
-        setCmdFlushCallback(nullptr);
-    }
+    executeCmd(command);
+
+    setCmdUpdateCallback(nullptr);
+    setCmdInputCallback(nullptr);
+    setCmdFlushCallback(nullptr);
+  }
 #endif
-        scroll();
-    }
+  scroll();
+}
 
-    bool isAscii(char c) {
-        if(c == ' ')    
-            return true;
-        if(c == '\t')
-            return false;
-        return isprint(static_cast<unsigned char>(c)) && c >= 32 && c <= 126;
-    }
+bool isAscii(char c) {
+  if (c == ' ')
+    return true;
+  if (c == '\t')
+    return false;
+  return isprint(static_cast<unsigned char>(c)) && c >= 32 && c <= 126;
+}
 
-    std::string trimR(const std::string &s) {
-        std::string temp;
-        temp.reserve(s.length());
-        for(char c : s) {
-            if(c == '\t') {
-                temp += "    ";
-            } else if(isAscii(c))
-                temp += c;
-        }
-        return temp;
-    }
+std::string trimR(const std::string &s) {
+  std::string temp;
+  temp.reserve(s.length());
+  for (char c : s) {
+    if (c == '\t') {
+      temp += "    ";
+    } else if (isAscii(c))
+      temp += c;
+  }
+  return temp;
+}
 
+void Terminal::updateText(const std::string &text) {
+  if (!text.empty())
+    orig_text += text;
 
-    void Terminal::updateText(const std::string &text) {                                               
-        if(!text.empty()) 
-            orig_text += text;
+  if (orig_text.length() > 4096)
+    orig_text = orig_text.substr(orig_text.size() - 4096);
+}
 
-        if(orig_text.length() > 4096)
-             orig_text = orig_text.substr(orig_text.size() - 4096);
-    }
-
-    void Terminal::print(const std::string &s) {
-        updateText(s);
-        std::string line;
-        SDL_Rect rc;
-        Window::getRect(rc);
-        int maxWidth = rc.w - 10;
-        int w, h;
-        outputLines.clear();
-        outputLineColors.clear();
-        std::string total = orig_text;
-        std::istringstream stream(total);
-        while(std::getline(stream, line)) {
-            if (line.length() > 0) {
-                std::string currentLine;
-                CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
-                for (size_t i = 0; i < line.length(); ++i) {
-                    currentLine += line[i];
-                    TTF_SizeText(font, currentLine.c_str(), &w, &h);
-                    if (w > maxWidth) {
-                        size_t lastSpace = currentLine.find_last_of(' ');
-                        if (lastSpace != std::string::npos) {
-                            std::string part = currentLine.substr(0, lastSpace);
-                            if(!part.empty()) {
-                                std::string cleanPart = trimR(part);
-                                outputLines.push_back(cleanPart);
-                                outputLineColors.emplace_back(cleanPart.size(), defStyle);
-                            }
-                            currentLine = currentLine.substr(lastSpace + 1);
-                        } else {
-                            if(!currentLine.empty()) {
-                                std::string cleanPart = trimR(currentLine);
-                                outputLines.push_back(cleanPart);
-                                outputLineColors.emplace_back(cleanPart.size(), defStyle);
-                            }
-                            currentLine.clear();
-                        }
-                    }
-                }
-                if (!currentLine.empty()) {
-                    std::string cleanPart = trimR(currentLine);
-                    outputLines.push_back(cleanPart);
-                    outputLineColors.emplace_back(cleanPart.size(), defStyle);
-                }
-                scroll();
+void Terminal::print(const std::string &s) {
+  updateText(s);
+  std::string line;
+  SDL_Rect rc;
+  Window::getRect(rc);
+  int maxWidth = rc.w - 10;
+  int w, h;
+  outputLines.clear();
+  outputLineColors.clear();
+  std::string total = orig_text;
+  std::istringstream stream(total);
+  while (std::getline(stream, line)) {
+    if (line.length() > 0) {
+      std::string currentLine;
+      CharStyle defStyle{text_color, {0, 0, 0, 0}, false, false};
+      for (size_t i = 0; i < line.length(); ++i) {
+        currentLine += line[i];
+        TTF_SizeText(font, currentLine.c_str(), &w, &h);
+        if (w > maxWidth) {
+          size_t lastSpace = currentLine.find_last_of(' ');
+          if (lastSpace != std::string::npos) {
+            std::string part = currentLine.substr(0, lastSpace);
+            if (!part.empty()) {
+              std::string cleanPart = trimR(part);
+              outputLines.push_back(cleanPart);
+              outputLineColors.emplace_back(cleanPart.size(), defStyle);
             }
+            currentLine = currentLine.substr(lastSpace + 1);
+          } else {
+            if (!currentLine.empty()) {
+              std::string cleanPart = trimR(currentLine);
+              outputLines.push_back(cleanPart);
+              outputLineColors.emplace_back(cleanPart.size(), defStyle);
+            }
+            currentLine.clear();
+          }
         }
-
-        if (outputLines.empty()) {
-            outputLines.push_back("");
-            outputLineColors.emplace_back();
-        }
-
-        // Keep ANSI parser state aligned when plain text output is used.
-        ansiLines = outputLines;
-        ansiLineColors = outputLineColors;
-        ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
-        ansiCursorCol = static_cast<int>(ansiLines.back().size());
-        ansiCurrentColor = text_color;
-        ansiCurrentBg = {0, 0, 0, 0};
-        ansiBold = false;
-        ansiUnderline = false;
-        ansiInitialized = true;
-        scroll();
+      }
+      if (!currentLine.empty()) {
+        std::string cleanPart = trimR(currentLine);
+        outputLines.push_back(cleanPart);
+        outputLineColors.emplace_back(cleanPart.size(), defStyle);
+      }
+      scroll();
     }
+  }
 
-    int Terminal::calculateWrappedLinesForText(const std::string &text, int maxWidth, int promptWidth) {
-        if (text.empty()) {
-            return 1;
-        }
+  if (outputLines.empty()) {
+    outputLines.push_back("");
+    outputLineColors.emplace_back();
+  }
+
+  // Keep ANSI parser state aligned when plain text output is used.
+  ansiLines = outputLines;
+  ansiLineColors = outputLineColors;
+  ansiCursorRow = static_cast<int>(ansiLines.size()) - 1;
+  ansiCursorCol = static_cast<int>(ansiLines.back().size());
+  ansiCurrentColor = text_color;
+  ansiCurrentBg = {0, 0, 0, 0};
+  ansiBold = false;
+  ansiUnderline = false;
+  ansiInitialized = true;
+  scroll();
+}
+
+int Terminal::calculateWrappedLinesForText(const std::string &text,
+                                           int maxWidth, int promptWidth) {
+  if (text.empty()) {
+    return 1;
+  }
 
 #ifdef FOR_WASM
-        if (text.find('\n') != std::string::npos) {
-            int contPromptWidth = 0;
-            TTF_SizeText(font, continuationPrompt.c_str(), &contPromptWidth, nullptr);
+  if (text.find('\n') != std::string::npos) {
+    int contPromptWidth = 0;
+    TTF_SizeText(font, continuationPrompt.c_str(), &contPromptWidth, nullptr);
 
-            auto countSegment = [&](const std::string& segmentText, int segmentPromptWidth) {
-                if (segmentText.empty()) {
-                    return 1;
-                }
+    auto countSegment = [&](const std::string &segmentText,
+                            int segmentPromptWidth) {
+      if (segmentText.empty()) {
+        return 1;
+      }
 
-                int lineCount = 0;
-                std::string lineToRender;
-                int currentWidth = 0;
-                bool isFirstLine = true;
+      int lineCount = 0;
+      std::string lineToRender;
+      int currentWidth = 0;
+      bool isFirstLine = true;
 
-                for (size_t i = 0; i < segmentText.length(); ++i) {
-                    lineToRender += segmentText[i];
-                    TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
-                    int currentMaxWidth = isFirstLine ? maxWidth - segmentPromptWidth : maxWidth;
-                    if (currentWidth > currentMaxWidth) {
-                        lineCount++;
-                        lineToRender.clear();
-                        lineToRender += segmentText[i];
-                        TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
-                        isFirstLine = false;
-                    }
-                }
-
-                if (!lineToRender.empty()) {
-                    lineCount++;
-                }
-                return lineCount;
-            };
-
-            int total = 0;
-            bool firstLogicalLine = true;
-            size_t pos = 0;
-            while (true) {
-                size_t next = text.find('\n', pos);
-                std::string segment = (next == std::string::npos) ? text.substr(pos) : text.substr(pos, next - pos);
-                total += countSegment(segment, firstLogicalLine ? promptWidth : contPromptWidth);
-                if (next == std::string::npos) {
-                    break;
-                }
-                pos = next + 1;
-                firstLogicalLine = false;
-            }
-
-            return total;
+      for (size_t i = 0; i < segmentText.length(); ++i) {
+        lineToRender += segmentText[i];
+        TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
+        int currentMaxWidth =
+            isFirstLine ? maxWidth - segmentPromptWidth : maxWidth;
+        if (currentWidth > currentMaxWidth) {
+          lineCount++;
+          lineToRender.clear();
+          lineToRender += segmentText[i];
+          TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
+          isFirstLine = false;
         }
+      }
+
+      if (!lineToRender.empty()) {
+        lineCount++;
+      }
+      return lineCount;
+    };
+
+    int total = 0;
+    bool firstLogicalLine = true;
+    size_t pos = 0;
+    while (true) {
+      size_t next = text.find('\n', pos);
+      std::string segment = (next == std::string::npos)
+                                ? text.substr(pos)
+                                : text.substr(pos, next - pos);
+      total += countSegment(segment,
+                            firstLogicalLine ? promptWidth : contPromptWidth);
+      if (next == std::string::npos) {
+        break;
+      }
+      pos = next + 1;
+      firstLogicalLine = false;
+    }
+
+    return total;
+  }
 #endif
 
-        int lineCount = 0;
-        std::string lineToRender;
-        int currentWidth = 0;
-        bool isFirstLine = true;
-        for (size_t i = 0; i < text.length(); ++i) {
-            lineToRender += text[i];
-            TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
-            int currentMaxWidth = isFirstLine ? maxWidth - promptWidth : maxWidth;
-            if (currentWidth > currentMaxWidth) {
-                lineCount++;
-                lineToRender.clear();
-                lineToRender += text[i];
-                TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
-                isFirstLine = false;
-            }
-        }
-        if (!lineToRender.empty()) {
-            lineCount++;
-        }
-        return lineCount;
+  int lineCount = 0;
+  std::string lineToRender;
+  int currentWidth = 0;
+  bool isFirstLine = true;
+  for (size_t i = 0; i < text.length(); ++i) {
+    lineToRender += text[i];
+    TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
+    int currentMaxWidth = isFirstLine ? maxWidth - promptWidth : maxWidth;
+    if (currentWidth > currentMaxWidth) {
+      lineCount++;
+      lineToRender.clear();
+      lineToRender += text[i];
+      TTF_SizeText(font, lineToRender.c_str(), &currentWidth, nullptr);
+      isFirstLine = false;
     }
-
-    int Terminal::calculateTotalWrappedLines() {
-        int totalWrappedLines = 0;
-        SDL_Rect rc;
-        Window::getRect(rc);
-        int maxWidth = rc.w - 10;
-
-        for (const std::string &line : outputLines) {
-            int w, h;
-            TTF_SizeText(font, line.c_str(), &w, &h);
-
-            
-            if (w <= maxWidth) {
-                totalWrappedLines++;
-            } else {
-            
-                int wrappedLines = (w + maxWidth - 1) / maxWidth;  
-                totalWrappedLines += wrappedLines;
-            }
-        }
-
-        return totalWrappedLines;
-    }
-
-    int Terminal::total_Lines() {
-        int totalLines = static_cast<int>(outputLines.size());
-        SDL_Rect rc;
-        Window::getRect(rc);
-
-        std::string prompt;
-        prompt = "$ ";
-        int promptWidth;
-        TTF_SizeText(font,prompt.c_str(), &promptWidth, nullptr);
-        int total = calculateWrappedLinesForText(inputText, rc.w - 20, promptWidth);
-        total += totalLines;
-        return total;
-    }
-
-    void Terminal::scroll() {
-        int totalLines = total_Lines();
-        SDL_Rect viewport = textViewportRect();
-        int lineHeight = TTF_FontHeight(font);
-        if (lineHeight <= 0) lineHeight = 16;
-        maxVisibleLines = viewport.h / lineHeight;
-        if (maxVisibleLines < 1) maxVisibleLines = 1;
-        // Auto-scroll so the cursor row stays visible. Real terminals
-        // pin the cursor to the bottom-most visible row when output
-        // arrives, so we keep scrollOffset at totalLines-maxVisibleLines
-        // unless the user has scrolled up past it. We also clamp when
-        // a reflow shrinks the total line count below the current
-        // offset (otherwise the cursor would be hidden below the view).
-        int targetBottom = my_max(0, totalLines - maxVisibleLines);
-        if (totalLines > maxVisibleLines) {
-            if (scrollOffset < targetBottom) {
-                scrollOffset = targetBottom;
-            } else if (scrollOffset > targetBottom &&
-                       ansiCursorRow >= scrollOffset + maxVisibleLines) {
-                // Cursor moved below the visible range (e.g. after a
-                // narrower reflow). Snap back to bottom.
-                scrollOffset = targetBottom;
-            }
-        } else {
-            scrollOffset = 0;
-        }
-    }
-
-
-    void Terminal::stateChanged(bool min, bool max, bool closed) {
-        isMaximized = max;
-        // Recompute wrap/scroll without rebuilding colors from plain text
-        // (print("") would discard ANSI color info captured during parsing).
-        scroll();
-        Window::dragging = false;
-    }
-
-    bool Terminal::sessionAlive() const {
-#ifdef _WIN32
-        if (procInfo.hProcess == NULL) return false;
-        DWORD code = 0;
-        if (!GetExitCodeProcess(procInfo.hProcess, &code)) return false;
-        return code == STILL_ACTIVE;
-#elif !defined(FOR_WASM)
-        if (bashPID <= 0) return false;
-        int status = 0;
-        pid_t r = ::waitpid(bashPID, &status, WNOHANG);
-        // r == 0 means still running; r == bashPID means exited; -1 error.
-        return r == 0;
-#else
-        return true;
-#endif
-    }
-
-#ifdef _WIN32
-    DWORD WINAPI Terminal::bashReaderThread(LPVOID param) {
-        Terminal* terminal = static_cast<Terminal*>(param);
-        char buffer[1024];
-        DWORD bytesRead;
-        while (terminal->active) {
-            while (ReadFile(terminal->hChildStdoutRd, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
-                buffer[bytesRead] = '\0';
-                std::lock_guard<std::mutex> lock(terminal->outputMutex);
-                terminal->new_data += buffer;
-                terminal->newData = true;
-            }
-            if (bytesRead == 0 || GetLastError() != ERROR_MORE_DATA) {
-                break;
-            }
-            Sleep(10);
-        }
-        if (!terminal->isEmbedded()) {
-            SDL_Event quit_event;
-            quit_event.type = SDL_QUIT;
-            SDL_PushEvent(&quit_event);
-        }
-        return 0;
-    }
-#elif !defined(FOR_WASM)
-    int Terminal::bashReaderThread(void *ptr) {
-        Terminal *terminal = static_cast<Terminal *>(ptr);
-            char buffer[1024];
-            std::string output;
-            std::string pwdOutput;
-            while (terminal->active) {
-                ssize_t count = 0;
-#ifdef __linux__
-                while (terminal->active && (count = read(terminal->master_fd, buffer, sizeof(buffer) - 1)) > 0) {
-#elif defined(__APPLE__)
-                while ((count = read(terminal->master_fd, buffer, sizeof(buffer) - 1)) > 0) {
-#endif
-                       buffer[count] = '\0';
-                       std::lock_guard<std::mutex> lock(terminal->outputMutex);
-                       terminal->new_data += buffer;    
-                       terminal->newData = true;
-                }       
-                if (count == -1 && errno != EAGAIN) {
-                    break;
-                }
-            }
-            if (!terminal->isEmbedded()) {
-                SDL_Event quit_event;
-                quit_event.type = SDL_QUIT;
-                SDL_PushEvent(&quit_event);
-            }
-            return 0;
-    }
-                
-#endif    
-
-    void Terminal::launchEditor(const std::string &filename) {
-        editor = std::make_unique<TextEditor>(font, text_color);
-        if (!filename.empty()) {
-            editor->open(filename);
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Background shader effects
-    // -----------------------------------------------------------------------
-    namespace {
-
-        // All shaders are GLES2 / GLSL ES 1.00.
-        // Vertex shader inputs: varying vec2 vUV (0..1, top-left origin)
-        // Common uniforms: uTime (float), uResolution (vec2), uTex (sampler2D)
-
-        const char *kFS_Plasma =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "void main() {\n"
-            "    vec2 uv = vUV * 2.0 - 1.0;\n"
-            "    uv.x *= uResolution.x / uResolution.y;\n"
-            "    float v = sin(uv.x * 4.0 + uTime * 0.7);\n"
-            "    v += sin(uv.y * 4.0 + uTime * 0.5);\n"
-            "    v += sin((uv.x + uv.y) * 3.0 + uTime * 0.8);\n"
-            "    v += sin(length(uv) * 6.0 - uTime);\n"
-            "    v *= 0.25;\n"
-            "    float pi = 3.14159;\n"
-            "    vec3 col;\n"
-            "    col.r = 0.5 + 0.5 * sin(v * pi + uTime * 0.3);\n"
-            "    col.g = 0.5 + 0.5 * sin(v * pi + uTime * 0.3 + 2.094);\n"
-            "    col.b = 0.5 + 0.5 * sin(v * pi + uTime * 0.3 + 4.189);\n"
-            "    gl_FragColor = vec4(col * 0.9, 1.0);\n"
-            "}\n";
-
-        const char *kFS_Vortex =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform sampler2D uTex;\n"
-            "void main() {\n"
-            "    vec2 uv = vUV - 0.5;\n"
-            "    float dist = length(uv);\n"
-            "    float angle = atan(uv.y, uv.x);\n"
-            "    float twist = uTime * 0.5 + dist * 5.0;\n"
-            "    vec2 warped = vec2(cos(angle + twist), sin(angle + twist)) * dist + 0.5;\n"
-            "    warped = clamp(warped, 0.0, 1.0);\n"
-            "    gl_FragColor = texture2D(uTex, warped);\n"
-            "}\n";
-
-        const char *kFS_ChromaticRipple =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform sampler2D uTex;\n"
-            "void main() {\n"
-            "    vec2 uv = vUV;\n"
-            "    float dist = length(uv - 0.5);\n"
-            "    float ripple = sin(dist * 20.0 - uTime * 2.5) * 0.012;\n"
-            "    vec2 dir = normalize(uv - 0.5 + vec2(0.001));\n"
-            "    vec2 uvR = clamp(uv + dir * ripple * 1.6, 0.0, 1.0);\n"
-            "    vec2 uvG = clamp(uv + dir * ripple, 0.0, 1.0);\n"
-            "    vec2 uvB = clamp(uv - dir * ripple * 0.6, 0.0, 1.0);\n"
-            "    float r = texture2D(uTex, uvR).r;\n"
-            "    float g = texture2D(uTex, uvG).g;\n"
-            "    float b = texture2D(uTex, uvB).b;\n"
-            "    gl_FragColor = vec4(r, g, b, 1.0);\n"
-            "}\n";
-
-        const char *kFS_NeonGrid =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "void main() {\n"
-            "    vec2 uv = vUV * vec2(uResolution.x / uResolution.y, 1.0) * 20.0;\n"
-            "    vec2 gv = fract(uv) - 0.5;\n"
-            "    float grid = min(abs(gv.x), abs(gv.y));\n"
-            "    float pulse = 0.5 + 0.5 * sin(uTime * 1.5);\n"
-            "    float line = smoothstep(0.05, 0.02, grid) * (0.3 + 0.7 * pulse);\n"
-            "    vec3 col;\n"
-            "    col.r = 0.1 + 0.9 * (0.5 + 0.5 * sin(uv.x * 0.4 + uTime * 0.3));\n"
-            "    col.g = 0.1 + 0.9 * (0.5 + 0.5 * sin(uv.y * 0.4 + uTime * 0.4 + 1.0));\n"
-            "    col.b = 0.6 + 0.4 * (0.5 + 0.5 * sin(uTime * 0.5 + 2.0));\n"
-            "    gl_FragColor = vec4(col * line, 1.0);\n"
-            "}\n";
-
-        // Starfield slot: ported from acidcam-gpu/shaders/g_ufo_3d_v2.glsl.
-        // 3D rotation + ping-pong scaling distortion of the wallpaper texture,
-        // with per-pixel angle modulation for a more chaotic warp.
-        const char *kFS_Starfield =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "uniform sampler2D uTex;\n"
-            "mat3 rotX(float a){float s=sin(a),c=cos(a);return mat3(1.0,0.0,0.0, 0.0,c,-s, 0.0,s,c);}\n"
-            "mat3 rotY(float a){float s=sin(a),c=cos(a);return mat3(c,0.0,s, 0.0,1.0,0.0, -s,0.0,c);}\n"
-            "mat3 rotZ(float a){float s=sin(a),c=cos(a);return mat3(c,-s,0.0, s,c,0.0, 0.0,0.0,1.0);}\n"
-            "void main(void) {\n"
-            "    float aspect = uResolution.x / max(uResolution.y, 1.0);\n"
-            "    vec2 ar = vec2(aspect, 1.0);\n"
-            "    vec2 m = vec2(0.5);\n"
-            "    vec2 p2 = (vUV - m) * ar;\n"
-            "    float ax = 0.25 * sin(uTime * 0.7 + vUV.x * 10.0);\n"
-            "    float ay = 0.25 * cos(uTime * 0.6 - vUV.y * 10.0);\n"
-            "    float az = uTime * 0.5;\n"
-            "    vec3 p3 = vec3(p2, 1.0);\n"
-            "    mat3 R = rotZ(az) * rotY(ay) * rotX(ax);\n"
-            "    vec3 r = R * p3;\n"
-            "    float k = 0.6;\n"
-            "    float zf = 1.0 / (1.0 + r.z * k);\n"
-            "    vec2 q = r.xy * zf;\n"
-            "    float dist = length(p2);\n"
-            "    float scale_factor = 0.2 * sin(dist * 15.0 - uTime * 2.0 + vUV.x * 5.0 + vUV.y * 5.0);\n"
-            "    q *= (1.0 + scale_factor);\n"
-            "    vec2 uv = q / ar + m;\n"
-            "    uv = clamp(uv, 0.0, 1.0);\n"
-            "    gl_FragColor = texture2D(uTex, uv);\n"
-            "}\n";
-
-        const char *kFS_LiquidWave =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform sampler2D uTex;\n"
-            "void main() {\n"
-            "    vec2 uv = vUV;\n"
-            "    float dx = sin(uv.y * 8.0 + uTime * 1.2) * 0.014\n"
-            "             + sin(uv.y * 15.0 - uTime * 0.7) * 0.007;\n"
-            "    float dy = sin(uv.x * 6.0 + uTime * 0.9) * 0.012\n"
-            "             + cos(uv.x * 12.0 + uTime * 1.3) * 0.005;\n"
-            "    vec2 warped = clamp(uv + vec2(dx, dy), 0.0, 1.0);\n"
-            "    vec4 c = texture2D(uTex, warped);\n"
-            "    c.r *= 0.85 + 0.15 * sin(uTime * 0.4);\n"
-            "    c.b *= 0.85 + 0.15 * sin(uTime * 0.3 + 1.0);\n"
-            "    gl_FragColor = c;\n"
-            "}\n";
-
-        const char *kFS_Fractal =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "void main() {\n"
-            "    vec2 uv = (vUV - 0.5) * 3.0;\n"
-            "    uv.x *= uResolution.x / uResolution.y;\n"
-            "    vec2 c = vec2(0.355 + sin(uTime * 0.1) * 0.1,\n"
-            "                  0.355 + cos(uTime * 0.13) * 0.1);\n"
-            "    vec2 z = uv;\n"
-            "    float iter = 0.0;\n"
-            "    for (int i = 0; i < 64; i++) {\n"
-            "        z = vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y) + c;\n"
-            "        if (dot(z, z) > 4.0) { iter = float(i); break; }\n"
-            "    }\n"
-            "    float t = iter / 64.0;\n"
-            "    vec3 col = vec3(0.0);\n"
-            "    if (t > 0.0) {\n"
-            "        col.r = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3);\n"
-            "        col.g = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3 + 2.094);\n"
-            "        col.b = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3 + 4.189);\n"
-            "    }\n"
-            "    gl_FragColor = vec4(col, 1.0);\n"
-            "}\n";
-
-        const char *kFS_AcidSpiral =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "uniform sampler2D uTex;\n"
-            "void main() {\n"
-            "    vec2 uv = vUV - 0.5;\n"
-            "    uv.x *= uResolution.x / uResolution.y;\n"
-            "    float angle = atan(uv.y, uv.x);\n"
-            "    float dist = length(uv);\n"
-            "    float segments = 6.0;\n"
-            "    float pi = 3.14159;\n"
-            "    float segAngle = pi * 2.0 / segments;\n"
-            "    angle = mod(angle + pi, segAngle * 2.0);\n"
-            "    angle = abs(angle - segAngle);\n"
-            "    vec2 folded = vec2(cos(angle), sin(angle)) * dist;\n"
-            "    float spiral = dist * 3.0 - uTime * 0.6;\n"
-            "    folded += vec2(sin(spiral) * 0.08, cos(spiral) * 0.08);\n"
-            "    vec2 tUV = clamp(folded + 0.5, 0.0, 1.0);\n"
-            "    gl_FragColor = texture2D(uTex, tUV);\n"
-            "}\n";
-
-        // Aurora Borealis: layered sine-wave bands in green/blue/purple
-        const char *kFS_Aurora =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "float band(vec2 uv, float offset, float t) {\n"
-            "    float w = sin(uv.x * 3.1 + t + offset) * 0.06\n"
-            "           + sin(uv.x * 5.7 - t * 1.3 + offset) * 0.04\n"
-            "           + sin(uv.x * 8.3 + t * 0.7 + offset) * 0.025;\n"
-            "    float cy = 0.32 + offset * 0.11 + w;\n"
-            "    float d = uv.y - cy;\n"
-            "    return exp(-d * d * 90.0) * (0.5 + 0.5 * sin(uv.x * 4.0 + t * 1.5 + offset));\n"
-            "}\n"
-            "void main() {\n"
-            "    float t = uTime * 0.22;\n"
-            "    vec3 col = vec3(0.0, 0.01, 0.04);\n"
-            "    col += vec3(0.05, 0.80, 0.30) * band(vUV, 0.0, t);\n"
-            "    col += vec3(0.10, 0.50, 0.80) * band(vUV, 1.0, t);\n"
-            "    col += vec3(0.50, 0.10, 0.80) * band(vUV, 2.0, t);\n"
-            "    col += vec3(0.05, 0.70, 0.40) * band(vUV, 3.0, t);\n"
-            "    col += vec3(0.15, 0.20, 0.90) * band(vUV, 4.0, t);\n"
-            "    float star = fract(sin(dot(floor(vUV * 160.0), vec2(127.1, 311.7))) * 43758.5);\n"
-            "    col += step(0.975, star) * 0.4;\n"
-            "    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n"
-            "}\n";
-
-        // Tunnel: fly through a rainbow-tiled infinite corridor
-        const char *kFS_Tunnel =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "void main() {\n"
-            "    vec2 uv = vUV - 0.5;\n"
-            "    uv.x *= uResolution.x / uResolution.y;\n"
-            "    float dist = length(uv);\n"
-            "    float angle = atan(uv.y, uv.x);\n"
-            "    float pi2 = 6.28318;\n"
-            "    float depth = 0.25 / max(dist, 0.001) + uTime * 0.6;\n"
-            "    float a = (angle / pi2) + 0.5;\n"
-            "    float tiles = floor(mod(depth * 4.0, 2.0)) + floor(mod(a * 8.0, 2.0));\n"
-            "    float check = mod(tiles, 2.0);\n"
-            "    float fog = smoothstep(0.0, 0.25, dist);\n"
-            "    float hue = a + uTime * 0.12;\n"
-            "    vec3 c1 = vec3(0.5 + 0.5 * sin(hue * pi2),\n"
-            "                   0.5 + 0.5 * sin(hue * pi2 + 2.094),\n"
-            "                   0.5 + 0.5 * sin(hue * pi2 + 4.189));\n"
-            "    vec3 c2 = c1 * 0.08;\n"
-            "    gl_FragColor = vec4(mix(c2, c1, check) * fog, 1.0);\n"
-            "}\n";
-
-        // Crystal: animated Voronoi diagram with jewel colours
-        const char *kFS_Crystal =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "vec2 hv2(vec2 p) {\n"
-            "    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));\n"
-            "    return fract(sin(p) * 43758.5453);\n"
-            "}\n"
-            "void main() {\n"
-            "    vec2 uv = vUV * vec2(uResolution.x / uResolution.y, 1.0) * 6.0;\n"
-            "    vec2 p = floor(uv);\n"
-            "    vec2 f = fract(uv);\n"
-            "    float md = 9.0, md2 = 9.0;\n"
-            "    vec2 cid = vec2(0.0);\n"
-            "    for (int j = -1; j <= 1; j++) {\n"
-            "        for (int i = -1; i <= 1; i++) {\n"
-            "            vec2 b = vec2(float(i), float(j));\n"
-            "            vec2 anim = sin(hv2(p + b) * 6.28 + uTime * 0.5) * 0.3;\n"
-            "            vec2 r = b - f + 0.5 + anim;\n"
-            "            float d = dot(r, r);\n"
-            "            if (d < md) { md2 = md; md = d; cid = b; }\n"
-            "            else if (d < md2) { md2 = d; }\n"
-            "        }\n"
-            "    }\n"
-            "    float edge = sqrt(md2) - sqrt(md);\n"
-            "    float hue = fract(dot(p + cid, vec2(0.317, 0.177)) + uTime * 0.07);\n"
-            "    vec3 col = vec3(0.5 + 0.5 * sin(hue * 6.28),\n"
-            "                    0.5 + 0.5 * sin(hue * 6.28 + 2.094),\n"
-            "                    0.5 + 0.5 * sin(hue * 6.28 + 4.189));\n"
-            "    col = col * smoothstep(0.0, 0.08, edge) + 0.9 * smoothstep(0.08, 0.0, edge);\n"
-            "    gl_FragColor = vec4(col, 1.0);\n"
-            "}\n";
-
-        // Fire slot: ported from acidcam-gpu/shaders/g_ufo_3d.glsl.
-        // Smooth 3D rotation + radial pulse warp of the wallpaper texture.
-        const char *kFS_Fire =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "uniform sampler2D uTex;\n"
-            "mat3 rotX(float a){float s=sin(a),c=cos(a);return mat3(1.0,0.0,0.0, 0.0,c,-s, 0.0,s,c);}\n"
-            "mat3 rotY(float a){float s=sin(a),c=cos(a);return mat3(c,0.0,s, 0.0,1.0,0.0, -s,0.0,c);}\n"
-            "mat3 rotZ(float a){float s=sin(a),c=cos(a);return mat3(c,-s,0.0, s,c,0.0, 0.0,0.0,1.0);}\n"
-            "void main(void) {\n"
-            "    float aspect = uResolution.x / max(uResolution.y, 1.0);\n"
-            "    vec2 ar = vec2(aspect, 1.0);\n"
-            "    vec2 m = vec2(0.5);\n"
-            "    vec2 p2 = (vUV - m) * ar;\n"
-            "    float ax = 0.25 * sin(uTime * 0.7);\n"
-            "    float ay = 0.25 * cos(uTime * 0.6);\n"
-            "    float az = uTime * 0.5;\n"
-            "    vec3 p3 = vec3(p2, 1.0);\n"
-            "    mat3 R = rotZ(az) * rotY(ay) * rotX(ax);\n"
-            "    vec3 r = R * p3;\n"
-            "    float k = 0.6;\n"
-            "    float zf = 1.0 / (1.0 + r.z * k);\n"
-            "    vec2 q = r.xy * zf;\n"
-            "    float dist = length(p2);\n"
-            "    float scale = 1.0 + 0.2 * sin(dist * 15.0 - uTime * 2.0);\n"
-            "    q *= scale;\n"
-            "    vec2 uv = q / ar + m;\n"
-            "    uv = clamp(uv, 0.0, 1.0);\n"
-            "    gl_FragColor = texture2D(uTex, uv);\n"
-            "}\n";
-
-        // Hyperspace: angular streaks at warp speed.  Uses a sector-based
-        // approach: divide circle into N sectors, animate each one's radial
-        // position.  No large per-pixel loop required.
-        const char *kFS_Hyperspace =
-            "#ifdef GL_ES\n"
-            "precision mediump float;\n"
-            "#endif\n"
-            "varying vec2 vUV;\n"
-            "uniform float uTime;\n"
-            "uniform vec2 uResolution;\n"
-            "float h11(float n) { return fract(sin(n * 91.345) * 47453.5453); }\n"
-            "void main() {\n"
-            "    vec2 uv = vUV - 0.5;\n"
-            "    uv.x *= uResolution.x / max(uResolution.y, 1.0);\n"
-            "    float dist  = length(uv);\n"
-            "    float angle = atan(uv.y, uv.x) / 6.28318 + 0.5;\n"
-            "    float sectors = 64.0;\n"
-            "    float a  = angle * sectors;\n"
-            "    float ai = floor(a);\n"
-            "    float af = fract(a) - 0.5;\n"
-            "    float seedA = h11(ai);\n"
-            "    float seedB = h11(ai + 91.0);\n"
-            "    float seedC = h11(ai + 17.0);\n"
-            "    float speed = 0.25 + seedA * 0.7;\n"
-            "    float t = fract(uTime * speed + seedB);\n"
-            "    float head = t * 0.95;\n"
-            "    float len  = 0.10 + seedC * 0.30;\n"
-            "    float radial = smoothstep(head - len, head - len * 0.2, dist)\n"
-            "                 * smoothstep(head + 0.01, head, dist);\n"
-            "    float width  = 0.06 + 0.20 * (1.0 - t);\n"
-            "    float angular = smoothstep(width, 0.0, abs(af));\n"
-            "    float fall = smoothstep(0.0, 0.15, t) * smoothstep(1.0, 0.75, t);\n"
-            "    float core = radial * angular * fall;\n"
-            "    vec3 tint = mix(vec3(0.7, 0.85, 1.0), vec3(1.0, 0.55, 0.95), seedC);\n"
-            "    vec3 col = core * tint * 1.6;\n"
-            "    col += vec3(0.0, 0.02, 0.10) * smoothstep(0.6, 0.0, dist);\n"
-            "    col += vec3(0.6, 0.8, 1.0) * smoothstep(0.04, 0.0, dist) * 0.6;\n"
-            "    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n"
-            "}\n";
-
-        static const char *kEffectFS[] = {
-            nullptr,             // None (0)
-            kFS_Plasma,          // 1
-            kFS_Vortex,          // 2
-            kFS_ChromaticRipple, // 3
-            kFS_NeonGrid,        // 4
-            kFS_Starfield,       // 5
-            kFS_LiquidWave,      // 6
-            kFS_Fractal,         // 7
-            kFS_AcidSpiral,      // 8
-            kFS_Aurora,          // 9
-            kFS_Tunnel,          // 10
-            kFS_Crystal,         // 11
-            kFS_Fire,            // 12
-            kFS_Hyperspace,      // 13
-        };
-
-    } // anonymous namespace
-
-    void Terminal::setEffect(TermEffect e, mxApp &app) {
-        activeEffect_ = e;
-        const int idx = static_cast<int>(e);
-        if (idx <= 0 || idx >= kEffectCount) return;
-        if (effectProgs_[idx] == 0) {
-            // Lazily compile the shader
-            effectProgs_[idx] =
-                app.ren->buildEffectShader(kEffectFS[idx]);
-        }
-        // Reset animation time when switching effects
-        shaderTime_ = 0.0f;
-        lastEffectMs_ = SDL_GetTicks();
-    }
-
-    void Terminal::drawBackgroundOnly(mxApp &app) {
-        if (!dim) return;
-        if (activeEffect_ != TermEffect::None && !dim->getMatrix()) {
-            drawEffectBackground(app);
-        } else if (dim->getMatrix() && dim->matrix_tex) {
-            SDL_RenderCopy(app.ren, dim->matrix_tex, nullptr, nullptr);
-        } else if (dim->wallpaper) {
-            SDL_RenderCopy(app.ren, dim->wallpaper, nullptr, nullptr);
-        }
-    }
-
-    void Terminal::drawEffectBackground(mxApp &app) {
-        const int idx = static_cast<int>(activeEffect_);
-        if (idx <= 0 || idx >= kEffectCount) return;
-        if (effectProgs_[idx] == 0) return;
-
-        // Advance shader time
-        Uint32 now = SDL_GetTicks();
-        if (lastEffectMs_ == 0) lastEffectMs_ = now;
-        shaderTime_ += static_cast<float>(now - lastEffectMs_) * 0.001f;
-        lastEffectMs_ = now;
-
-        // The shader must cover the entire wallpaper, not just the terminal
-        // window bounds. A parent container (e.g. TerminalTabs) may have set
-        // a clip rect before calling draw(); disable it so the full-screen
-        // quad issued by applyEffect() is not scissored to the window rect.
-        SDL_RenderSetClipRect(app.ren, nullptr);
-
-        // Use the wallpaper as the input texture (may be null for procedural effects)
-        app.ren->applyEffect(wallpaper, effectProgs_[idx], shaderTime_);
-    }
+  }
+  if (!lineToRender.empty()) {
+    lineCount++;
+  }
+  return lineCount;
 }
- 
+
+int Terminal::calculateTotalWrappedLines() {
+  int totalWrappedLines = 0;
+  SDL_Rect rc;
+  Window::getRect(rc);
+  int maxWidth = rc.w - 10;
+
+  for (const std::string &line : outputLines) {
+    int w, h;
+    TTF_SizeText(font, line.c_str(), &w, &h);
+
+    if (w <= maxWidth) {
+      totalWrappedLines++;
+    } else {
+
+      int wrappedLines = (w + maxWidth - 1) / maxWidth;
+      totalWrappedLines += wrappedLines;
+    }
+  }
+
+  return totalWrappedLines;
+}
+
+int Terminal::total_Lines() {
+  int totalLines = static_cast<int>(outputLines.size());
+  SDL_Rect rc;
+  Window::getRect(rc);
+
+  std::string prompt;
+  prompt = "$ ";
+  int promptWidth;
+  TTF_SizeText(font, prompt.c_str(), &promptWidth, nullptr);
+  int total = calculateWrappedLinesForText(inputText, rc.w - 20, promptWidth);
+  total += totalLines;
+  return total;
+}
+
+void Terminal::scroll() {
+  int totalLines = total_Lines();
+  SDL_Rect viewport = textViewportRect();
+  int lineHeight = TTF_FontHeight(font);
+  if (lineHeight <= 0)
+    lineHeight = 16;
+  maxVisibleLines = viewport.h / lineHeight;
+  if (maxVisibleLines < 1)
+    maxVisibleLines = 1;
+  // Auto-scroll so the cursor row stays visible. Real terminals
+  // pin the cursor to the bottom-most visible row when output
+  // arrives, so we keep scrollOffset at totalLines-maxVisibleLines
+  // unless the user has scrolled up past it. We also clamp when
+  // a reflow shrinks the total line count below the current
+  // offset (otherwise the cursor would be hidden below the view).
+  int targetBottom = my_max(0, totalLines - maxVisibleLines);
+  if (totalLines > maxVisibleLines) {
+    if (scrollOffset < targetBottom) {
+      scrollOffset = targetBottom;
+    } else if (scrollOffset > targetBottom &&
+               ansiCursorRow >= scrollOffset + maxVisibleLines) {
+      // Cursor moved below the visible range (e.g. after a
+      // narrower reflow). Snap back to bottom.
+      scrollOffset = targetBottom;
+    }
+  } else {
+    scrollOffset = 0;
+  }
+}
+
+void Terminal::stateChanged(bool min, bool max, bool closed) {
+  isMaximized = max;
+  // Recompute wrap/scroll without rebuilding colors from plain text
+  // (print("") would discard ANSI color info captured during parsing).
+  scroll();
+  Window::dragging = false;
+}
+
+bool Terminal::sessionAlive() const {
+#ifdef _WIN32
+  if (procInfo.hProcess == NULL)
+    return false;
+  DWORD code = 0;
+  if (!GetExitCodeProcess(procInfo.hProcess, &code))
+    return false;
+  return code == STILL_ACTIVE;
+#elif !defined(FOR_WASM)
+  if (bashPID <= 0)
+    return false;
+  int status = 0;
+  pid_t r = ::waitpid(bashPID, &status, WNOHANG);
+  // r == 0 means still running; r == bashPID means exited; -1 error.
+  return r == 0;
+#else
+  return true;
+#endif
+}
+
+#ifdef _WIN32
+DWORD WINAPI Terminal::bashReaderThread(LPVOID param) {
+  Terminal *terminal = static_cast<Terminal *>(param);
+  char buffer[1024];
+  DWORD bytesRead;
+  while (terminal->active) {
+    while (ReadFile(terminal->hChildStdoutRd, buffer, sizeof(buffer) - 1,
+                    &bytesRead, NULL) &&
+           bytesRead > 0) {
+      buffer[bytesRead] = '\0';
+      std::lock_guard<std::mutex> lock(terminal->outputMutex);
+      terminal->new_data += buffer;
+      terminal->newData = true;
+    }
+    if (bytesRead == 0 || GetLastError() != ERROR_MORE_DATA) {
+      break;
+    }
+    Sleep(10);
+  }
+  if (!terminal->isEmbedded()) {
+    SDL_Event quit_event;
+    quit_event.type = SDL_QUIT;
+    SDL_PushEvent(&quit_event);
+  }
+  return 0;
+}
+#elif !defined(FOR_WASM)
+int Terminal::bashReaderThread(void *ptr) {
+  Terminal *terminal = static_cast<Terminal *>(ptr);
+  char buffer[1024];
+  std::string output;
+  std::string pwdOutput;
+  while (terminal->active) {
+    ssize_t count = 0;
+#ifdef __linux__
+    while (terminal->active && (count = read(terminal->master_fd, buffer,
+                                             sizeof(buffer) - 1)) > 0) {
+#elif defined(__APPLE__)
+    while ((count = read(terminal->master_fd, buffer, sizeof(buffer) - 1)) >
+           0) {
+#endif
+      buffer[count] = '\0';
+      std::lock_guard<std::mutex> lock(terminal->outputMutex);
+      terminal->new_data += buffer;
+      terminal->newData = true;
+    }
+    if (count == -1 && errno != EAGAIN) {
+      break;
+    }
+  }
+  if (!terminal->isEmbedded()) {
+    SDL_Event quit_event;
+    quit_event.type = SDL_QUIT;
+    SDL_PushEvent(&quit_event);
+  }
+  return 0;
+}
+
+#endif
+
+void Terminal::launchEditor(const std::string &filename) {
+  editor = std::make_unique<TextEditor>(font, text_color);
+  if (!filename.empty()) {
+    editor->open(filename);
+  }
+}
+
+// -----------------------------------------------------------------------
+// Background shader effects
+// -----------------------------------------------------------------------
+namespace {
+
+// All shaders are GLES2 / GLSL ES 1.00.
+// Vertex shader inputs: varying vec2 vUV (0..1, top-left origin)
+// Common uniforms: uTime (float), uResolution (vec2), uTex (sampler2D)
+
+const char *kFS_Plasma =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "void main() {\n"
+    "    vec2 uv = vUV * 2.0 - 1.0;\n"
+    "    uv.x *= uResolution.x / uResolution.y;\n"
+    "    float v = sin(uv.x * 4.0 + uTime * 0.7);\n"
+    "    v += sin(uv.y * 4.0 + uTime * 0.5);\n"
+    "    v += sin((uv.x + uv.y) * 3.0 + uTime * 0.8);\n"
+    "    v += sin(length(uv) * 6.0 - uTime);\n"
+    "    v *= 0.25;\n"
+    "    float pi = 3.14159;\n"
+    "    vec3 col;\n"
+    "    col.r = 0.5 + 0.5 * sin(v * pi + uTime * 0.3);\n"
+    "    col.g = 0.5 + 0.5 * sin(v * pi + uTime * 0.3 + 2.094);\n"
+    "    col.b = 0.5 + 0.5 * sin(v * pi + uTime * 0.3 + 4.189);\n"
+    "    gl_FragColor = vec4(col * 0.9, 1.0);\n"
+    "}\n";
+
+const char *kFS_Vortex = "#ifdef GL_ES\n"
+                         "precision mediump float;\n"
+                         "#endif\n"
+                         "varying vec2 vUV;\n"
+                         "uniform float uTime;\n"
+                         "uniform sampler2D uTex;\n"
+                         "void main() {\n"
+                         "    vec2 uv = vUV - 0.5;\n"
+                         "    float dist = length(uv);\n"
+                         "    float angle = atan(uv.y, uv.x);\n"
+                         "    float twist = uTime * 0.5 + dist * 5.0;\n"
+                         "    vec2 warped = vec2(cos(angle + twist), sin(angle "
+                         "+ twist)) * dist + 0.5;\n"
+                         "    warped = clamp(warped, 0.0, 1.0);\n"
+                         "    gl_FragColor = texture2D(uTex, warped);\n"
+                         "}\n";
+
+const char *kFS_ChromaticRipple =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform sampler2D uTex;\n"
+    "void main() {\n"
+    "    vec2 uv = vUV;\n"
+    "    float dist = length(uv - 0.5);\n"
+    "    float ripple = sin(dist * 20.0 - uTime * 2.5) * 0.012;\n"
+    "    vec2 dir = normalize(uv - 0.5 + vec2(0.001));\n"
+    "    vec2 uvR = clamp(uv + dir * ripple * 1.6, 0.0, 1.0);\n"
+    "    vec2 uvG = clamp(uv + dir * ripple, 0.0, 1.0);\n"
+    "    vec2 uvB = clamp(uv - dir * ripple * 0.6, 0.0, 1.0);\n"
+    "    float r = texture2D(uTex, uvR).r;\n"
+    "    float g = texture2D(uTex, uvG).g;\n"
+    "    float b = texture2D(uTex, uvB).b;\n"
+    "    gl_FragColor = vec4(r, g, b, 1.0);\n"
+    "}\n";
+
+const char *kFS_NeonGrid =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "void main() {\n"
+    "    vec2 uv = vUV * vec2(uResolution.x / uResolution.y, 1.0) * 20.0;\n"
+    "    vec2 gv = fract(uv) - 0.5;\n"
+    "    float grid = min(abs(gv.x), abs(gv.y));\n"
+    "    float pulse = 0.5 + 0.5 * sin(uTime * 1.5);\n"
+    "    float line = smoothstep(0.05, 0.02, grid) * (0.3 + 0.7 * pulse);\n"
+    "    vec3 col;\n"
+    "    col.r = 0.1 + 0.9 * (0.5 + 0.5 * sin(uv.x * 0.4 + uTime * 0.3));\n"
+    "    col.g = 0.1 + 0.9 * (0.5 + 0.5 * sin(uv.y * 0.4 + uTime * 0.4 + "
+    "1.0));\n"
+    "    col.b = 0.6 + 0.4 * (0.5 + 0.5 * sin(uTime * 0.5 + 2.0));\n"
+    "    gl_FragColor = vec4(col * line, 1.0);\n"
+    "}\n";
+
+// Starfield slot: ported from acidcam-gpu/shaders/g_ufo_3d_v2.glsl.
+// 3D rotation + ping-pong scaling distortion of the wallpaper texture,
+// with per-pixel angle modulation for a more chaotic warp.
+const char *kFS_Starfield =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "uniform sampler2D uTex;\n"
+    "mat3 rotX(float a){float s=sin(a),c=cos(a);return mat3(1.0,0.0,0.0, "
+    "0.0,c,-s, 0.0,s,c);}\n"
+    "mat3 rotY(float a){float s=sin(a),c=cos(a);return mat3(c,0.0,s, "
+    "0.0,1.0,0.0, -s,0.0,c);}\n"
+    "mat3 rotZ(float a){float s=sin(a),c=cos(a);return mat3(c,-s,0.0, s,c,0.0, "
+    "0.0,0.0,1.0);}\n"
+    "void main(void) {\n"
+    "    float aspect = uResolution.x / max(uResolution.y, 1.0);\n"
+    "    vec2 ar = vec2(aspect, 1.0);\n"
+    "    vec2 m = vec2(0.5);\n"
+    "    vec2 p2 = (vUV - m) * ar;\n"
+    "    float ax = 0.25 * sin(uTime * 0.7 + vUV.x * 10.0);\n"
+    "    float ay = 0.25 * cos(uTime * 0.6 - vUV.y * 10.0);\n"
+    "    float az = uTime * 0.5;\n"
+    "    vec3 p3 = vec3(p2, 1.0);\n"
+    "    mat3 R = rotZ(az) * rotY(ay) * rotX(ax);\n"
+    "    vec3 r = R * p3;\n"
+    "    float k = 0.6;\n"
+    "    float zf = 1.0 / (1.0 + r.z * k);\n"
+    "    vec2 q = r.xy * zf;\n"
+    "    float dist = length(p2);\n"
+    "    float scale_factor = 0.2 * sin(dist * 15.0 - uTime * 2.0 + vUV.x * "
+    "5.0 + vUV.y * 5.0);\n"
+    "    q *= (1.0 + scale_factor);\n"
+    "    vec2 uv = q / ar + m;\n"
+    "    uv = clamp(uv, 0.0, 1.0);\n"
+    "    gl_FragColor = texture2D(uTex, uv);\n"
+    "}\n";
+
+const char *kFS_LiquidWave =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform sampler2D uTex;\n"
+    "void main() {\n"
+    "    vec2 uv = vUV;\n"
+    "    float dx = sin(uv.y * 8.0 + uTime * 1.2) * 0.014\n"
+    "             + sin(uv.y * 15.0 - uTime * 0.7) * 0.007;\n"
+    "    float dy = sin(uv.x * 6.0 + uTime * 0.9) * 0.012\n"
+    "             + cos(uv.x * 12.0 + uTime * 1.3) * 0.005;\n"
+    "    vec2 warped = clamp(uv + vec2(dx, dy), 0.0, 1.0);\n"
+    "    vec4 c = texture2D(uTex, warped);\n"
+    "    c.r *= 0.85 + 0.15 * sin(uTime * 0.4);\n"
+    "    c.b *= 0.85 + 0.15 * sin(uTime * 0.3 + 1.0);\n"
+    "    gl_FragColor = c;\n"
+    "}\n";
+
+const char *kFS_Fractal =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "void main() {\n"
+    "    vec2 uv = (vUV - 0.5) * 3.0;\n"
+    "    uv.x *= uResolution.x / uResolution.y;\n"
+    "    vec2 c = vec2(0.355 + sin(uTime * 0.1) * 0.1,\n"
+    "                  0.355 + cos(uTime * 0.13) * 0.1);\n"
+    "    vec2 z = uv;\n"
+    "    float iter = 0.0;\n"
+    "    for (int i = 0; i < 64; i++) {\n"
+    "        z = vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y) + c;\n"
+    "        if (dot(z, z) > 4.0) { iter = float(i); break; }\n"
+    "    }\n"
+    "    float t = iter / 64.0;\n"
+    "    vec3 col = vec3(0.0);\n"
+    "    if (t > 0.0) {\n"
+    "        col.r = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3);\n"
+    "        col.g = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3 + 2.094);\n"
+    "        col.b = 0.5 + 0.5 * sin(t * 10.0 + uTime * 0.3 + 4.189);\n"
+    "    }\n"
+    "    gl_FragColor = vec4(col, 1.0);\n"
+    "}\n";
+
+const char *kFS_AcidSpiral =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "uniform sampler2D uTex;\n"
+    "void main() {\n"
+    "    vec2 uv = vUV - 0.5;\n"
+    "    uv.x *= uResolution.x / uResolution.y;\n"
+    "    float angle = atan(uv.y, uv.x);\n"
+    "    float dist = length(uv);\n"
+    "    float segments = 6.0;\n"
+    "    float pi = 3.14159;\n"
+    "    float segAngle = pi * 2.0 / segments;\n"
+    "    angle = mod(angle + pi, segAngle * 2.0);\n"
+    "    angle = abs(angle - segAngle);\n"
+    "    vec2 folded = vec2(cos(angle), sin(angle)) * dist;\n"
+    "    float spiral = dist * 3.0 - uTime * 0.6;\n"
+    "    folded += vec2(sin(spiral) * 0.08, cos(spiral) * 0.08);\n"
+    "    vec2 tUV = clamp(folded + 0.5, 0.0, 1.0);\n"
+    "    gl_FragColor = texture2D(uTex, tUV);\n"
+    "}\n";
+
+// Aurora Borealis: layered sine-wave bands in green/blue/purple
+const char *kFS_Aurora =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "float band(vec2 uv, float offset, float t) {\n"
+    "    float w = sin(uv.x * 3.1 + t + offset) * 0.06\n"
+    "           + sin(uv.x * 5.7 - t * 1.3 + offset) * 0.04\n"
+    "           + sin(uv.x * 8.3 + t * 0.7 + offset) * 0.025;\n"
+    "    float cy = 0.32 + offset * 0.11 + w;\n"
+    "    float d = uv.y - cy;\n"
+    "    return exp(-d * d * 90.0) * (0.5 + 0.5 * sin(uv.x * 4.0 + t * 1.5 + "
+    "offset));\n"
+    "}\n"
+    "void main() {\n"
+    "    float t = uTime * 0.22;\n"
+    "    vec3 col = vec3(0.0, 0.01, 0.04);\n"
+    "    col += vec3(0.05, 0.80, 0.30) * band(vUV, 0.0, t);\n"
+    "    col += vec3(0.10, 0.50, 0.80) * band(vUV, 1.0, t);\n"
+    "    col += vec3(0.50, 0.10, 0.80) * band(vUV, 2.0, t);\n"
+    "    col += vec3(0.05, 0.70, 0.40) * band(vUV, 3.0, t);\n"
+    "    col += vec3(0.15, 0.20, 0.90) * band(vUV, 4.0, t);\n"
+    "    float star = fract(sin(dot(floor(vUV * 160.0), vec2(127.1, 311.7))) * "
+    "43758.5);\n"
+    "    col += step(0.975, star) * 0.4;\n"
+    "    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n"
+    "}\n";
+
+// Tunnel: fly through a rainbow-tiled infinite corridor
+const char *kFS_Tunnel =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "void main() {\n"
+    "    vec2 uv = vUV - 0.5;\n"
+    "    uv.x *= uResolution.x / uResolution.y;\n"
+    "    float dist = length(uv);\n"
+    "    float angle = atan(uv.y, uv.x);\n"
+    "    float pi2 = 6.28318;\n"
+    "    float depth = 0.25 / max(dist, 0.001) + uTime * 0.6;\n"
+    "    float a = (angle / pi2) + 0.5;\n"
+    "    float tiles = floor(mod(depth * 4.0, 2.0)) + floor(mod(a * 8.0, "
+    "2.0));\n"
+    "    float check = mod(tiles, 2.0);\n"
+    "    float fog = smoothstep(0.0, 0.25, dist);\n"
+    "    float hue = a + uTime * 0.12;\n"
+    "    vec3 c1 = vec3(0.5 + 0.5 * sin(hue * pi2),\n"
+    "                   0.5 + 0.5 * sin(hue * pi2 + 2.094),\n"
+    "                   0.5 + 0.5 * sin(hue * pi2 + 4.189));\n"
+    "    vec3 c2 = c1 * 0.08;\n"
+    "    gl_FragColor = vec4(mix(c2, c1, check) * fog, 1.0);\n"
+    "}\n";
+
+// Crystal: animated Voronoi diagram with jewel colours
+const char *kFS_Crystal =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "vec2 hv2(vec2 p) {\n"
+    "    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));\n"
+    "    return fract(sin(p) * 43758.5453);\n"
+    "}\n"
+    "void main() {\n"
+    "    vec2 uv = vUV * vec2(uResolution.x / uResolution.y, 1.0) * 6.0;\n"
+    "    vec2 p = floor(uv);\n"
+    "    vec2 f = fract(uv);\n"
+    "    float md = 9.0, md2 = 9.0;\n"
+    "    vec2 cid = vec2(0.0);\n"
+    "    for (int j = -1; j <= 1; j++) {\n"
+    "        for (int i = -1; i <= 1; i++) {\n"
+    "            vec2 b = vec2(float(i), float(j));\n"
+    "            vec2 anim = sin(hv2(p + b) * 6.28 + uTime * 0.5) * 0.3;\n"
+    "            vec2 r = b - f + 0.5 + anim;\n"
+    "            float d = dot(r, r);\n"
+    "            if (d < md) { md2 = md; md = d; cid = b; }\n"
+    "            else if (d < md2) { md2 = d; }\n"
+    "        }\n"
+    "    }\n"
+    "    float edge = sqrt(md2) - sqrt(md);\n"
+    "    float hue = fract(dot(p + cid, vec2(0.317, 0.177)) + uTime * 0.07);\n"
+    "    vec3 col = vec3(0.5 + 0.5 * sin(hue * 6.28),\n"
+    "                    0.5 + 0.5 * sin(hue * 6.28 + 2.094),\n"
+    "                    0.5 + 0.5 * sin(hue * 6.28 + 4.189));\n"
+    "    col = col * smoothstep(0.0, 0.08, edge) + 0.9 * smoothstep(0.08, 0.0, "
+    "edge);\n"
+    "    gl_FragColor = vec4(col, 1.0);\n"
+    "}\n";
+
+// Fire slot: ported from acidcam-gpu/shaders/g_ufo_3d.glsl.
+// Smooth 3D rotation + radial pulse warp of the wallpaper texture.
+const char *kFS_Fire =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "uniform sampler2D uTex;\n"
+    "mat3 rotX(float a){float s=sin(a),c=cos(a);return mat3(1.0,0.0,0.0, "
+    "0.0,c,-s, 0.0,s,c);}\n"
+    "mat3 rotY(float a){float s=sin(a),c=cos(a);return mat3(c,0.0,s, "
+    "0.0,1.0,0.0, -s,0.0,c);}\n"
+    "mat3 rotZ(float a){float s=sin(a),c=cos(a);return mat3(c,-s,0.0, s,c,0.0, "
+    "0.0,0.0,1.0);}\n"
+    "void main(void) {\n"
+    "    float aspect = uResolution.x / max(uResolution.y, 1.0);\n"
+    "    vec2 ar = vec2(aspect, 1.0);\n"
+    "    vec2 m = vec2(0.5);\n"
+    "    vec2 p2 = (vUV - m) * ar;\n"
+    "    float ax = 0.25 * sin(uTime * 0.7);\n"
+    "    float ay = 0.25 * cos(uTime * 0.6);\n"
+    "    float az = uTime * 0.5;\n"
+    "    vec3 p3 = vec3(p2, 1.0);\n"
+    "    mat3 R = rotZ(az) * rotY(ay) * rotX(ax);\n"
+    "    vec3 r = R * p3;\n"
+    "    float k = 0.6;\n"
+    "    float zf = 1.0 / (1.0 + r.z * k);\n"
+    "    vec2 q = r.xy * zf;\n"
+    "    float dist = length(p2);\n"
+    "    float scale = 1.0 + 0.2 * sin(dist * 15.0 - uTime * 2.0);\n"
+    "    q *= scale;\n"
+    "    vec2 uv = q / ar + m;\n"
+    "    uv = clamp(uv, 0.0, 1.0);\n"
+    "    gl_FragColor = texture2D(uTex, uv);\n"
+    "}\n";
+
+// Hyperspace: angular streaks at warp speed.  Uses a sector-based
+// approach: divide circle into N sectors, animate each one's radial
+// position.  No large per-pixel loop required.
+const char *kFS_Hyperspace =
+    "#ifdef GL_ES\n"
+    "precision mediump float;\n"
+    "#endif\n"
+    "varying vec2 vUV;\n"
+    "uniform float uTime;\n"
+    "uniform vec2 uResolution;\n"
+    "float h11(float n) { return fract(sin(n * 91.345) * 47453.5453); }\n"
+    "void main() {\n"
+    "    vec2 uv = vUV - 0.5;\n"
+    "    uv.x *= uResolution.x / max(uResolution.y, 1.0);\n"
+    "    float dist  = length(uv);\n"
+    "    float angle = atan(uv.y, uv.x) / 6.28318 + 0.5;\n"
+    "    float sectors = 64.0;\n"
+    "    float a  = angle * sectors;\n"
+    "    float ai = floor(a);\n"
+    "    float af = fract(a) - 0.5;\n"
+    "    float seedA = h11(ai);\n"
+    "    float seedB = h11(ai + 91.0);\n"
+    "    float seedC = h11(ai + 17.0);\n"
+    "    float speed = 0.25 + seedA * 0.7;\n"
+    "    float t = fract(uTime * speed + seedB);\n"
+    "    float head = t * 0.95;\n"
+    "    float len  = 0.10 + seedC * 0.30;\n"
+    "    float radial = smoothstep(head - len, head - len * 0.2, dist)\n"
+    "                 * smoothstep(head + 0.01, head, dist);\n"
+    "    float width  = 0.06 + 0.20 * (1.0 - t);\n"
+    "    float angular = smoothstep(width, 0.0, abs(af));\n"
+    "    float fall = smoothstep(0.0, 0.15, t) * smoothstep(1.0, 0.75, t);\n"
+    "    float core = radial * angular * fall;\n"
+    "    vec3 tint = mix(vec3(0.7, 0.85, 1.0), vec3(1.0, 0.55, 0.95), seedC);\n"
+    "    vec3 col = core * tint * 1.6;\n"
+    "    col += vec3(0.0, 0.02, 0.10) * smoothstep(0.6, 0.0, dist);\n"
+    "    col += vec3(0.6, 0.8, 1.0) * smoothstep(0.04, 0.0, dist) * 0.6;\n"
+    "    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);\n"
+    "}\n";
+
+static const char *kEffectFS[] = {
+    nullptr,             // None (0)
+    kFS_Plasma,          // 1
+    kFS_Vortex,          // 2
+    kFS_ChromaticRipple, // 3
+    kFS_NeonGrid,        // 4
+    kFS_Starfield,       // 5
+    kFS_LiquidWave,      // 6
+    kFS_Fractal,         // 7
+    kFS_AcidSpiral,      // 8
+    kFS_Aurora,          // 9
+    kFS_Tunnel,          // 10
+    kFS_Crystal,         // 11
+    kFS_Fire,            // 12
+    kFS_Hyperspace,      // 13
+};
+
+} // anonymous namespace
+
+void Terminal::setEffect(TermEffect e, mxApp &app) {
+  activeEffect_ = e;
+  const int idx = static_cast<int>(e);
+  if (idx <= 0 || idx >= kEffectCount)
+    return;
+  if (effectProgs_[idx] == 0) {
+    // Lazily compile the shader
+    effectProgs_[idx] = app.ren->buildEffectShader(kEffectFS[idx]);
+  }
+  // Reset animation time when switching effects
+  shaderTime_ = 0.0f;
+  lastEffectMs_ = SDL_GetTicks();
+}
+
+void Terminal::drawBackgroundOnly(mxApp &app) {
+  if (!dim)
+    return;
+  if (activeEffect_ != TermEffect::None && !dim->getMatrix()) {
+    drawEffectBackground(app);
+  } else if (dim->getMatrix() && dim->matrix_tex) {
+    SDL_RenderCopy(app.ren, dim->matrix_tex, nullptr, nullptr);
+  } else if (dim->wallpaper) {
+    SDL_RenderCopy(app.ren, dim->wallpaper, nullptr, nullptr);
+  }
+}
+
+void Terminal::drawEffectBackground(mxApp &app) {
+  const int idx = static_cast<int>(activeEffect_);
+  if (idx <= 0 || idx >= kEffectCount)
+    return;
+  if (effectProgs_[idx] == 0)
+    return;
+
+  // Advance shader time
+  Uint32 now = SDL_GetTicks();
+  if (lastEffectMs_ == 0)
+    lastEffectMs_ = now;
+  shaderTime_ += static_cast<float>(now - lastEffectMs_) * 0.001f;
+  lastEffectMs_ = now;
+
+  // The shader must cover the entire wallpaper, not just the terminal
+  // window bounds. A parent container (e.g. TerminalTabs) may have set
+  // a clip rect before calling draw(); disable it so the full-screen
+  // quad issued by applyEffect() is not scissored to the window rect.
+  SDL_RenderSetClipRect(app.ren, nullptr);
+
+  // Use the wallpaper as the input texture (may be null for procedural effects)
+  app.ren->applyEffect(wallpaper, effectProgs_[idx], shaderTime_);
+}
+} // namespace mx

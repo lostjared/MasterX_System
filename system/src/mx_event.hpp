@@ -1,31 +1,32 @@
- #ifndef __MX_EVENT_H_X
+#ifndef __MX_EVENT_H_X
 #define __MX_EVENT_H_X
 
-#include"window.hpp"
+#include "window.hpp"
 
 namespace mx {
 
-    class Window;
+class Window;
 
-    class EventHandler {
-    public:
-        EventHandler(mxApp &app) : app_{app} {}
-        bool pumpEvent(SDL_Event &e);
-        void sendDrawMessage();
-        void setFocus(int index);
-        void setFocus(Window *window);
-        void clearFocus();
-        Window *currentWindow();
-        void addWindow(Window *window);
-        void removeWindow(Window *window);
-        std::vector<Window *> window_stack;
-        Window *checkWindowClick(int x, int y);
-        bool allHidden() const;
-        void setNextVisible();
-    private:
-        mxApp &app_;
-        int cur_focus = 0;
-    };
-}
+class EventHandler {
+public:
+  EventHandler(mxApp &app) : app_{app} {}
+  bool pumpEvent(SDL_Event &e);
+  void sendDrawMessage();
+  void setFocus(int index);
+  void setFocus(Window *window);
+  void clearFocus();
+  Window *currentWindow();
+  void addWindow(Window *window);
+  void removeWindow(Window *window);
+  std::vector<Window *> window_stack;
+  Window *checkWindowClick(int x, int y);
+  bool allHidden() const;
+  void setNextVisible();
+
+private:
+  mxApp &app_;
+  int cur_focus = 0;
+};
+} // namespace mx
 
 #endif

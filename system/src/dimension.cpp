@@ -1,924 +1,1093 @@
 #include "dimension.hpp"
+#include "SDL_rect.h"
+#include "asteroid_window.hpp"
+#include "masterpiece.hpp"
+#include "matrix.hpp"
+#include "messagebox.hpp"
+#include "mx_abstract_control.hpp"
+#include "mx_controls.hpp"
+#include "mx_system_bar.hpp"
+#include "mx_window.hpp"
+#include "pac_window.hpp"
+#include "pong_window.hpp"
 #include "terminal.hpp"
 #include "terminal_tabs.hpp"
-#include "mx_controls.hpp"
+#include "tetris_window.hpp"
 #include "window.hpp"
-#include "SDL_rect.h"
-#include"mx_window.hpp"
-#include"mx_system_bar.hpp"
-#include"mx_abstract_control.hpp"
-#include"masterpiece.hpp"
-#include"asteroid_window.hpp"
-#include"tetris_window.hpp"
-#include<algorithm>
-#include<unordered_set>
-#include<random>
-#include"matrix.hpp"
-#include"messagebox.hpp"
-#include"pac_window.hpp"
-#include"pong_window.hpp"
-
+#include <algorithm>
+#include <random>
+#include <unordered_set>
 
 namespace mx {
 
-    bool cursor_shown = false;
-    bool cursor_handled = false;
-  
-    DimensionContainer::DimensionContainer(mxApp &app) : wallpaper{nullptr} , events{app}, active{false} {}
+bool cursor_shown = false;
+bool cursor_handled = false;
 
-    DimensionContainer::~DimensionContainer() {
-        mx::system_out << "MasterX: Releasing Dimension: " << name << "\n";
-        if(wallpaper) {
-            SDL_DestroyTexture(wallpaper);
+DimensionContainer::DimensionContainer(mxApp &app)
+    : wallpaper{nullptr}, events{app}, active{false} {}
+
+DimensionContainer::~DimensionContainer() {
+  mx::system_out << "MasterX: Releasing Dimension: " << name << "\n";
+  if (wallpaper) {
+    SDL_DestroyTexture(wallpaper);
+  }
+  if (icon) {
+    SDL_DestroyTexture(icon);
+  }
+}
+
+void DimensionContainer::resizeEvent(int w, int h) {
+  for (auto &o : objects) {
+    Window *win = dynamic_cast<Window *>(o.get());
+    if (win) {
+      win->screenResize(w, h);
+    }
+  }
+}
+
+void DimensionContainer::destroyWindow(Window *win) {
+  events.removeWindow(win);
+  for (auto it = mini_win.begin(); it != mini_win.end(); ++it) {
+    Window *window = *it;
+    if (window == win) {
+      mini_win.erase(it);
+      break;
+    }
+  }
+
+  for (auto r = objects.begin(); r != objects.end(); ++r) {
+    if (auto w = dynamic_cast<Window *>(r->get())) {
+      if (w == win) {
+        objects.erase(r);
+        mx::system_out << "MasterX System: Destroyed Window..\n";
+        return;
+      }
+    }
+  }
+}
+
+Window *DimensionContainer::createWindow(mxApp &app) {
+  objects.push_back(std::make_unique<Window>(app));
+  Window *win = dynamic_cast<Window *>(objects[objects.size() - 1].get());
+  if (win != nullptr) {
+    events.addWindow(win);
+  }
+  return win;
+}
+
+bool DimensionContainer::isVisible() const { return visible; }
+
+void DimensionContainer::init(SystemBar *sbar, const std::string &name_,
+                              SDL_Texture *wallpaperx) {
+  name = name_;
+  wallpaper = wallpaperx;
+  system_bar = sbar;
+}
+
+void DimensionContainer::setActive(bool a) {
+  active = a;
+  if (active) {
+    for (auto &i : objects) {
+      if (auto win = dynamic_cast<Window *>(i.get())) {
+        if (win->reload()) {
+          if (win->isVisible() == false) {
+            win->activate();
+          }
+          win->show(true);
         }
-        if(icon) {
-            SDL_DestroyTexture(icon);
-        } 
+      }
     }
+  }
+}
 
-    void DimensionContainer::resizeEvent(int w, int h) {
-        for(auto &o : objects) {
-            Window  *win = dynamic_cast<Window *>(o.get());
-            if(win) {
-                win->screenResize(w, h);
-            }
-        }
-    }
+void DimensionContainer::setMatrix(mxApp &app, SDL_Texture *t, bool m) {
+  matrix_on = m;
+  matrix_tex = t;
+  app.matrix_mode = m;
+}
 
+bool DimensionContainer::getMatrix() const { return matrix_on; }
+bool DimensionContainer::isActive() const { return active; }
 
-    void DimensionContainer::destroyWindow(Window *win) {
-        events.removeWindow(win);
-        for(auto it = mini_win.begin(); it != mini_win.end(); ++it) {
-            Window *window = *it;
-            if(window == win) {
-                mini_win.erase(it);
-                break;
-            }
-        }
+void DimensionContainer::draw(mxApp &app) {
+  if (!active)
+    return;
 
-        for(auto r = objects.begin(); r != objects.end(); ++r) {
-            if(auto w = dynamic_cast<Window *>(r->get())) {
-                if(w == win) {
-                    objects.erase(r);
-                    mx::system_out << "MasterX System: Destroyed Window..\n";
-                    return;
-                }
-            }
-        }
-    }
+  SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
 
-    Window *DimensionContainer::createWindow(mxApp &app) {
-        objects.push_back(std::make_unique<Window>(app));
-        Window *win = dynamic_cast<Window *>(objects[objects.size()-1].get());
-        if(win != nullptr) {
-            events.addWindow(win);
-        }
-        return win;
-    }
-
-    bool DimensionContainer::isVisible() const { return visible; }
-
-    void DimensionContainer::init(SystemBar *sbar, const std::string &name_, SDL_Texture *wallpaperx) {
-        name = name_;
-        wallpaper = wallpaperx;
-        system_bar = sbar;
-    }
-    
-    void DimensionContainer::setActive(bool a) {
-        active = a;
-        if(active) {
-            for (auto &i : objects) {
-                if(auto win = dynamic_cast<Window *>(i.get())) {
-                    if(win->reload()) {
-                        if(win->isVisible() == false) {
-                            win->activate();
-                        }
-                        win->show(true);
-                    }
-                }
-            }
-        }
-    }
-    
-    void DimensionContainer::setMatrix(mxApp &app, SDL_Texture *t, bool m) {
-        matrix_on = m;
-        matrix_tex = t;
-        app.matrix_mode = m;
-    }
-    
-    bool DimensionContainer::getMatrix() const {
-        return matrix_on;
-    }
-    bool DimensionContainer::isActive() const {
-        return active;
-    }
-
-    void DimensionContainer::draw(mxApp &app) {
-        if (!active) return;
-
-        SDL_SetRenderDrawBlendMode(app.ren, SDL_BLENDMODE_BLEND);
-
-        if (wallpaper != nullptr) {
-            if (transitioning && nextWallpaper != nullptr) {
-                SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_BLEND);
-                SDL_SetTextureBlendMode(nextWallpaper, SDL_BLENDMODE_BLEND);
-                SDL_SetTextureAlphaMod(wallpaper, 255 - transitionAlpha);
-                SDL_SetTextureAlphaMod(nextWallpaper, transitionAlpha);
-                SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
-                SDL_RenderCopy(app.ren, nextWallpaper, nullptr, nullptr);
-                transitionAlpha -= 5;
-                if (transitionAlpha <= 0) {
-                    transitioning = false;
-                    SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_NONE);
-                }
-            } else {
-                SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_NONE);
-                if(matrix_on == true && matrix_tex != nullptr) {
-                    SDL_SetRenderTarget(app.ren, matrix_tex);
-                    int textureWidth, textureHeight;
-                    SDL_QueryTexture(matrix_tex, NULL, NULL, &textureWidth, &textureHeight);
-                    mx::createMatrixRainTexture(app.ren, matrix_tex, app.matrix_font_, textureWidth, textureHeight);
-                    SDL_SetRenderTarget(app.ren, app.tex);
-                    SDL_RenderCopy(app.ren, matrix_tex, nullptr, nullptr);
-                }
-                else {
-                    SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
-                }
-            }
-        }
-
-        if(dim != nullptr) {
-            dim->drawIcons(app.ren, app.font, app.icon, app.width, app.height);
-        }
-
-        if (visible) {
-            events.sendDrawMessage();
-        }
-    }
-
-    void DimensionContainer::setDimension(Dimension *d) {
-        dim = d;
-    }
-    
-    void DimensionContainer::startTransition(SDL_Texture* nextWp) {
-        if (!transitioning) {
-            nextWallpaper = nextWp;
-            transitionAlpha = 255;
-            transitioning = true;
-        }
-    }
-    void DimensionContainer::updateTransition() {
-        transitionAlpha -= transitionSpeed;  
-        if (transitionAlpha <= 0) {
-            transitionAlpha = 255;
-            transitioning = false;
-        }
-    }
-    
-    void DimensionContainer::setIcon(SDL_Texture *icon) {
-        this->icon = icon;
-    }
-
-    bool DimensionContainer::event(mxApp &app, SDL_Event &e) {
-
-        if(active == false || visible == false) return false;
-
-        if(events.pumpEvent(e))
-            return true;
-
-        return false;
-    }
-
-    void DimensionContainer::setVisible(bool v) {
-        visible = v;
-    }
-
-    std::string Dimension::selectRandomImage(std::vector<std::string>& logos, std::mt19937& gen) {
-        if (logos.empty()) {
-            return "";  
-        }
-        std::uniform_int_distribution<> dis(0, logos.size() - 1);
-        int random_index = dis(gen);
-        std::string selected_image = logos[random_index];
-        logos.erase(logos.begin() + random_index);
-        return selected_image;
-    }
-
-    void Dimension::resizeEvent(int w, int h) {
-        for(auto &d : dimensions) {
-            DimensionContainer *con = dynamic_cast<DimensionContainer *>(d.get());
-            if(con) {
-                con->resizeEvent(w, h);
-            }
-        }
-    }
-
-    DimensionContainer *Dimension::createDimension(mxApp &app, const std::string &name, bool active, bool visible, SDL_Texture *wallpaper, SDL_Texture *icon) {
-        dimensions.push_back(std::make_unique<DimensionContainer>(app));
-        if(auto cont = dynamic_cast<DimensionContainer *>(getDimension())) {
-            cont->init(this->system_bar, name, wallpaper);
-            cont->setActive(active);
-            cont->setVisible(visible);
-            cont->setIcon(icon);
-            return cont;
-        }
-        mx::system_err << "MasterX System: Bad cast..\n";
-        mx::system_err.flush();
-        exit(EXIT_FAILURE);
-        return nullptr;
-    }
-
-    Dimension::Dimension(mxApp &app) {
-        cursor_x = (app.width/2) - (32/2);
-        cursor_y = (app.height/2) - (32/2);
-        wallpaper = loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value);
-        objects.push_back(std::make_unique<SystemBar>(app));
-        system_bar = dynamic_cast<SystemBar *>(objects[0].get());
-        if(!system_bar) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        std::vector<std::string> logos = app.config.splitByComma(app.config.itemAtKey("desktop", "backgrounds").value);
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        dimensions.push_back(std::make_unique<DimensionContainer>(app));
-        dash = dynamic_cast<DimensionContainer *>(getDimension());
-        if(!dash) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        dash->init(system_bar, "Dashboard", loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value));
-        dash->setActive(true);
-        dash->setVisible(false);
-        dash->setDimension(this);
-        matrix_texture = SDL_CreateTexture(app.ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, app.width, app.height);
-        if(!matrix_texture) {
-            mx::system_err << "MasterX System: Error could not create texture.\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        SDL_SetRenderTarget(app.ren, matrix_texture);
-        SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
-        SDL_RenderClear(app.ren);
+  if (wallpaper != nullptr) {
+    if (transitioning && nextWallpaper != nullptr) {
+      SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_BLEND);
+      SDL_SetTextureBlendMode(nextWallpaper, SDL_BLENDMODE_BLEND);
+      SDL_SetTextureAlphaMod(wallpaper, 255 - transitionAlpha);
+      SDL_SetTextureAlphaMod(nextWallpaper, transitionAlpha);
+      SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
+      SDL_RenderCopy(app.ren, nextWallpaper, nullptr, nullptr);
+      transitionAlpha -= 5;
+      if (transitionAlpha <= 0) {
+        transitioning = false;
+        SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_NONE);
+      }
+    } else {
+      SDL_SetTextureBlendMode(wallpaper, SDL_BLENDMODE_NONE);
+      if (matrix_on == true && matrix_tex != nullptr) {
+        SDL_SetRenderTarget(app.ren, matrix_tex);
+        int textureWidth, textureHeight;
+        SDL_QueryTexture(matrix_tex, NULL, NULL, &textureWidth, &textureHeight);
+        mx::createMatrixRainTexture(app.ren, matrix_tex, app.matrix_font_,
+                                    textureWidth, textureHeight);
         SDL_SetRenderTarget(app.ren, app.tex);
-        dash->setMatrix(app, matrix_texture, false);
-        settings_window = dash->createWindow(app);
-        settings_window->create(dash, "Settings", 25, 25, 320, 240);   
-        dash->events.addWindow(settings_window);
-        Menu_ID res_menu = settings_window->menu.addHeader(create_header("Resolution"));
-        settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("720p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if(app.full || app.matrix_mode) {
-                MX_MessageBox::OkMX_MessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
-                return true;
+        SDL_RenderCopy(app.ren, matrix_tex, nullptr, nullptr);
+      } else {
+        SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
+      }
+    }
+  }
+
+  if (dim != nullptr) {
+    dim->drawIcons(app.ren, app.font, app.icon, app.width, app.height);
+  }
+
+  if (visible) {
+    events.sendDrawMessage();
+  }
+}
+
+void DimensionContainer::setDimension(Dimension *d) { dim = d; }
+
+void DimensionContainer::startTransition(SDL_Texture *nextWp) {
+  if (!transitioning) {
+    nextWallpaper = nextWp;
+    transitionAlpha = 255;
+    transitioning = true;
+  }
+}
+void DimensionContainer::updateTransition() {
+  transitionAlpha -= transitionSpeed;
+  if (transitionAlpha <= 0) {
+    transitionAlpha = 255;
+    transitioning = false;
+  }
+}
+
+void DimensionContainer::setIcon(SDL_Texture *icon) { this->icon = icon; }
+
+bool DimensionContainer::event(mxApp &app, SDL_Event &e) {
+
+  if (active == false || visible == false)
+    return false;
+
+  if (events.pumpEvent(e))
+    return true;
+
+  return false;
+}
+
+void DimensionContainer::setVisible(bool v) { visible = v; }
+
+std::string Dimension::selectRandomImage(std::vector<std::string> &logos,
+                                         std::mt19937 &gen) {
+  if (logos.empty()) {
+    return "";
+  }
+  std::uniform_int_distribution<> dis(0, logos.size() - 1);
+  int random_index = dis(gen);
+  std::string selected_image = logos[random_index];
+  logos.erase(logos.begin() + random_index);
+  return selected_image;
+}
+
+void Dimension::resizeEvent(int w, int h) {
+  for (auto &d : dimensions) {
+    DimensionContainer *con = dynamic_cast<DimensionContainer *>(d.get());
+    if (con) {
+      con->resizeEvent(w, h);
+    }
+  }
+}
+
+DimensionContainer *Dimension::createDimension(mxApp &app,
+                                               const std::string &name,
+                                               bool active, bool visible,
+                                               SDL_Texture *wallpaper,
+                                               SDL_Texture *icon) {
+  dimensions.push_back(std::make_unique<DimensionContainer>(app));
+  if (auto cont = dynamic_cast<DimensionContainer *>(getDimension())) {
+    cont->init(this->system_bar, name, wallpaper);
+    cont->setActive(active);
+    cont->setVisible(visible);
+    cont->setIcon(icon);
+    return cont;
+  }
+  mx::system_err << "MasterX System: Bad cast..\n";
+  mx::system_err.flush();
+  exit(EXIT_FAILURE);
+  return nullptr;
+}
+
+Dimension::Dimension(mxApp &app) {
+  cursor_x = (app.width / 2) - (32 / 2);
+  cursor_y = (app.height / 2) - (32 / 2);
+  wallpaper =
+      loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value);
+  objects.push_back(std::make_unique<SystemBar>(app));
+  system_bar = dynamic_cast<SystemBar *>(objects[0].get());
+  if (!system_bar) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  std::vector<std::string> logos = app.config.splitByComma(
+      app.config.itemAtKey("desktop", "backgrounds").value);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  dimensions.push_back(std::make_unique<DimensionContainer>(app));
+  dash = dynamic_cast<DimensionContainer *>(getDimension());
+  if (!dash) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  dash->init(
+      system_bar, "Dashboard",
+      loadTexture(app, app.config.itemAtKey("desktop", "wallpaper").value));
+  dash->setActive(true);
+  dash->setVisible(false);
+  dash->setDimension(this);
+  matrix_texture =
+      SDL_CreateTexture(app.ren, SDL_PIXELFORMAT_RGBA8888,
+                        SDL_TEXTUREACCESS_TARGET, app.width, app.height);
+  if (!matrix_texture) {
+    mx::system_err << "MasterX System: Error could not create texture.\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  SDL_SetRenderTarget(app.ren, matrix_texture);
+  SDL_SetRenderDrawColor(app.ren, 0, 0, 0, 255);
+  SDL_RenderClear(app.ren);
+  SDL_SetRenderTarget(app.ren, app.tex);
+  dash->setMatrix(app, matrix_texture, false);
+  settings_window = dash->createWindow(app);
+  settings_window->create(dash, "Settings", 25, 25, 320, 240);
+  dash->events.addWindow(settings_window);
+  Menu_ID res_menu =
+      settings_window->menu.addHeader(create_header("Resolution"));
+  settings_window->menu.addItem(
+      res_menu,
+      settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")),
+      create_menu_item(
+          "720p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (app.full || app.matrix_mode) {
+              MX_MessageBox::OkMX_MessageBox(
+                  app, win->dim, "Cannot set Resolution",
+                  "Cannot set Resolution while in fullscreen or Matrix mode");
+              return true;
             }
-            app.resize(1280,720);
-            resizeEvent(1280,720);
+            app.resize(1280, 720);
+            resizeEvent(1280, 720);
             return true;
-        }));
-        settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("1080p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if(app.full || app.matrix_mode) {
-                MX_MessageBox::OkMX_MessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
-                return true;
+          }));
+  settings_window->menu.addItem(
+      res_menu,
+      settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")),
+      create_menu_item(
+          "1080p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (app.full || app.matrix_mode) {
+              MX_MessageBox::OkMX_MessageBox(
+                  app, win->dim, "Cannot set Resolution",
+                  "Cannot set Resolution while in fullscreen or Matrix mode");
+              return true;
             }
-            app.resize(1920,1080);
+            app.resize(1920, 1080);
             resizeEvent(1920, 1080);
             return true;
-        }));
-        settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("1440p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-             if(app.full || app.matrix_mode) {
-                MX_MessageBox::OkMX_MessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or matrix mode");
-                return true;
+          }));
+  settings_window->menu.addItem(
+      res_menu,
+      settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")),
+      create_menu_item(
+          "1440p", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (app.full || app.matrix_mode) {
+              MX_MessageBox::OkMX_MessageBox(
+                  app, win->dim, "Cannot set Resolution",
+                  "Cannot set Resolution while in fullscreen or matrix mode");
+              return true;
             }
-            app.resize(2560,1440);
+            app.resize(2560, 1440);
             resizeEvent(2560, 1440);
             return true;
-        }));
-        settings_window->menu.addItem(res_menu,settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")), create_menu_item("2160p (4K)", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-             if(app.full || app.matrix_mode) {
-                MX_MessageBox::OkMX_MessageBox(app, win->dim, "Cannot set Resolution", "Cannot set Resolution while in fullscreen or Matrix mode");
-                return true;
+          }));
+  settings_window->menu.addItem(
+      res_menu,
+      settings_window->menu.addIcon(loadTexture(app, "images/xicon.png")),
+      create_menu_item(
+          "2160p (4K)", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            if (app.full || app.matrix_mode) {
+              MX_MessageBox::OkMX_MessageBox(
+                  app, win->dim, "Cannot set Resolution",
+                  "Cannot set Resolution while in fullscreen or Matrix mode");
+              return true;
             }
-            app.resize(3840,2160);
+            app.resize(3840, 2160);
             resizeEvent(3840, 2160);
             return true;
+          }));
 
-        }));
+  settings_window->show(true);
+  settings_window->setReload(true);
+  settings_window->setCanResize(false);
+  settings_window->removeAtClose(false);
+  settings_window->children.push_back(std::make_unique<Button>(app));
+  toggle_fullscreen = dynamic_cast<Button *>(settings_window->getControl());
+  if (!toggle_fullscreen) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  toggle_fullscreen->create(settings_window, "Toggle Fullscreen", 25, 50, 150,
+                            20);
+  toggle_fullscreen->setShow(true);
+  toggle_fullscreen->setCallback(
+      [](mxApp &app, Window *parent, SDL_Event &e) -> bool {
+        app.set_fullscreen(app.win, !app.full);
+        return true;
+      });
+  settings_window->children.push_back(std::make_unique<Button>(app));
+  toggle_matrix = dynamic_cast<Button *>(settings_window->getControl());
+  if (!toggle_matrix) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  toggle_matrix->create(settings_window, "Toggle Matrix Mode", 25, 80, 150, 20);
+  toggle_matrix->setShow(true);
+  toggle_matrix->setCallback(
+      [&](mxApp &app, Window *parent, SDL_Event &e) -> bool {
+        dash->setMatrix(app, matrix_texture, !dash->getMatrix());
+        return true;
+      });
+  dimensions.push_back(std::make_unique<DimensionContainer>(app));
+  welcome = dynamic_cast<DimensionContainer *>(getDimension());
+  if (!welcome) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  welcome->init(system_bar, "Welcome",
+                loadTexture(app, selectRandomImage(logos, gen)));
+  welcome->setActive(false);
+  welcome->setVisible(false);
+  welcome_window = welcome->createWindow(app);
+  welcome_window->create(welcome, "Welcome", 45, 25, 640, 480);
+  welcome_window->show(true);
+  welcome_window->setReload(false);
+  welcome_window->setCanResize(false);
+  welcome_window->removeAtClose(true);
+  welcome_window->children.push_back(std::make_unique<Image>(app));
+  welcome_image = dynamic_cast<Image *>(welcome_window->getControl());
+  welcome_image->create(app, welcome_window, "images/welcome_logo.png", 45, 45);
+  welcome_image->setGeometry(0, 0, 640, 480 - kTitleBarHeight);
+  welcome_window->children.push_back(std::make_unique<Button>(app));
+  welcome_ok = dynamic_cast<Button *>(welcome_window->getControl());
+  SDL_Rect i_rc;
+  welcome_window->getRect(i_rc);
+  welcome_ok->create(welcome_window, "Dismiss", i_rc.w - 110, i_rc.h - 35, 100,
+                     25);
+  welcome_ok->setShow(true);
+  welcome_ok->setCallback([](mxApp &app, Window *parent, SDL_Event &e) -> bool {
+    parent->show(false);
+    return true;
+  });
+  welcome_ok->setResizeCallback([&](Window *parent, int x, int y) -> void {
+    SDL_Rect rc, src;
+    parent->getRect(rc);
+    welcome_ok->setGeometry(rc.w - 110, rc.h - 40, 100, 30);
+    welcome_image->getRect(src);
+    welcome_image->setGeometry(src.x, src.y, rc.w, rc.h - kTitleBarHeight);
+    welcome_image->setWindowPos(rc.x, rc.y);
+  });
 
-        settings_window->show(true);
-        settings_window->setReload(true);
-        settings_window->setCanResize(false);
-        settings_window->removeAtClose(false);
-        settings_window->children.push_back(std::make_unique<Button>(app));
-        toggle_fullscreen = dynamic_cast<Button *>(settings_window->getControl());
-        if(!toggle_fullscreen) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        toggle_fullscreen->create(settings_window, "Toggle Fullscreen", 25, 50, 150, 20);
-        toggle_fullscreen->setShow(true);
-        toggle_fullscreen->setCallback([](mxApp &app, Window *parent, SDL_Event &e) -> bool {
-                                                       app.set_fullscreen(app.win, !app.full);
-                return true;
-        });
-        settings_window->children.push_back(std::make_unique<Button>(app));
-        toggle_matrix = dynamic_cast<Button *>(settings_window->getControl());
-        if(!toggle_matrix) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        toggle_matrix->create(settings_window, "Toggle Matrix Mode", 25, 80, 150, 20);
-        toggle_matrix->setShow(true);
-        toggle_matrix->setCallback([&](mxApp &app, Window *parent, SDL_Event &e) -> bool {
-            dash->setMatrix(app, matrix_texture, !dash->getMatrix());
+  welcome_help = welcome->createWindow(app);
+  welcome_help->create(welcome, "Info", app.width - 360, 25, 320, 240);
+  welcome_help->show(true);
+  welcome_help->setReload(false);
+  welcome_help->setCanResize(false);
+  welcome_help->removeAtClose(true);
+
+  welcome_help->children.push_back(std::make_unique<Label>(app));
+  welcome_help_info = dynamic_cast<Label *>(welcome_help->getControl());
+  std::vector<std::string> info_help{
+      "MasterX System v" + app.version, "Created by Jared Bruni",
+      "Virtual Environment", "written in C++20", "https://lostsidedead.biz"};
+  welcome_help_info->create_multi(welcome_help, info_help, {0, 0, 0, 255}, 25,
+                                  25);
+  welcome_help_info->loadFont(app.system_font, 16);
+  welcome_help_info->linkMode(false);
+  welcome->events.setFocus(welcome_window);
+
+  dimensions.push_back(std::make_unique<DimensionContainer>(app));
+  about = dynamic_cast<DimensionContainer *>(getDimension());
+  if (!about) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  about->init(system_bar, "About",
+              loadTexture(app, selectRandomImage(logos, gen)));
+  about->setActive(false);
+  about->setVisible(false);
+  about_window = about->createWindow(app);
+  int centered_x = (app.width - 800) / 2;
+  int centered_y = (app.height - 600) / 2;
+  about_window->create(about, "About", centered_x, centered_y - 35, 800, 600);
+  about_window->show(true);
+  about_window->setReload(false);
+  about_window->removeAtClose(true);
+  about_window->children.push_back(std::make_unique<Image>(app));
+  Image *image = dynamic_cast<Image *>(about_window->getControl());
+  image->create(app, about_window, "images/logo.png", 0, 0);
+  image->setGeometry(0, 0, 800, 600 - kTitleBarHeight);
+
+  about_window->children.push_back(std::make_unique<Button>(app));
+  about_window_ok = dynamic_cast<Button *>(about_window->getControl());
+
+  about_window_ok->create(about_window, "Ok", 800 - 110, 600 - 35, 100, 25);
+  about_window_ok->setShow(true);
+  about_window_ok->setCallback(
+      [](mxApp &app, Window *parent, SDL_Event &e) -> bool {
+        parent->show(false);
+        return false;
+      });
+  about_window->children.push_back(std::make_unique<Label>(app));
+  about_window_info = dynamic_cast<Label *>(about_window->getControl());
+  std::vector<std::string> info_text{
+      "MasterX System v" + app.version, "written by Jared Bruni",
+      "(C) 2026 LostSideDead Software", "https://lostsidedead.biz",
+      "\"Open Source, Open Mind\""};
+  about_window_info->create_multi(about_window, info_text, {255, 255, 255, 255},
+                                  25, 25);
+  about_window_info->loadFont(app.system_font, 36);
+  about_window_info->linkMode(false);
+  about_window->setCanResize(false);
+  dimensions.push_back(std::make_unique<DimensionContainer>(app));
+  term = dynamic_cast<DimensionContainer *>(getDimension());
+  if (!term) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  SDL_Texture *term_tex = loadTexture(app, selectRandomImage(logos, gen));
+  term->init(system_bar, "Terminal", term_tex);
+  term->setActive(false);
+  term->setVisible(false);
+  system_bar->activateDimension(1);
+  system_bar->activateDimension(0);
+  term->objects.push_back(std::make_unique<TerminalTabs>(app));
+  termtabs = dynamic_cast<TerminalTabs *>(term->objects[0].get());
+  if (!termtabs) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  termx = termtabs->activeTab();
+  const int baseWidth = 1280;
+  const int baseHeight = 720;
+  int screenWidth = app.width;
+  int screenHeight = app.height;
+  float scaleX = static_cast<float>(screenWidth) / baseWidth;
+  float scaleY = static_cast<float>(screenHeight) / baseHeight;
+  int windowWidth = static_cast<int>(800 * scaleX);
+  int windowHeight = static_cast<int>(505 * scaleY);
+  int windowPosX = (screenWidth - windowWidth) / 2;
+  int windowPosY = (screenHeight - windowHeight) / 2;
+  termtabs->create(term, "mXTerm", windowPosX, windowPosY, windowWidth,
+                   windowHeight);
+  term->events.addWindow(termtabs);
+  term->setIcon(loadTexture(app, "images/term.png"));
+  termtabs->setReload(true);
+  termtabs->setIcon(loadTexture(app, "images/term.png"));
+  Menu_ID term_file = termtabs->menu.addHeader(create_header("File"));
+  Menu_ID term_edit = termtabs->menu.addHeader(create_header("Edit"));
+  termtabs->menu.addItem(
+      term_file, termtabs->menu.addIcon(loadTexture(app, "images/term.png")),
+      create_menu_item("New Tab",
+                       [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                         if (auto *tt = dynamic_cast<TerminalTabs *>(win))
+                           tt->newTab(app);
+                         return true;
+                       }));
+  termtabs->menu.addItem(
+      term_file, termtabs->menu.addIcon(loadTexture(app, "images/term.png")),
+      create_menu_item("Close Tab",
+                       [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                         if (auto *tt = dynamic_cast<TerminalTabs *>(win))
+                           tt->closeTab(-1); // -1 = currently active tab
+                         return true;
+                       }));
+  termtabs->menu.addItem(
+      term_file,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Matrix Mode",
+                       [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                         win->dim->setMatrix(app, win->dim->matrix_tex,
+                                             !win->dim->getMatrix());
+                         return true;
+                       }));
+  termtabs->menu.addItem(
+      term_edit,
+      termtabs->menu.addIcon(loadTexture(app, "images/clipboard.png")),
+      create_menu_item("Copy",
+                       [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                         if (auto *tt = dynamic_cast<TerminalTabs *>(win)) {
+                           if (tt->hasSelectedText())
+                             tt->copySelectionToClipboard();
+                           else
+                             tt->copyToClipboard();
+                         }
+                         return true;
+                       }));
+  termtabs->menu.addItem(
+      term_edit,
+      termtabs->menu.addIcon(loadTexture(app, "images/glueicon.png")),
+      create_menu_item("Paste",
+                       [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                         if (auto *tt = dynamic_cast<TerminalTabs *>(win))
+                           tt->pasteFromClipboard();
+                         return true;
+                       }));
+
+  Menu_ID term_dim = termtabs->menu.addHeader(create_header("Font"));
+  termtabs->menu.addItem(
+      term_dim, termtabs->menu.addIcon(loadTexture(app, "images/term.png")),
+      create_menu_item("Increase Size",
+                       [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                         if (auto *tt = dynamic_cast<TerminalTabs *>(win))
+                           tt->adjustFontSize(1);
+                         return true;
+                       }));
+  termtabs->menu.addItem(
+      term_dim, termtabs->menu.addIcon(loadTexture(app, "images/term.png")),
+      create_menu_item("Decrease Size",
+                       [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                         if (auto *tt = dynamic_cast<TerminalTabs *>(win))
+                           tt->adjustFontSize(-1);
+                         return true;
+                       }));
+
+  // Effects menu — shader backgrounds for the terminal
+  Menu_ID eff_menu = termtabs->menu.addHeader(create_header("Effects"));
+  auto makeEffectCallback = [](Terminal::TermEffect fx) {
+    return [fx](mxApp &app, Window *win, SDL_Event &e) -> bool {
+      if (auto *tt = dynamic_cast<TerminalTabs *>(win))
+        tt->setEffect(fx, app);
+      return true;
+    };
+  };
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Off", makeEffectCallback(Terminal::TermEffect::None)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Plasma",
+                       makeEffectCallback(Terminal::TermEffect::Plasma)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Vortex",
+                       makeEffectCallback(Terminal::TermEffect::Vortex)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item(
+          "Chromatic Ripple",
+          makeEffectCallback(Terminal::TermEffect::ChromaticRipple)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Neon Grid",
+                       makeEffectCallback(Terminal::TermEffect::NeonGrid)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("UFO 3D V2",
+                       makeEffectCallback(Terminal::TermEffect::Starfield)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Liquid Wave",
+                       makeEffectCallback(Terminal::TermEffect::LiquidWave)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Fractal",
+                       makeEffectCallback(Terminal::TermEffect::Fractal)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Acid Spiral",
+                       makeEffectCallback(Terminal::TermEffect::AcidSpiral)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Aurora",
+                       makeEffectCallback(Terminal::TermEffect::Aurora)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Tunnel",
+                       makeEffectCallback(Terminal::TermEffect::Tunnel)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Crystal",
+                       makeEffectCallback(Terminal::TermEffect::Crystal)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("UFO 3D",
+                       makeEffectCallback(Terminal::TermEffect::Fire)));
+  termtabs->menu.addItem(
+      eff_menu,
+      termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
+      create_menu_item("Hyperspace",
+                       makeEffectCallback(Terminal::TermEffect::Hyperspace)));
+
+  term->setMatrix(app, matrix_texture, false);
+  dimensions.push_back(std::make_unique<DimensionContainer>(app));
+  piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
+  if (!piece_cont) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+
+  Menu_ID hlp_hte_menu = termtabs->menu.addHeader(create_header("Help"));
+  termtabs->menu.addItem(
+      hlp_hte_menu, termtabs->menu.addIcon(loadTexture(app, "images/term.png")),
+      create_menu_item(
+          "About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MX_MessageBox::OkMX_MessageBox(
+                app, win->dim, "About Terminal",
+                "(C) 2026 LostSideDead Software written by Jared Bruni");
             return true;
-        });
-        dimensions.push_back(std::make_unique<DimensionContainer>(app));
-        welcome = dynamic_cast<DimensionContainer *>(getDimension());
-        if(!welcome) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        welcome->init(system_bar, "Welcome", loadTexture(app, selectRandomImage(logos, gen)));
-        welcome->setActive(false);
-        welcome->setVisible(false);
-        welcome_window = welcome->createWindow(app);
-        welcome_window->create(welcome, "Welcome", 45, 25, 640, 480);
-        welcome_window->show(true);
-        welcome_window->setReload(false);
-        welcome_window->setCanResize(false);
-        welcome_window->removeAtClose(true);
-        welcome_window->children.push_back(std::make_unique<Image>(app));
-        welcome_image = dynamic_cast<Image *>(welcome_window->getControl());
-        welcome_image->create(app, welcome_window, "images/welcome_logo.png", 45, 45);
-        welcome_image->setGeometry(0, 0, 640, 480 - kTitleBarHeight);
-        welcome_window->children.push_back(std::make_unique<Button>(app));
-        welcome_ok = dynamic_cast<Button *>(welcome_window->getControl());
-        SDL_Rect i_rc;
-        welcome_window->getRect(i_rc);
-        welcome_ok->create(welcome_window, "Dismiss", i_rc.w-110, i_rc.h-35, 100, 25);
-        welcome_ok->setShow(true);
-        welcome_ok->setCallback([](mxApp &app, Window *parent, SDL_Event &e) -> bool {
-            parent->show(false);
-            return true;
-        });
-        welcome_ok->setResizeCallback([&](Window *parent, int x, int y) -> void {
-            SDL_Rect rc,src;
-            parent->getRect(rc);
-            welcome_ok->setGeometry(rc.w - 110, rc.h - 40, 100, 30);
-            welcome_image->getRect(src);
-            welcome_image->setGeometry(src.x, src.y, rc.w, rc.h - kTitleBarHeight);
-            welcome_image->setWindowPos(rc.x,rc.y);
-        });
+          }));
 
-        welcome_help = welcome->createWindow(app);
-        welcome_help->create(welcome, "Info", app.width-360, 25, 320, 240);
-        welcome_help->show(true);
-        welcome_help->setReload(false);
-        welcome_help->setCanResize(false);
-        welcome_help->removeAtClose(true);
+  SDL_Texture *rtex = loadTexture(app, "images/mp_dat/mp_wall.png");
+  piece_cont->init(system_bar, "MastePiece", rtex);
+  piece_cont->setActive(false);
+  piece_cont->setVisible(false);
+  piece_cont->objects.push_back(std::make_unique<MasterPiece>(app));
+  piece = dynamic_cast<MasterPiece *>(piece_cont->objects[0].get());
+  if (!piece) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  piece_cont->events.addWindow(piece);
+  piece_cont->setIcon(loadTexture(app, "images/mp_dat/block_red.png"));
+  windowWidth = static_cast<int>(640 * scaleX);
+  windowHeight = static_cast<int>(480 * scaleY);
+  windowPosX = (screenWidth - windowWidth) / 2;
+  windowPosY = (screenHeight - windowHeight) / 2;
+  piece->create(piece_cont, "MasterPiece", windowPosX, windowPosY, windowWidth,
+                windowHeight);
 
-        welcome_help->children.push_back(std::make_unique<Label>(app));
-        welcome_help_info = dynamic_cast<Label *>(welcome_help->getControl());
-        std::vector<std::string> info_help {"MasterX System v" + app.version, "Created by Jared Bruni", "Virtual Environment", "written in C++20", "https://lostsidedead.biz"};
-        welcome_help_info->create_multi(welcome_help, info_help, { 0, 0, 0, 255}, 25, 25);
-        welcome_help_info->loadFont(app.system_font, 16);
-        welcome_help_info->linkMode(false);
-        welcome->events.setFocus(welcome_window);
-
-        dimensions.push_back(std::make_unique<DimensionContainer>(app));
-        about = dynamic_cast<DimensionContainer *>(getDimension());
-        if(!about) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        about->init(system_bar, "About", loadTexture(app, selectRandomImage(logos, gen)));
-        about->setActive(false);
-        about->setVisible(false);
-        about_window = about->createWindow(app);
-        int centered_x = (app.width - 800) / 2;
-        int centered_y = (app.height - 600) / 2;
-        about_window->create(about, "About", centered_x, centered_y-35, 800, 600);
-        about_window->show(true);
-        about_window->setReload(false);
-        about_window->removeAtClose(true);
-        about_window->children.push_back(std::make_unique<Image>(app));
-        Image *image = dynamic_cast<Image *>(about_window->getControl());
-        image->create(app, about_window, "images/logo.png", 0, 0);
-        image->setGeometry(0, 0, 800, 600 - kTitleBarHeight);
-
-        about_window->children.push_back(std::make_unique<Button>(app));
-        about_window_ok = dynamic_cast<Button *>(about_window->getControl());
-
-        about_window_ok->create(about_window, "Ok", 800-110, 600-35, 100, 25);
-        about_window_ok->setShow(true);
-        about_window_ok->setCallback([](mxApp &app, Window *parent, SDL_Event &e) -> bool {
-            parent->show(false);
-            return false;
-        });
-        about_window->children.push_back(std::make_unique<Label>(app));
-        about_window_info = dynamic_cast<Label *>(about_window->getControl());
-        std::vector<std::string> info_text {"MasterX System v" + app.version, "written by Jared Bruni", "(C) 2026 LostSideDead Software", "https://lostsidedead.biz", "\"Open Source, Open Mind\""};
-        about_window_info->create_multi(about_window, info_text, { 255,255,255,255}, 25, 25 );
-        about_window_info->loadFont(app.system_font, 36);
-        about_window_info->linkMode(false);
-        about_window->setCanResize(false);
-        dimensions.push_back(std::make_unique<DimensionContainer>(app));
-        term = dynamic_cast<DimensionContainer *>(getDimension());
-        if(!term) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        SDL_Texture *term_tex = loadTexture(app, selectRandomImage(logos, gen));
-        term->init(system_bar, "Terminal", term_tex);
-        term->setActive(false);
-        term->setVisible(false);
-        system_bar->activateDimension(1);
-        system_bar->activateDimension(0);
-        term->objects.push_back(std::make_unique<TerminalTabs>(app));
-        termtabs = dynamic_cast<TerminalTabs*>(term->objects[0].get());
-        if(!termtabs) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        termx = termtabs->activeTab();
-        const int baseWidth = 1280;
-        const int baseHeight = 720;
-        int screenWidth = app.width;
-        int screenHeight = app.height;
-        float scaleX = static_cast<float>(screenWidth) / baseWidth;
-        float scaleY = static_cast<float>(screenHeight) / baseHeight;
-        int windowWidth = static_cast<int>(800 * scaleX);
-        int windowHeight = static_cast<int>(505 * scaleY);
-        int windowPosX = (screenWidth - windowWidth) / 2;
-        int windowPosY = (screenHeight - windowHeight) / 2;
-        termtabs->create(term, "mXTerm", windowPosX, windowPosY, windowWidth, windowHeight);
-        term->events.addWindow(termtabs);
-        term->setIcon(loadTexture(app, "images/term.png"));
-        termtabs->setReload(true);
-        termtabs->setIcon(loadTexture(app, "images/term.png"));
-        Menu_ID term_file = termtabs->menu.addHeader(create_header("File"));
-        Menu_ID term_edit = termtabs->menu.addHeader(create_header("Edit"));
-        termtabs->menu.addItem(term_file, termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("New Tab", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
-                tt->newTab(app);
-            return true;
-        }));
-        termtabs->menu.addItem(term_file, termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("Close Tab", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
-                tt->closeTab(-1); // -1 = currently active tab
-            return true;
-        }));
-        termtabs->menu.addItem(term_file, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")), create_menu_item("Matrix Mode", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            win->dim->setMatrix(app, win->dim->matrix_tex, !win->dim->getMatrix());
-            return true;
-        }));
-        termtabs->menu.addItem(term_edit, termtabs->menu.addIcon(loadTexture(app, "images/clipboard.png")), create_menu_item("Copy", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if (auto *tt = dynamic_cast<TerminalTabs*>(win)) {
-                if (tt->hasSelectedText())
-                    tt->copySelectionToClipboard();
-                else
-                    tt->copyToClipboard();
-            }
-            return true;
-        }));
-        termtabs->menu.addItem(term_edit, termtabs->menu.addIcon(loadTexture(app, "images/glueicon.png")), create_menu_item("Paste", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
-                tt->pasteFromClipboard();
-            return true;
-        }));
-
-        Menu_ID term_dim = termtabs->menu.addHeader(create_header("Font"));
-        termtabs->menu.addItem(term_dim, termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("Increase Size", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
-                tt->adjustFontSize(1);
-            return true;
-        }));
-        termtabs->menu.addItem(term_dim, termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("Decrease Size", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            if (auto *tt = dynamic_cast<TerminalTabs*>(win))
-                tt->adjustFontSize(-1);
-            return true;
-        }));
-
-        // Effects menu — shader backgrounds for the terminal
-        Menu_ID eff_menu = termtabs->menu.addHeader(create_header("Effects"));
-        auto makeEffectCallback = [](Terminal::TermEffect fx) {
-            return [fx](mxApp &app, Window *win, SDL_Event &e) -> bool {
-                if (auto *tt = dynamic_cast<TerminalTabs *>(win))
-                    tt->setEffect(fx, app);
-                return true;
-            };
-        };
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Off",              makeEffectCallback(Terminal::TermEffect::None)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Plasma",           makeEffectCallback(Terminal::TermEffect::Plasma)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Vortex",           makeEffectCallback(Terminal::TermEffect::Vortex)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Chromatic Ripple", makeEffectCallback(Terminal::TermEffect::ChromaticRipple)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Neon Grid",        makeEffectCallback(Terminal::TermEffect::NeonGrid)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("UFO 3D V2",        makeEffectCallback(Terminal::TermEffect::Starfield)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Liquid Wave",      makeEffectCallback(Terminal::TermEffect::LiquidWave)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Fractal",          makeEffectCallback(Terminal::TermEffect::Fractal)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Acid Spiral",      makeEffectCallback(Terminal::TermEffect::AcidSpiral)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Aurora",           makeEffectCallback(Terminal::TermEffect::Aurora)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Tunnel",           makeEffectCallback(Terminal::TermEffect::Tunnel)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Crystal",          makeEffectCallback(Terminal::TermEffect::Crystal)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("UFO 3D",           makeEffectCallback(Terminal::TermEffect::Fire)));
-        termtabs->menu.addItem(eff_menu, termtabs->menu.addIcon(loadTexture(app, "images/matrix.icon.png")),
-            create_menu_item("Hyperspace",       makeEffectCallback(Terminal::TermEffect::Hyperspace)));
-
-        term->setMatrix(app, matrix_texture, false);
-        dimensions.push_back(std::make_unique<DimensionContainer>(app));
-        piece_cont = dynamic_cast<DimensionContainer *>(getDimension());
-        if(!piece_cont) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-
-        Menu_ID hlp_hte_menu = termtabs->menu.addHeader(create_header("Help"));
-        termtabs->menu.addItem(hlp_hte_menu,termtabs->menu.addIcon(loadTexture(app, "images/term.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Terminal", "(C) 2026 LostSideDead Software written by Jared Bruni");
-            return true;
-        }));
-
-        SDL_Texture *rtex = loadTexture(app, "images/mp_dat/mp_wall.png");
-        piece_cont->init(system_bar, "MastePiece", rtex);
-        piece_cont->setActive(false);
-        piece_cont->setVisible(false);
-        piece_cont->objects.push_back(std::make_unique<MasterPiece>(app));
-        piece = dynamic_cast<MasterPiece *>(piece_cont->objects[0].get());
-        if(!piece) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        piece_cont->events.addWindow(piece);
-        piece_cont->setIcon(loadTexture(app, "images/mp_dat/block_red.png"));
-        windowWidth = static_cast<int>(640 * scaleX);
-        windowHeight = static_cast<int>(480 * scaleY);
-        windowPosX = (screenWidth - windowWidth) / 2;
-        windowPosY = (screenHeight - windowHeight) / 2;
-        piece->create(piece_cont, "MasterPiece", windowPosX, windowPosY, windowWidth, windowHeight);
-                                                            
-        Menu_ID pm_gmenu = piece->menu.addHeader(create_header("Game"));
-        piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_red.png")), create_menu_item("New Game",  [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+  Menu_ID pm_gmenu = piece->menu.addHeader(create_header("Game"));
+  piece->menu.addItem(
+      pm_gmenu,
+      piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_red.png")),
+      create_menu_item(
+          "New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->newGame();
             return true;
-        }));
-        piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_yellow.png")), create_menu_item("Options", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+          }));
+  piece->menu.addItem(
+      pm_gmenu,
+      piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_yellow.png")),
+      create_menu_item(
+          "Options", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->setScreen(3);
-            MX_MessageBox::OkMX_MessageBox(app, og_piece->dim, "No Options", "There are no Options at the time");
+            MX_MessageBox::OkMX_MessageBox(app, og_piece->dim, "No Options",
+                                           "There are no Options at the time");
             return true;
-        }));
-        piece->menu.addItem(pm_gmenu, piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_green.png")), create_menu_item("Credits", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+          }));
+  piece->menu.addItem(
+      pm_gmenu,
+      piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_green.png")),
+      create_menu_item(
+          "Credits", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
             MasterPiece *og_piece = dynamic_cast<MasterPiece *>(win);
             og_piece->setScreen(4);
             return true;
-        }));
+          }));
 
-        Menu_ID hlp_menu = piece->menu.addHeader(create_header("Help"));
-        piece->menu.addItem(hlp_menu,piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_pink.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About MasterPiece", "(C) 2026 LostSideDead Software written by Jared Bruni");
+  Menu_ID hlp_menu = piece->menu.addHeader(create_header("Help"));
+  piece->menu.addItem(
+      hlp_menu,
+      piece->menu.addIcon(loadTexture(app, "images/mp_dat/block_pink.png")),
+      create_menu_item(
+          "About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MX_MessageBox::OkMX_MessageBox(
+                app, win->dim, "About MasterPiece",
+                "(C) 2026 LostSideDead Software written by Jared Bruni");
             return true;
-        }));
+          }));
 
-        piece->show(true);
-        piece->setReload(true);
-        piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));
+  piece->show(true);
+  piece->setReload(true);
+  piece->setIcon(loadTexture(app, "images/mp_dat/block_dblue.png"));
 
-        dimensions.push_back(std::make_unique<DimensionContainer>(app));
-        asteroid = dynamic_cast<DimensionContainer *>(getDimension());
-        if(!asteroid) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        asteroid->init(system_bar, "Asteroids", loadTexture(app, "images/spacebg.png"));
-        asteroid->setActive(false);
-        asteroid->setVisible(false);
-        asteroid->setIcon(loadTexture(app, "images/ship.png"));
-        asteroid->objects.push_back(std::make_unique<AsteroidsWindow>(app));
-        asteroid_window = dynamic_cast<AsteroidsWindow *>(asteroid->objects[0].get());
-        if(!asteroid_window) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        asteroid_window->create(asteroid, "Asteroids", windowPosX, windowPosY, windowWidth, windowHeight);
-        asteroid->events.addWindow(asteroid_window);
-        asteroid_window->show(true);
-        asteroid_window->setReload(true);
-        asteroid_window->setIcon(loadTexture(app, "images/ship.png"));
-        Menu_ID m_aster = asteroid_window->menu.addHeader(create_header("Game"));
-        asteroid_window->menu.addItem(m_aster, asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("New Game", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            AsteroidsWindow *asteroid_win = dynamic_cast<AsteroidsWindow *>(win);
-            asteroid_win->newGame();
+  dimensions.push_back(std::make_unique<DimensionContainer>(app));
+  asteroid = dynamic_cast<DimensionContainer *>(getDimension());
+  if (!asteroid) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  asteroid->init(system_bar, "Asteroids",
+                 loadTexture(app, "images/spacebg.png"));
+  asteroid->setActive(false);
+  asteroid->setVisible(false);
+  asteroid->setIcon(loadTexture(app, "images/ship.png"));
+  asteroid->objects.push_back(std::make_unique<AsteroidsWindow>(app));
+  asteroid_window = dynamic_cast<AsteroidsWindow *>(asteroid->objects[0].get());
+  if (!asteroid_window) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  asteroid_window->create(asteroid, "Asteroids", windowPosX, windowPosY,
+                          windowWidth, windowHeight);
+  asteroid->events.addWindow(asteroid_window);
+  asteroid_window->show(true);
+  asteroid_window->setReload(true);
+  asteroid_window->setIcon(loadTexture(app, "images/ship.png"));
+  Menu_ID m_aster = asteroid_window->menu.addHeader(create_header("Game"));
+  asteroid_window->menu.addItem(
+      m_aster,
+      asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")),
+      create_menu_item("New Game",
+                       [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+                         AsteroidsWindow *asteroid_win =
+                             dynamic_cast<AsteroidsWindow *>(win);
+                         asteroid_win->newGame();
+                         return true;
+                       }));
+  Menu_ID hlp_amenu = asteroid_window->menu.addHeader(create_header("Help"));
+  asteroid_window->menu.addItem(
+      hlp_amenu,
+      asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")),
+      create_menu_item(
+          "About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MX_MessageBox::OkMX_MessageBox(
+                app, win->dim, "About Asteroids",
+                "(C) 2026 LostSideDead Software writen by Jared Bruni");
             return true;
-        })); 
-        Menu_ID hlp_amenu = asteroid_window->menu.addHeader(create_header("Help"));
-        asteroid_window->menu.addItem(hlp_amenu,asteroid_window->menu.addIcon(loadTexture(app, "images/ship.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Asteroids", "(C) 2026 LostSideDead Software writen by Jared Bruni");
+          }));
+
+  dimensions.push_back(std::make_unique<DimensionContainer>(app));
+  tetris = dynamic_cast<DimensionContainer *>(getDimension());
+  if (!tetris) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  tetris->init(system_bar, "Tetris", loadTexture(app, "images/tetrisbg.png"));
+  tetris->setActive(false);
+  tetris->setVisible(false);
+  tetris->setIcon(loadTexture(app, "images/tetrisicon.png"));
+  tetris->objects.push_back(std::make_unique<TetrisWindow>(app));
+  tetris_window = dynamic_cast<TetrisWindow *>(tetris->objects[0].get());
+  if (!tetris_window) {
+    mx::system_err << "MasterX System: Bad cast..\n";
+    mx::system_err.flush();
+    exit(EXIT_FAILURE);
+  }
+  windowWidth = static_cast<int>(300 * scaleX);
+  windowHeight = static_cast<int>(630 * scaleY);
+  windowPosX = (screenWidth - windowWidth) / 2;
+  windowPosY = (screenHeight - windowHeight) / 2;
+  tetris_window->create(tetris, "Tetris", windowPosX, 10, windowWidth,
+                        windowHeight);
+  tetris->events.addWindow(tetris_window);
+  tetris_window->show(true);
+  tetris_window->setReload(true);
+  tetris_window->setIcon(loadTexture(app, "images/tetrisicon.png"));
+  Menu_ID t_ = tetris_window->menu.addHeader(create_header("Game"));
+  tetris_window->menu.addItem(
+      t_,
+      tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")),
+      create_menu_item(
+          "New Game", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MX_MessageBox::OkCancelMX_MessageBox(
+                app, win->dim, "New Game?", "Do you wish to start a new game?",
+                [&](mxApp &app, Window *win, int button) -> bool {
+                  switch (button) {
+                  case 1: {
+                    tetris_window->resetGame();
+                  } break;
+                  }
+                  return true;
+                });
             return true;
-        }));
-
-
-        dimensions.push_back(std::make_unique<DimensionContainer>(app));
-        tetris = dynamic_cast<DimensionContainer *>(getDimension());
-        if(!tetris) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        tetris->init(system_bar, "Tetris", loadTexture(app, "images/tetrisbg.png"));
-        tetris->setActive(false);
-        tetris->setVisible(false);
-        tetris->setIcon(loadTexture(app, "images/tetrisicon.png"));
-        tetris->objects.push_back(std::make_unique<TetrisWindow>(app));
-        tetris_window = dynamic_cast<TetrisWindow *>(tetris->objects[0].get());
-        if(!tetris_window) {
-            mx::system_err << "MasterX System: Bad cast..\n";
-            mx::system_err.flush();
-            exit(EXIT_FAILURE);
-        }
-        windowWidth = static_cast<int>(300 * scaleX);
-        windowHeight = static_cast<int>(630 * scaleY);
-        windowPosX = (screenWidth - windowWidth) / 2;
-        windowPosY = (screenHeight - windowHeight) / 2;
-        tetris_window->create(tetris, "Tetris", windowPosX, 10, windowWidth, windowHeight);
-        tetris->events.addWindow(tetris_window);
-        tetris_window->show(true);
-        tetris_window->setReload(true);
-        tetris_window->setIcon(loadTexture(app, "images/tetrisicon.png"));
-        Menu_ID t_ = tetris_window->menu.addHeader(create_header("Game"));
-        tetris_window->menu.addItem(t_, tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("New Game", [&](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkCancelMX_MessageBox(app, win->dim, "New Game?", "Do you wish to start a new game?", [&](mxApp &app, Window *win, int button) ->  bool {
-                switch(button) {
-                    case 1: {
-                        tetris_window->resetGame();
-                    }
-                    break;
-                }
-                return true;
-            });
+          }));
+  Menu_ID hlp_hamenu = tetris_window->menu.addHeader(create_header("Help"));
+  tetris_window->menu.addItem(
+      hlp_hamenu,
+      tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")),
+      create_menu_item(
+          "About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
+            MX_MessageBox::OkMX_MessageBox(
+                app, win->dim, "About Tetris",
+                "(C) 2026 LostSideDead Software written by Jared Bruni");
             return true;
-        }));
-        Menu_ID hlp_hamenu = tetris_window->menu.addHeader(create_header("Help"));
-        tetris_window->menu.addItem(hlp_hamenu,tetris_window->menu.addIcon(loadTexture(app, "images/tetrisicon.png")), create_menu_item("About", [](mxApp &app, Window *win, SDL_Event &e) -> bool {
-            MX_MessageBox::OkMX_MessageBox(app, win->dim, "About Tetris", "(C) 2026 LostSideDead Software written by Jared Bruni");
-            return true;
-        }));
+          }));
 
-        tetris_window->setSystemBar(system_bar);
-        asteroid_window->setSystemBar(system_bar);
-        piece->setSystemBar(system_bar);
-        termtabs->setWallpaper(term_tex);
-        system_bar->setDimensions(&dimensions);
-        welcome_window->setSystemBar(system_bar);
-        welcome_help->setSystemBar(system_bar);
-        about_window->setSystemBar(system_bar);
-        termtabs->setSystemBar(system_bar);
+  tetris_window->setSystemBar(system_bar);
+  asteroid_window->setSystemBar(system_bar);
+  piece->setSystemBar(system_bar);
+  termtabs->setWallpaper(term_tex);
+  system_bar->setDimensions(&dimensions);
+  welcome_window->setSystemBar(system_bar);
+  welcome_help->setSystemBar(system_bar);
+  about_window->setSystemBar(system_bar);
+  termtabs->setSystemBar(system_bar);
 
-        PacWindow::main(app, this);
-        PongWindow::main(app, this);
+  PacWindow::main(app, this);
+  PongWindow::main(app, this);
 
-        setCurrentDimension(1);
-        system_bar->activateDimension(1);
-        // Use real OS cursors instead of software-drawn cursor textures.
-        // SDL falls back to a built-in default if the platform theme has no
-        // entry for the requested kind, so these always succeed.
-        reg_cursor  = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
-        hand_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
-        if (reg_cursor) SDL_SetCursor(reg_cursor);
-    }
-
-    void Dimension::setCurrentDimension(int dim) {
-        system_bar->setCurrentDimension(dim);
-    }
-        
-    int  Dimension::getCurrentDimension() const {
-        return system_bar->getCurrentDimension();
-    }
-        
-
-    Dimension::~Dimension() {
-        if(wallpaper != nullptr) {
-            SDL_DestroyTexture(wallpaper);
-        }
-        if(hand_cursor != nullptr) {
-            SDL_FreeCursor(hand_cursor);
-        }
-        if(reg_cursor != nullptr) {
-            SDL_FreeCursor(reg_cursor);
-        }
-        if(matrix_texture != nullptr) {
-            SDL_DestroyTexture(matrix_texture);
-        }
-        mx::system_out << "MasterX: Releasing Dimensions\n";
-    }
-
-    void Dimension::drawDash(mxApp &app) {
-        SDL_SetRenderTarget(app.ren, app.tex);
-        SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
-        drawIcons(app.ren, app.font, app.icon, app.width, app.height);
-    }    
-
-
-    void Dimension::drawIconWithText(bool underline, SDL_Renderer* renderer, TTF_Font* font, const std::string &name, SDL_Texture *icon, int x, int y) {
-        SDL_Rect iconRect = {x, y, 64, 64};
-        SDL_RenderCopy(renderer, icon, nullptr, &iconRect);
-        SDL_Color white = {255, 255, 255};
-        SDL_Color blue =  {0,0,255};
-        if(underline == true) {
-            TTF_SetFontStyle(font, TTF_STYLE_UNDERLINE | TTF_STYLE_BOLD);
-            cursor_shown = true;
-        }
-
-        SDL_Surface* textSurface = TTF_RenderText_Blended(font, name.c_str(), underline == false ? white : blue);
-        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-        int textW = 0, textH = 0;
-        SDL_QueryTexture(textTexture, nullptr, nullptr, &textW, &textH);
-        SDL_Rect textRect = {x + (64 - textW) / 2, y + 64, textW, textH};
-        SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
-        SDL_DestroyTexture(textTexture);
-        SDL_FreeSurface(textSurface);
-        TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
-    }
-
-    
-    void Dimension::drawIcons(SDL_Renderer* renderer, TTF_Font* font, SDL_Texture* dicon, int windowW, int windowH) {
-        int padding = 25;
-        int iconSize = 64;
-        int startX = windowW - iconSize - 10;
-        int startY = 60;
-
-        int currentX = startX;
-        int currentY = startY;
-
-        for (size_t i = 1; i < this->dimensions.size(); ++i) {
-            DimensionContainer* con = dynamic_cast<DimensionContainer*>(dimensions[i].get());
-            if(!con) {
-                mx::system_err << "MasterX System: Bad cast..\n";
-                mx::system_err.flush();
-                exit(EXIT_FAILURE);
-            }
-            con->icon_rect.x = currentX;
-            con->icon_rect.y = currentY;
-            con->icon_rect.w = 64;
-            con->icon_rect.h = 75;
-            drawIconWithText(con->underline, renderer, font, con->name, con->icon ? con->icon : dicon, currentX, currentY);
-            currentX -= (iconSize + padding);
-
-            if (currentX < 0) {
-                currentX = startX;
-                currentY += (iconSize + padding + 20);
-            }
-        }
-    }
-
-    void Dimension::draw(mxApp &app) {
-        cursor_shown = false;
-        int cur = getCurrentDimension();
-        if(cur >= 0 && cur < static_cast<int>(dimensions.size())) {
-            if(system_bar->empty()) 
-                drawDash(app);
-            else {
-                dimensions[cur]->draw(app);
-            }
-        }
-        for (auto &i : objects) {
-            i->draw(app);
-        }
-    }
-
-   Screen *Dimension::getDimension() {
-        if(dimensions.size()>0)
-            return dimensions[dimensions.size()-1].get();
-        mx::system_err << "MasterX System: Trying to access out of bounds dimension.\n";
-        return nullptr;
-   }
-    
-    Screen *Dimension::getDimension(int index) {
-        if(index >= 0 && index < static_cast<int>(dimensions.size()))
-            return dimensions[index].get();
-
-        mx::system_err << "MasterX System: Trying to access out of bounds dimension.\n";
-        return nullptr;
-    }
-
-    bool Dimension::event(mxApp &app, SDL_Event &e) {
-        if (e.type == SDL_MOUSEMOTION) {
-            // Reset before dispatch so handlers can claim the cursor
-            // (window edges -> resize, system bar -> hand/arrow,
-            // dashboard icons -> hand/arrow). If no handler claims it,
-            // we fall back to the arrow at the end of this function.
-            cursor_handled = false;
-        }
-        if (e.type == SDL_WINDOWEVENT &&
-            (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
-             e.window.event == SDL_WINDOWEVENT_RESIZED)) {
-            int nw = e.window.data1;
-            int nh = e.window.data2;
-            for (auto &d : dimensions) {
-                DimensionContainer *con = dynamic_cast<DimensionContainer *>(d.get());
-                if (con) con->resizeEvent(nw, nh);
-            }
-        }
-        for (auto &i : objects) {
-            if(i->event(app, e))
-                return true;
-        }
-        int cur = getCurrentDimension();
-        if(cur >= 0 && cur < static_cast<int>(dimensions.size())) {
-            dimensions[cur]->event(app, e);
-        }
-        if(e.type == SDL_MOUSEMOTION) {
-            cursor_x = e.motion.x;
-            cursor_y = e.motion.y;
-
-            if(getCurrentDimension() == 0) {
-                bool hovering_icon = false;
-                for(size_t i = 1;  i < dimensions.size(); ++i) {
-                    DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions[i].get());
-                    if(!con) {
-                        mx::system_err << "MasterX System: Bad cast..\n";
-                        mx::system_err.flush();
-                        exit(EXIT_FAILURE);
-                    }
-                    SDL_Point p = {e.motion.x, e.motion.y};
-                    if(SDL_PointInRect(&p, &con->icon_rect)) {
-                        con->underline = true;
-                        hovering_icon = true;
-                    } else {
-                        con->underline = false;
-                    }
-                }
-                // Update the OS cursor based on icon hover. Done from the
-                // motion handler (rather than every frame) so it doesn't
-                // override the resize cursors set by Window edge hit-tests.
-                // Skip this entirely if a higher-priority handler (e.g. the
-                // SystemBar's Launch menu) already chose the cursor for this
-                // event — otherwise we'd clobber its hand cursor with arrow.
-                if (!cursor_handled) {
-                    SDL_Cursor *desired = hovering_icon ? hand_cursor : reg_cursor;
-                    if (desired) {
-                        SDL_SetCursor(desired);
-                        cursor_handled = true;
-                    }
-                } else if (hovering_icon && hand_cursor) {
-                    // Still allow hand-over-icon to override an arrow set by
-                    // a managed zone (rare overlap case).
-                    SDL_SetCursor(hand_cursor);
-                }
-            }
-        } else if(e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
-             if(getCurrentDimension() == 0) {
-                for(size_t i = 1;  i < dimensions.size(); ++i) {
-                    DimensionContainer *con = dynamic_cast<DimensionContainer *>(dimensions[i].get());
-                    if(!con) {
-                        mx::system_err << "MasterX System: Bad cast..\n";
-                        mx::system_err.flush();
-                        exit(EXIT_FAILURE);
-                    }
-                    SDL_Point p = {e.button.x, e.button.y};
-                    if(SDL_PointInRect(&p, &con->icon_rect)) {
-                        system_bar->loadDimension(i);
-                    } 
-                }
-            }
-        }
-        // Final fallback: if a mouse motion event reached this point and no
-        // handler chose a cursor, restore the default arrow. This prevents
-        // the resize cursor (set by Window edge hit-tests) from sticking
-        // when the mouse leaves the edge over a non-managed area.
-        if (e.type == SDL_MOUSEMOTION && !cursor_handled) {
-            if (reg_cursor) {
-                SDL_SetCursor(reg_cursor);
-            } else {
-                SDL_SetCursor(SDL_GetDefaultCursor());
-            }
-            cursor_handled = true;
-        }
-        return false;
-    }
+  setCurrentDimension(1);
+  system_bar->activateDimension(1);
+  // Use real OS cursors instead of software-drawn cursor textures.
+  // SDL falls back to a built-in default if the platform theme has no
+  // entry for the requested kind, so these always succeed.
+  reg_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+  hand_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+  if (reg_cursor)
+    SDL_SetCursor(reg_cursor);
 }
+
+void Dimension::setCurrentDimension(int dim) {
+  system_bar->setCurrentDimension(dim);
+}
+
+int Dimension::getCurrentDimension() const {
+  return system_bar->getCurrentDimension();
+}
+
+Dimension::~Dimension() {
+  if (wallpaper != nullptr) {
+    SDL_DestroyTexture(wallpaper);
+  }
+  if (hand_cursor != nullptr) {
+    SDL_FreeCursor(hand_cursor);
+  }
+  if (reg_cursor != nullptr) {
+    SDL_FreeCursor(reg_cursor);
+  }
+  if (matrix_texture != nullptr) {
+    SDL_DestroyTexture(matrix_texture);
+  }
+  mx::system_out << "MasterX: Releasing Dimensions\n";
+}
+
+void Dimension::drawDash(mxApp &app) {
+  SDL_SetRenderTarget(app.ren, app.tex);
+  SDL_RenderCopy(app.ren, wallpaper, nullptr, nullptr);
+  drawIcons(app.ren, app.font, app.icon, app.width, app.height);
+}
+
+void Dimension::drawIconWithText(bool underline, SDL_Renderer *renderer,
+                                 TTF_Font *font, const std::string &name,
+                                 SDL_Texture *icon, int x, int y) {
+  SDL_Rect iconRect = {x, y, 64, 64};
+  SDL_RenderCopy(renderer, icon, nullptr, &iconRect);
+  SDL_Color white = {255, 255, 255};
+  SDL_Color blue = {0, 0, 255};
+  if (underline == true) {
+    TTF_SetFontStyle(font, TTF_STYLE_UNDERLINE | TTF_STYLE_BOLD);
+    cursor_shown = true;
+  }
+
+  SDL_Surface *textSurface = TTF_RenderText_Blended(
+      font, name.c_str(), underline == false ? white : blue);
+  SDL_Texture *textTexture =
+      SDL_CreateTextureFromSurface(renderer, textSurface);
+  int textW = 0, textH = 0;
+  SDL_QueryTexture(textTexture, nullptr, nullptr, &textW, &textH);
+  SDL_Rect textRect = {x + (64 - textW) / 2, y + 64, textW, textH};
+  SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+  SDL_DestroyTexture(textTexture);
+  SDL_FreeSurface(textSurface);
+  TTF_SetFontStyle(font, TTF_STYLE_NORMAL);
+}
+
+void Dimension::drawIcons(SDL_Renderer *renderer, TTF_Font *font,
+                          SDL_Texture *dicon, int windowW, int windowH) {
+  int padding = 25;
+  int iconSize = 64;
+  int startX = windowW - iconSize - 10;
+  int startY = 60;
+
+  int currentX = startX;
+  int currentY = startY;
+
+  for (size_t i = 1; i < this->dimensions.size(); ++i) {
+    DimensionContainer *con =
+        dynamic_cast<DimensionContainer *>(dimensions[i].get());
+    if (!con) {
+      mx::system_err << "MasterX System: Bad cast..\n";
+      mx::system_err.flush();
+      exit(EXIT_FAILURE);
+    }
+    con->icon_rect.x = currentX;
+    con->icon_rect.y = currentY;
+    con->icon_rect.w = 64;
+    con->icon_rect.h = 75;
+    drawIconWithText(con->underline, renderer, font, con->name,
+                     con->icon ? con->icon : dicon, currentX, currentY);
+    currentX -= (iconSize + padding);
+
+    if (currentX < 0) {
+      currentX = startX;
+      currentY += (iconSize + padding + 20);
+    }
+  }
+}
+
+void Dimension::draw(mxApp &app) {
+  cursor_shown = false;
+  int cur = getCurrentDimension();
+  if (cur >= 0 && cur < static_cast<int>(dimensions.size())) {
+    if (system_bar->empty())
+      drawDash(app);
+    else {
+      dimensions[cur]->draw(app);
+    }
+  }
+  for (auto &i : objects) {
+    i->draw(app);
+  }
+}
+
+Screen *Dimension::getDimension() {
+  if (dimensions.size() > 0)
+    return dimensions[dimensions.size() - 1].get();
+  mx::system_err
+      << "MasterX System: Trying to access out of bounds dimension.\n";
+  return nullptr;
+}
+
+Screen *Dimension::getDimension(int index) {
+  if (index >= 0 && index < static_cast<int>(dimensions.size()))
+    return dimensions[index].get();
+
+  mx::system_err
+      << "MasterX System: Trying to access out of bounds dimension.\n";
+  return nullptr;
+}
+
+bool Dimension::event(mxApp &app, SDL_Event &e) {
+  if (e.type == SDL_MOUSEMOTION) {
+    // Reset before dispatch so handlers can claim the cursor
+    // (window edges -> resize, system bar -> hand/arrow,
+    // dashboard icons -> hand/arrow). If no handler claims it,
+    // we fall back to the arrow at the end of this function.
+    cursor_handled = false;
+  }
+  if (e.type == SDL_WINDOWEVENT &&
+      (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+       e.window.event == SDL_WINDOWEVENT_RESIZED)) {
+    int nw = e.window.data1;
+    int nh = e.window.data2;
+    for (auto &d : dimensions) {
+      DimensionContainer *con = dynamic_cast<DimensionContainer *>(d.get());
+      if (con)
+        con->resizeEvent(nw, nh);
+    }
+  }
+  for (auto &i : objects) {
+    if (i->event(app, e))
+      return true;
+  }
+  int cur = getCurrentDimension();
+  if (cur >= 0 && cur < static_cast<int>(dimensions.size())) {
+    dimensions[cur]->event(app, e);
+  }
+  if (e.type == SDL_MOUSEMOTION) {
+    cursor_x = e.motion.x;
+    cursor_y = e.motion.y;
+
+    if (getCurrentDimension() == 0) {
+      bool hovering_icon = false;
+      for (size_t i = 1; i < dimensions.size(); ++i) {
+        DimensionContainer *con =
+            dynamic_cast<DimensionContainer *>(dimensions[i].get());
+        if (!con) {
+          mx::system_err << "MasterX System: Bad cast..\n";
+          mx::system_err.flush();
+          exit(EXIT_FAILURE);
+        }
+        SDL_Point p = {e.motion.x, e.motion.y};
+        if (SDL_PointInRect(&p, &con->icon_rect)) {
+          con->underline = true;
+          hovering_icon = true;
+        } else {
+          con->underline = false;
+        }
+      }
+      // Update the OS cursor based on icon hover. Done from the
+      // motion handler (rather than every frame) so it doesn't
+      // override the resize cursors set by Window edge hit-tests.
+      // Skip this entirely if a higher-priority handler (e.g. the
+      // SystemBar's Launch menu) already chose the cursor for this
+      // event — otherwise we'd clobber its hand cursor with arrow.
+      if (!cursor_handled) {
+        SDL_Cursor *desired = hovering_icon ? hand_cursor : reg_cursor;
+        if (desired) {
+          SDL_SetCursor(desired);
+          cursor_handled = true;
+        }
+      } else if (hovering_icon && hand_cursor) {
+        // Still allow hand-over-icon to override an arrow set by
+        // a managed zone (rare overlap case).
+        SDL_SetCursor(hand_cursor);
+      }
+    }
+  } else if (e.type == SDL_MOUSEBUTTONDOWN &&
+             e.button.button == SDL_BUTTON_LEFT) {
+    if (getCurrentDimension() == 0) {
+      for (size_t i = 1; i < dimensions.size(); ++i) {
+        DimensionContainer *con =
+            dynamic_cast<DimensionContainer *>(dimensions[i].get());
+        if (!con) {
+          mx::system_err << "MasterX System: Bad cast..\n";
+          mx::system_err.flush();
+          exit(EXIT_FAILURE);
+        }
+        SDL_Point p = {e.button.x, e.button.y};
+        if (SDL_PointInRect(&p, &con->icon_rect)) {
+          system_bar->loadDimension(i);
+        }
+      }
+    }
+  }
+  // Final fallback: if a mouse motion event reached this point and no
+  // handler chose a cursor, restore the default arrow. This prevents
+  // the resize cursor (set by Window edge hit-tests) from sticking
+  // when the mouse leaves the edge over a non-managed area.
+  if (e.type == SDL_MOUSEMOTION && !cursor_handled) {
+    if (reg_cursor) {
+      SDL_SetCursor(reg_cursor);
+    } else {
+      SDL_SetCursor(SDL_GetDefaultCursor());
+    }
+    cursor_handled = true;
+  }
+  return false;
+}
+} // namespace mx

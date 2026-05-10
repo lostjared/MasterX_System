@@ -2,45 +2,47 @@
 #define TETRIS_WINDOW_H
 
 #include "mx_window.hpp"
-#include <vector>
-#include <ctime>
 #include <cstdlib>
+#include <ctime>
+#include <vector>
 
 namespace mx {
 
-    class TetrisWindow : public Window {
-    public:
-        TetrisWindow(mxApp &app);
-        virtual ~TetrisWindow() {}
-        virtual void draw(mxApp &app) override;
-        virtual bool event(mxApp &app, SDL_Event &e) override;
-        void resetGame();
-        void spawnPiece();
-        void movePieceDown();
-        void movePieceLeft();
-        void movePieceRight();
-        void rotatePiece();
-        void dropPiece();
-        bool checkCollision(int newX, int newY, const std::vector<std::vector<int>>& piece);
-        void lockPiece();
-        void clearLines();
-        void gameOver();
-        virtual void screenResize(int w, int h) override;
+class TetrisWindow : public Window {
+public:
+  TetrisWindow(mxApp &app);
+  virtual ~TetrisWindow() {}
+  virtual void draw(mxApp &app) override;
+  virtual bool event(mxApp &app, SDL_Event &e) override;
+  void resetGame();
+  void spawnPiece();
+  void movePieceDown();
+  void movePieceLeft();
+  void movePieceRight();
+  void rotatePiece();
+  void dropPiece();
+  bool checkCollision(int newX, int newY,
+                      const std::vector<std::vector<int>> &piece);
+  void lockPiece();
+  void clearLines();
+  void gameOver();
+  virtual void screenResize(int w, int h) override;
 
-    private:
-        const int rows = 20;
-        const int cols = 10;
-        std::vector<std::vector<int>> grid;
-        std::vector<std::vector<int>> currentPiece;
-        std::vector<std::vector<int>> nextPiece;
-        int pieceX = 0, pieceY = 0;
-        bool isGameOver = false;
-        int score = 0;
+private:
+  const int rows = 20;
+  const int cols = 10;
+  std::vector<std::vector<int>> grid;
+  std::vector<std::vector<int>> currentPiece;
+  std::vector<std::vector<int>> nextPiece;
+  int pieceX = 0, pieceY = 0;
+  bool isGameOver = false;
+  int score = 0;
 
-        std::vector<std::vector<int>> getRandomPiece();
-        std::vector<std::vector<int>> rotate(const std::vector<std::vector<int>>& piece);
-    };
+  std::vector<std::vector<int>> getRandomPiece();
+  std::vector<std::vector<int>>
+  rotate(const std::vector<std::vector<int>> &piece);
+};
 
-}
+} // namespace mx
 
 #endif
