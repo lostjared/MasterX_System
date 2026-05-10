@@ -370,17 +370,15 @@ namespace mx {
         if (!isVisible()) return;
 
         // Auto-close tabs whose bash session has exited (e.g. the user
-        // typed `exit`). When the LAST remaining tab's shell dies, the
-        // window has nothing useful left to do, so we quit the program.
+        // typed `exit`). When the LAST remaining tab's shell dies we
+        // hide the terminal window (i.e. close the program) instead of
+        // quitting MasterX itself.
         for (size_t i = 0; i < tabs_.size(); /* manual */) {
             if (!tabs_[i]->sessionAlive()) {
                 if (tabs_.size() == 1) {
-                    // Last shell exited — quit the program.
-                    SDL_Event quit_event;
-                    quit_event.type = SDL_QUIT;
-                    SDL_PushEvent(&quit_event);
-                    ++i;
-                    continue;
+                    // Last shell exited — close just this window.
+                    show(false);
+                    return;
                 }
                 tabs_.erase(tabs_.begin() + static_cast<long>(i));
                 if (active_ >= static_cast<int>(tabs_.size()))

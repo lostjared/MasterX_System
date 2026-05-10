@@ -3125,9 +3125,6 @@ namespace mx {
             dim->setMatrix(app, dim->matrix_tex, !dim->getMatrix());
             print(command + "\nNeo..\n");
             command.clear();
-        } else if(command == "exit") {
-            app.shutdown();
-            return;
         } else if (words.size()==2 && words[0] == "setfull" && words[1] == "true") {
             app.set_fullscreen(app.win, true);
             print(command + "\nMasterX System: full screen is true\n");
