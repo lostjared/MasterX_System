@@ -437,6 +437,17 @@ namespace mx {
         setenv("COLORTERM", "truecolor", 1);
         unsetenv("LINES");
         unsetenv("COLUMNS");
+        const char *currentPath = std::getenv("PATH");
+        if (!currentPath || std::string(currentPath).find("/app/bin") == std::string::npos) {
+            std::string shellPath = "/app/bin";
+            if (currentPath && currentPath[0] != '\0') {
+                shellPath += ':';
+                shellPath += currentPath;
+            } else {
+                shellPath += ":/usr/bin:/bin";
+            }
+            setenv("PATH", shellPath.c_str(), 1);
+        }
         // Set PS1 via the environment so bash's *first* prompt already
         // uses our format -- avoids the double-prompt that resulted from
         // running an `export PS1=...` line after bash had already drawn
@@ -1888,25 +1899,46 @@ namespace mx {
         CloseHandle(hChildStdinWr);
         CloseHandle(hChildStdoutRd);
 #elif !defined(FOR_WASM)
-        pid_t fg_pgid = tcgetpgrp(master_fd);
-        if (fg_pgid == -1) {
-            mx::system_err << "MasterX: Failed to get foreground process group\n";
-            mx::system_err.flush();
+        // Politely ask bash to exit. We write directly (rather than via
+        // sendCommand) so a stalled write can't block the destructor and
+        // so we do not depend on master_fd still being valid.
+        if (master_fd >= 0) {
+            const char exit_cmd[] = "exit\n";
+            ssize_t _w = ::write(master_fd, exit_cmd, sizeof(exit_cmd) - 1);
+            (void)_w;
         }
-        if (killpg(fg_pgid, SIGINT) == 0) {
-            print("- Sent SIGINT to foreground process\n");
-        } else {
-            mx::system_err << "MasterX: failed to kill process..\n";
-        }
-        std::string exit_cmd = "exit\n";
-        sendCommand(exit_cmd);
+        // Reap bash without blocking forever. Interactive bash ignores
+        // SIGTERM, so we escalate: graceful exit -> SIGHUP -> SIGKILL.
+        // Previously we used waitpid(..., 0) after SIGTERM, which froze
+        // the program when the user typed "exit" because bash never died
+        // from SIGTERM in interactive mode.
         if (bashPID > 0) {
-            kill(bashPID, SIGTERM);
-            waitpid(bashPID, nullptr, 0);
+            auto try_reap = [this](int attempts, int delay_ms) {
+                for (int i = 0; i < attempts; ++i) {
+                    pid_t r = waitpid(bashPID, nullptr, WNOHANG);
+                    if (r == bashPID || r == -1) return true;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+                }
+                return false;
+            };
+            bool reaped = try_reap(20, 25);            // up to ~500ms
+            if (!reaped) {
+                kill(bashPID, SIGHUP);
+                reaped = try_reap(20, 25);             // up to ~500ms more
+            }
+            if (!reaped) {
+                kill(bashPID, SIGKILL);
+                waitpid(bashPID, nullptr, 0);
+            }
         }
-        close(master_fd);
-      if (bashThread) {
+
+        if (master_fd >= 0) {
+            close(master_fd);
+            master_fd = -1;
+        }
+        if (bashThread) {
             SDL_WaitThread(bashThread, nullptr);
+            bashThread = nullptr;
         }
 #endif
         if(font != nullptr)
@@ -3095,6 +3127,7 @@ namespace mx {
             command.clear();
         } else if(command == "exit") {
             app.shutdown();
+            return;
         } else if (words.size()==2 && words[0] == "setfull" && words[1] == "true") {
             app.set_fullscreen(app.win, true);
             print(command + "\nMasterX System: full screen is true\n");

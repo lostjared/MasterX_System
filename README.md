@@ -35,6 +35,25 @@ or run
 
 ```
 
+## Flatpak Build
+
+To build the Flatpak reproducibly from this checkout, run:
+
+```bash
+./build-flatpak.sh
+```
+
+This uses `flatpak-builder` with a temporary work root under `/tmp`, exports a
+local repo to `repo/`, and writes a bundle to `MasterX.flatpak`.
+
+Useful options:
+
+```bash
+./build-flatpak.sh --no-bundle
+./build-flatpak.sh --work-root /tmp/masterx-flatpak-custom
+./build-flatpak.sh --repo-dir /path/to/repo --bundle /path/to/MasterX.flatpak
+```
+
 <img width="2560" height="1440" alt="vlcsnap-2026-05-07-21h03m56s040" src="https://github.com/user-attachments/assets/2f8f901c-f597-4b32-8c3c-46fc3ce5732e" />
 
 <img width="2560" height="1440" alt="Screenshot From 2026-05-07 21-06-55" src="https://github.com/user-attachments/assets/367b67b1-e0fc-4cc2-a195-521f135a695f" />
