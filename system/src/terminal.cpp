@@ -2300,6 +2300,14 @@ void Terminal::draw(mxApp &app) {
   if (requiredInputLines < 1) {
     requiredInputLines = 1;
   }
+  int reservedInputRows = requiredInputLines + 1;
+#if defined(__linux__) || defined(__APPLE__)
+  if (!waitingForInput) {
+    // In PTY mode bash/readline owns the prompt and input line; reserving
+    // cooked-mode input rows leaves a visible blank gap at the bottom.
+    reservedInputRows = 0;
+  }
+#endif
 
   // In alt-screen (vim/nano/...) we draw the program-owned grid only,
   // with no input echo line, no scrollback offset, and a cursor that
@@ -2334,8 +2342,9 @@ void Terminal::draw(mxApp &app) {
     return;
   }
 
+  const int drawStopRows = reservedInputRows > 0 ? reservedInputRows : 1;
   for (int i = scrollOffset; i < static_cast<int>(outputLines.size()); ++i) {
-    if (y + lineHeight * (requiredInputLines + 1) > viewport.y + viewport.h) {
+    if (y + lineHeight * drawStopRows > viewport.y + viewport.h) {
       break;
     }
     renderOutputLine(app, i, viewport.x, y);
@@ -2440,14 +2449,14 @@ void Terminal::draw(mxApp &app) {
       maxVisibleLines = 1;
   }
   // scrollOffset indexes outputLines directly. The drawing loop above
-  // reserves the bottom (requiredInputLines + 1) rows for the input
+  // reserves the bottom reservedInputRows for any locally-rendered input
   // line, so the largest scrollOffset that still fills the output
-  // area is outputLines.size() - (maxVisibleLines - requiredInputLines).
+  // area is outputLines.size() - (maxVisibleLines - reservedInputRows).
   // Clamp against that so resizing larger doesn't leave blank space
   // below the last line (which also pushed the cursor and scrollbar
   // mid-window).
   int outputCount = static_cast<int>(outputLines.size());
-  int visibleOutputRows = maxVisibleLines - (requiredInputLines + 1);
+  int visibleOutputRows = maxVisibleLines - reservedInputRows;
   if (visibleOutputRows < 1)
     visibleOutputRows = 1;
   int maxScroll = outputCount - visibleOutputRows;
@@ -3279,7 +3288,13 @@ bool Terminal::event(mxApp &app, SDL_Event &e) {
         calculateWrappedLinesForText(inputText, maxWidth - promptW, promptW);
     if (reqInput < 1)
       reqInput = 1;
-    int visibleOutputRows = maxVisibleLines - (reqInput + 1);
+    int reservedInputRows = reqInput + 1;
+#if defined(__linux__) || defined(__APPLE__)
+    if (!waitingForInput) {
+      reservedInputRows = 0;
+    }
+#endif
+    int visibleOutputRows = maxVisibleLines - reservedInputRows;
     if (visibleOutputRows < 1)
       visibleOutputRows = 1;
     int maxScroll = outputCount - visibleOutputRows;
@@ -3321,7 +3336,13 @@ void Terminal::handleScrolling(int direction) {
       calculateWrappedLinesForText(inputText, maxWidth - promptW, promptW);
   if (reqInput < 1)
     reqInput = 1;
-  int visibleOutputRows = maxVisibleLines - (reqInput + 1);
+  int reservedInputRows = reqInput + 1;
+#if defined(__linux__) || defined(__APPLE__)
+  if (!waitingForInput) {
+    reservedInputRows = 0;
+  }
+#endif
+  int visibleOutputRows = maxVisibleLines - reservedInputRows;
   if (visibleOutputRows < 1)
     visibleOutputRows = 1;
   int maxScroll = outputCount - visibleOutputRows;
@@ -3657,6 +3678,11 @@ int Terminal::calculateTotalWrappedLines() {
 
 int Terminal::total_Lines() {
   int totalLines = static_cast<int>(outputLines.size());
+#if defined(__linux__) || defined(__APPLE__)
+  if (!waitingForInput) {
+    return totalLines;
+  }
+#endif
   SDL_Rect rc;
   Window::getRect(rc);
 
