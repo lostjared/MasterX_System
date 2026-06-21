@@ -165,6 +165,8 @@ private:
   int maxVisibleLines = 10;
   bool showCursor = true;
   Uint32 cursorTimer = 0, cursorBlinkInterval = 100;
+  void resetCursorBlink();
+  bool cursorBlinkOn() const;
   SDL_Color text_color;
   bool isMaximized = false;
   TTF_Font *font;

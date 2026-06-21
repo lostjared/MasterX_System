@@ -2328,12 +2328,7 @@ void Terminal::draw(mxApp &app) {
       cellW = 8;
     int cur_y = viewport.y + ansiCursorRow * lineHeight;
     int cur_x = viewport.x + ansiCursorCol * cellW;
-    Uint32 t = SDL_GetTicks();
-    if (t - cursorTimer >= cursorBlinkInterval) {
-      showCursor = !showCursor;
-      cursorTimer = t;
-    }
-    drawCursor(app, cur_x, cur_y, showCursor);
+    drawCursor(app, cur_x, cur_y, cursorBlinkOn());
     int totalLinesAlt = static_cast<int>(outputLines.size());
     if (totalLinesAlt <= maxVisibleLines) {
       scrollBarHeight = 0;
@@ -2380,17 +2375,12 @@ void Terminal::draw(mxApp &app) {
     int curCol = ansiCursorCol;
     int cur_y = viewport.y + curRow * lineHeight;
     int cur_x = viewport.x + curCol * cellW;
-    Uint32 t = SDL_GetTicks();
-    if (t - cursorTimer >= cursorBlinkInterval) {
-      showCursor = !showCursor;
-      cursorTimer = t;
-    }
     // Only draw the cursor if its row is within the actually
     // rendered output range (cy is the y just past the last line
     // we drew). Otherwise scrolling away from the prompt would
     // draw a stray cursor in the reserved input area.
     if (cur_y >= viewport.y && cur_y + lineHeight <= cy)
-      drawCursor(app, cur_x, cur_y, showCursor);
+      drawCursor(app, cur_x, cur_y, cursorBlinkOn());
   }
 #endif
 
@@ -2413,12 +2403,7 @@ void Terminal::draw(mxApp &app) {
       TTF_SizeText(font, textBeforeCursor.c_str(), &inputWidth, nullptr);
     }
 
-    Uint32 currentTime = SDL_GetTicks();
-    if (currentTime - cursorTimer >= cursorBlinkInterval) {
-      showCursor = !showCursor;
-      cursorTimer = currentTime;
-    }
-    drawCursor(app, inputStartX + inputWidth, lastLineY, showCursor);
+    drawCursor(app, inputStartX + inputWidth, lastLineY, cursorBlinkOn());
   } else {
     std::string displayPrompt = waitingForInput ? "" : prompt;
     renderTextWrapped(app, displayPrompt, inputText, cx, cy, maxWidth);
@@ -2641,6 +2626,18 @@ void Terminal::drawCursor(mxApp &app, int x, int y, bool showCursor) {
   }
 }
 
+void Terminal::resetCursorBlink() {
+  cursorTimer = SDL_GetTicks();
+  showCursor = true;
+}
+
+bool Terminal::cursorBlinkOn() const {
+  if (cursorBlinkInterval == 0)
+    return true;
+  Uint32 elapsed = SDL_GetTicks() - cursorTimer;
+  return ((elapsed / cursorBlinkInterval) % 2) == 0;
+}
+
 void Terminal::renderTextWrapped(mxApp &app, const std::string &prompt,
                                  const std::string &inputText, int &x, int &y,
                                  int maxWidth) {
@@ -2749,12 +2746,7 @@ void Terminal::renderTextWrapped(mxApp &app, const std::string &prompt,
       cursorX = rc.x + margin;
     }
 
-    Uint32 currentTime = SDL_GetTicks();
-    if (currentTime - cursorTimer >= cursorBlinkInterval) {
-      showCursor = !showCursor;
-      cursorTimer = currentTime;
-    }
-    drawCursor(app, cursorX, cursorY, showCursor);
+    drawCursor(app, cursorX, cursorY, cursorBlinkOn());
     return;
   }
 #endif
@@ -2871,12 +2863,7 @@ void Terminal::renderTextWrapped(mxApp &app, const std::string &prompt,
     cursorY = sy;
   }
 
-  Uint32 currentTime = SDL_GetTicks();
-  if (currentTime - cursorTimer >= cursorBlinkInterval) {
-    showCursor = !showCursor;
-    cursorTimer = currentTime;
-  }
-  drawCursor(app, cursorX, cursorY, showCursor);
+  drawCursor(app, cursorX, cursorY, cursorBlinkOn());
 }
 
 bool Terminal::event(mxApp &app, SDL_Event &e) {
@@ -2959,11 +2946,13 @@ bool Terminal::event(mxApp &app, SDL_Event &e) {
   if (e.type == SDL_TEXTINPUT) {
     inputText.insert(cursorPosition, e.text.text);
     cursorPosition += strlen(e.text.text);
+    resetCursorBlink();
     scroll();
     return true;
   }
 
   if (e.type == SDL_KEYDOWN) {
+    resetCursorBlink();
     switch (e.key.keysym.sym) {
     case SDLK_d: {
       SDL_Keycode keycode = e.key.keysym.sym;
@@ -3129,6 +3118,7 @@ bool Terminal::event(mxApp &app, SDL_Event &e) {
         inputText.clear();
         cursorPosition = 0;
         waitingForInput = false;
+        resetCursorBlink();
 #ifndef FOR_WASM
         inputCondition.notify_one();
 #endif
@@ -3183,6 +3173,7 @@ bool Terminal::event(mxApp &app, SDL_Event &e) {
           prompt = continuationPrompt;
           inputText.clear();
           cursorPosition = 0;
+          resetCursorBlink();
           forceFrameRender();
         } else {
           ensureNewlineBeforeEcho();
@@ -3190,6 +3181,7 @@ bool Terminal::event(mxApp &app, SDL_Event &e) {
           stored_commands.push_back(inputText);
           inputText.clear();
           cursorPosition = 0;
+          resetCursorBlink();
           forceFrameRender();
           processCommand(app, multiLineBuffer);
           store_offset = stored_commands.size();
@@ -3209,6 +3201,7 @@ bool Terminal::event(mxApp &app, SDL_Event &e) {
         store_offset = stored_commands.size();
         inputText.clear();
         cursorPosition = 0;
+        resetCursorBlink();
         scroll();
       }
 #endif
@@ -3506,6 +3499,7 @@ void Terminal::updateText(const std::string &text) {
 
 void Terminal::print(const std::string &s) {
   updateText(s);
+  resetCursorBlink();
   std::string line;
   SDL_Rect rc;
   Window::getRect(rc);
