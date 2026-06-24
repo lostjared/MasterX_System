@@ -116,7 +116,12 @@ void mxApp::shutdown() { active = false; }
 
 void mxApp::set_fullscreen(SDL_Window *window, bool fullscreen) {
   if (fullscreen) {
+#ifdef __EMSCRIPTEN__
+    // Browser fullscreen works more reliably as desktop fullscreen.
+    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+#else
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+#endif
   } else {
     SDL_SetWindowFullscreen(window, 0);
   }

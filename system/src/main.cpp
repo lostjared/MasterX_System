@@ -28,6 +28,7 @@
 #ifdef __EMSCRIPTEN__
 #include "ast.hpp"
 #include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
 #endif
 
 #if defined(_MSC_VER)
@@ -56,6 +57,48 @@ std::string curTime() {
 std::vector<std::unique_ptr<mx::Screen>> *screens = nullptr;
 int cur_screen = 0;
 mx::mxApp *p_app = nullptr;
+
+#ifdef __EMSCRIPTEN__
+namespace {
+
+void pushResizeEvent(mx::mxApp &app) {
+  if (app.win == nullptr)
+    return;
+
+  int w = 0;
+  int h = 0;
+  SDL_GetWindowSize(app.win, &w, &h);
+  if (w <= 0 || h <= 0)
+    return;
+
+  SDL_Event ev{};
+  ev.type = SDL_WINDOWEVENT;
+  ev.window.windowID = SDL_GetWindowID(app.win);
+  ev.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+  ev.window.data1 = w;
+  ev.window.data2 = h;
+  SDL_PushEvent(&ev);
+}
+
+EM_BOOL onFullscreenChange(int, const EmscriptenFullscreenChangeEvent *,
+                           void *userData) {
+  auto *app = static_cast<mx::mxApp *>(userData);
+  if (app != nullptr) {
+    pushResizeEvent(*app);
+  }
+  return EM_TRUE;
+}
+
+EM_BOOL onCanvasResize(int, const EmscriptenUiEvent *, void *userData) {
+  auto *app = static_cast<mx::mxApp *>(userData);
+  if (app != nullptr) {
+    pushResizeEvent(*app);
+  }
+  return EM_TRUE;
+}
+
+} // namespace
+#endif
 
 void setScreen(int scr) {
   if (screens != nullptr && scr >= 0 && scr < static_cast<int>(screens->size()))
@@ -309,6 +352,14 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
     return 1;
   }
+
+#ifdef __EMSCRIPTEN__
+  emscripten_set_fullscreenchange_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT,
+                                           &app, EM_TRUE, onFullscreenChange);
+  emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, &app, EM_TRUE,
+                                 onCanvasResize);
+#endif
+
   if (full) {
     app.set_fullscreen(app.win, true);
   }
